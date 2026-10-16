@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>画像作成ツール</title>
+<meta name="description" content="メッセージカードとポスターをブラウザだけで作れる無料ツール">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#f5f3f8; --surface:#ffffff; --fg:#26222e; --muted:#6c6678; --line:#e2dde9;
+  --pink:#c2457a; --blue:#4f5bd5; --field:#faf9fc;
+  --font-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#18161d; --surface:#232029; --fg:#efecf4; --muted:#a69fb2; --line:#37323f;
+  --pink:#f07aa8; --blue:#8f98ff; --field:#2b2732; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.75}
+.wrap{max-width:960px;margin:0 auto;padding-block:40px 64px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-family:var(--font-display);font-size:clamp(1.7rem,4vw,2.3rem);margin:0 0 6px;text-wrap:balance}
+.lead{color:var(--muted);margin:0 0 28px}
+.tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px;margin-bottom:44px}
+.tool{display:flex;flex-direction:column;gap:10px;padding:22px;border-radius:14px;background:var(--surface);border:1px solid var(--line);text-decoration:none;color:inherit;transition:transform .15s,box-shadow .15s}
+.tool:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(40,20,60,.12)}
+.tool:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+.tool .ratio{font-size:.75rem;letter-spacing:.06em;color:var(--muted)}
+.tool h2{font-family:var(--font-display);font-size:1.3rem;margin:0}
+.tool p{margin:0;color:var(--muted);font-size:.9rem}
+.tool .go{margin-top:auto;font-weight:700}
+.card .go{color:var(--pink)} .poster .go{color:var(--blue)}
+.thumb{height:92px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:10px}
+.card .thumb{background:linear-gradient(120deg,#ffd6e7,#e9d5ff 60%,#c7e3ff)}
+.poster .thumb{background:linear-gradient(160deg,#c9d2ff,#f3cfee 60%,#ffe1c4)}
+.thumb i{display:block;background:#fff;border-radius:6px;box-shadow:0 3px 10px rgba(0,0,0,.12)}
+section{margin-top:36px}
+section h2{font-family:var(--font-display);font-size:1.25rem;margin:0 0 10px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+section h3{font-size:1rem;margin:20px 0 6px}
+ol,ul{padding-left:1.4em;margin:6px 0}
+li{margin:3px 0}
+.note{background:var(--field);border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:.9rem}
+code{font-size:.88em;background:var(--field);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+footer{margin-top:48px;color:var(--muted);font-size:.8rem}
+@media (prefers-reduced-motion: reduce){.tool{transition:none}.tool:hover{transform:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>画像作成ツール</h1>
+  <p class="lead">ブラウザだけでメッセージカードやポスターが作れます。インストールや登録は不要で、選んだ画像はどこにも送信されません。</p>
+
+  <div class="tools">
+    <a class="tool card" href="message-card.html">
+      <div class="thumb" aria-hidden="true"><i style="width:70px;height:80px;transform:rotate(-4deg)"></i><i style="width:110px;height:44px;opacity:.8"></i></div>
+      <span class="ratio">16:9 / 1:1 ・ Twitter向け</span>
+      <h2>メッセージカードメーカー</h2>
+      <p>背景・写真・メッセージ・フォントを選んで、カード画像を1枚作ります。</p>
+      <span class="go">使ってみる →</span>
+    </a>
+    <a class="tool poster" href="poster-maker.html">
+      <div class="thumb" aria-hidden="true"><i style="width:56px;height:76px"></i><i style="width:56px;height:76px;opacity:.85"></i><i style="width:56px;height:76px;opacity:.7"></i></div>
+      <span class="ratio">背景画像のサイズに自動で合わせる</span>
+      <h2>ポスターメーカー</h2>
+      <p>レイアウトのテンプレートを作って保存し、画像を差し込むだけでポスターを量産できます。</p>
+      <span class="go">使ってみる →</span>
+    </a>
+  </div>
+
+  <section>
+    <h2>メッセージカードメーカーの使い方</h2>
+    <ol>
+      <li>サイズ(16:9 横長 か 1:1 正方形)を選びます。</li>
+      <li>背景画像を選びます。「タイル」にすると画像を敷き詰められ、暗さ・白さ・ぼかしも調整できます。</li>
+      <li>写真を選び、配置(左・右・なし)とフレーム(角丸・丸・チェキ風)を決めます。透明PNGを「フレームに重ねる画像」に入れると、リボンなどの飾りを上に乗せられます。</li>
+      <li>メッセージと差出人を入力し、フォントと文字の色を選びます。手持ちのフォントファイル(.ttf / .otf)も使えます。</li>
+      <li>「PNGで保存」を押して完成です。</li>
+    </ol>
+    <p>よく使う設定は、一番下の「今の設定を初期値にする」で保存しておくと、次回からその状態で始まります。スライダーをダブルクリックすると、その項目だけ初期値に戻ります。</p>
+  </section>
+
+  <section>
+    <h2>ポスターメーカーの使い方</h2>
+    <h3>1. テンプレートを作る</h3>
+    <ol>
+      <li>「テンプレートを作る」画面で、写真・画像・ロゴ・文字の枠をドラッグして配置します。右下の丸をつまむと大きさが変わり、実際のピクセル数も表示されます。</li>
+      <li>枠ごとに形・縁・影・回転を設定できます。ロゴなど全員共通の画像は「固定の画像」に入れておきます。</li>
+      <li>ポスター全体に重ねる装飾フレーム(透明PNG)や、共通の背景もテンプレートに入れられます。</li>
+    </ol>
+    <p>テンプレートは使っているブラウザに自動で保存されます。</p>
+
+    <h3>2. ポスターを作る</h3>
+    <ol>
+      <li>「ポスターを作る」画面でテンプレートを選びます。</li>
+      <li>背景画像を選ぶと、その画像と同じサイズのポスターになります。</li>
+      <li>各枠に画像を入れ、必要なら文字を入力して「PNGで保存」します。</li>
+    </ol>
+
+    <h3>3. メンバー全員分をまとめて作る</h3>
+    <ol>
+      <li>写真のファイル名をメンバーの名前にしておきます(例:<code>シフォン.png</code>)。</li>
+      <li>文字枠に <code>{名前}</code> と入れておくと、ファイル名がそこに入ります。</li>
+      <li>「まとめて作成」で写真を複数選び、ボタンを押すと、全員分のポスターがZIPで保存されます。</li>
+    </ol>
+
+    <h3>テンプレートを人に渡す・別のPCで使う</h3>
+    <p>「ファイルに書き出す」でテンプレートを画像ごと1つのファイルにできます。受け取った人は「ファイルから読み込む」で同じテンプレートを使えます。</p>
+  </section>
+
+  <section>
+    <h2>注意点</h2>
+    <div class="note">
+      <ul>
+        <li>選んだ画像やテンプレートは、使っているブラウザの中だけで処理・保存されます。サーバーには送られません。</li>
+        <li>ブラウザのデータを消したり、シークレットウィンドウで使ったりすると、保存したテンプレートや初期値は消えます。大事なテンプレートは「ファイルに書き出す」で残しておいてください。</li>
+        <li>とても大きな背景画像(8000px級)は、スマホでは処理しきれないことがあります。その場合はPCで使ってください。</li>
+        <li>Chrome / Edge / Safari の新しいバージョンでの利用がおすすめです。</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>フォントは Google Fonts(SIL Open Font License)を使用しています。</footer>
+</div>
+</body>
+</html>

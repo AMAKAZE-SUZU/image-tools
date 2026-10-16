@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>メッセージカードメーカー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700&family=M+PLUS+Rounded+1c:wght@500;800&family=Kiwi+Maru:wght@500&family=Yusei+Magic&family=Klee+One:wght@600&family=Hachi+Maru+Pop&family=Dela+Gothic+One&family=RocknRoll+One&family=Mochiy+Pop+One&family=Noto+Serif+JP:wght@600&display=swap">
+<style>
+/* Layout: 大きなプレビューを主役に、右(スマホでは下)に操作パネルを積む作業台 */
+:root{
+  --bg:#f6f3f7; --surface:#ffffff; --fg:#2a2430; --muted:#6f6578;
+  --line:#e3dbe8; --accent:#c2457a; --accent-fg:#ffffff; --field:#faf8fb;
+  --font-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1b1720; --surface:#25202b; --fg:#f1ebf4; --muted:#a99db3;
+  --line:#3a3242; --accent:#f07aa8; --accent-fg:#1b1720; --field:#2d2733; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1b1720; --surface:#25202b; --fg:#f1ebf4; --muted:#a99db3;
+  --line:#3a3242; --accent:#f07aa8; --accent-fg:#1b1720; --field:#2d2733; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.6}
+.wrap{max-width:1280px;margin:0 auto;padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;margin-bottom:16px}
+h1{font-family:var(--font-display);font-weight:700;font-size:1.5rem;margin:0;text-wrap:balance}
+header p{margin:0;color:var(--muted);font-size:.85rem}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+@media (max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stage{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:10px;min-width:0}
+@media (max-width:900px){.stage{position:static}}
+.preview{width:100%;max-width:100%;display:block;border-radius:10px;box-shadow:0 6px 24px rgba(60,20,50,.18);background:var(--surface)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hint{color:var(--muted);font-size:.8rem;margin:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 16px 16px;display:flex;flex-direction:column;min-width:0}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 4px;display:flex;flex-direction:column;gap:10px}
+fieldset:first-child{border-top:0}
+legend{font-family:var(--font-display);font-weight:700;font-size:.95rem;padding:0;margin-bottom:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted)}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row>label{flex:1 1 120px;min-width:0}
+input[type=text],textarea,select{font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:100%}
+textarea{min-height:96px;resize:vertical;line-height:1.5}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:100%;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--field);padding:2px}
+input[type=file]{font-size:.8rem;color:var(--muted);max-width:100%}
+.check{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;font:inherit;font-size:.8rem;padding:6px 4px;border:0;background:var(--field);color:var(--fg);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-fg);font-weight:700}
+.btn{font:inherit;font-weight:700;border-radius:999px;padding:9px 18px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.small{font-size:.75rem;padding:4px 10px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lab{display:flex;justify-content:space-between;gap:8px}
+.lab output{color:var(--fg);font-variant-numeric:tabular-nums;font-size:.78rem}
+.btns{display:flex;flex-wrap:wrap;gap:8px}
+#defMsg{min-height:1.3em}
+.tag{font-size:.7rem;letter-spacing:.05em;color:var(--muted)}
+.toplink{font-size:.8rem;color:var(--muted);text-decoration:none;flex-basis:100%}
+.toplink:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <a class="toplink" href="./">← ツール一覧</a>
+    <h1>メッセージカードメーカー</h1>
+    <p>背景・写真・メッセージ・フォントを選んで、Twitter向けの画像を1枚作ります</p>
+  </header>
+
+  <div class="grid">
+    <div class="stage">
+      <img id="preview" class="preview" alt="作成中のメッセージカードのプレビュー">
+      <div class="actions">
+        <button id="dl" class="btn" type="button">PNGで保存</button>
+        <span id="sizeLabel" class="tag"></span>
+      </div>
+      <p class="hint">保存ボタンが効かない場合は、プレビュー画像を右クリック(スマホは長押し)して「画像を保存」してください。最初はサンプルの背景と写真が入っています。</p>
+    </div>
+
+    <form class="panel" id="form" onsubmit="return false">
+      <fieldset>
+        <legend>サイズ</legend>
+        <div class="seg" id="ratioSeg">
+          <button type="button" data-v="16:9" aria-pressed="true">16:9 横長</button>
+          <button type="button" data-v="1:1" aria-pressed="false">1:1 正方形</button>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>背景画像</legend>
+        <input type="file" id="bgFile" accept="image/*">
+        <label>並べ方</label>
+        <div class="seg" id="bgModeSeg">
+          <button type="button" data-v="cover" aria-pressed="true">全面に1枚</button>
+          <button type="button" data-v="tile" aria-pressed="false">タイル</button>
+        </div>
+        <div id="tileOpts" class="row" hidden>
+          <label>タイルの大きさ<input type="range" id="tileSize" min="5" max="60" value="20"></label>
+          <label>すき間<input type="range" id="tileGap" min="0" max="60" value="0"></label>
+          <label>タイルの傾き<input type="range" id="tileRot" min="-45" max="45" value="0"></label>
+          <label>すき間の色<input type="color" id="tileBg" value="#ffffff"></label>
+          <label class="check"><input type="checkbox" id="tileShift"> 1段ごとに半分ずらす</label>
+        </div>
+        <div class="row">
+          <label>背景の暗さ<input type="range" id="bgDim" min="0" max="70" value="0"></label>
+          <label>背景の白さ<input type="range" id="bgLight" min="0" max="80" value="0"></label>
+          <label>ぼかし<input type="range" id="bgBlur" min="0" max="20" value="0"></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>写真</legend>
+        <input type="file" id="photoFile" accept="image/*">
+        <label>配置</label>
+        <div class="seg" id="posSeg">
+          <button type="button" data-v="left" aria-pressed="true">左</button>
+          <button type="button" data-v="right" aria-pressed="false">右</button>
+          <button type="button" data-v="none" aria-pressed="false">なし</button>
+        </div>
+        <label>フレーム</label>
+        <div class="seg" id="frameSeg">
+          <button type="button" data-v="round" aria-pressed="false">角丸</button>
+          <button type="button" data-v="circle" aria-pressed="false">丸</button>
+          <button type="button" data-v="polaroid" aria-pressed="true">チェキ風</button>
+        </div>
+        <div id="frameColorOpts" class="row">
+          <label>フレームの色<input type="color" id="frameColor" value="#ffffff"></label>
+        </div>
+        <label>フレームに重ねる画像(透明PNG。リボンや飾り枠など)<input type="file" id="overlayFile" accept="image/png,image/webp,image/gif"></label>
+        <div id="overlayOpts" hidden>
+          <label>重ねる画像の大きさ<input type="range" id="ovSize" min="30" max="250" value="100"></label>
+          <div class="row">
+            <label>位置 横<input type="range" id="ovX" min="-60" max="60" value="0"></label>
+            <label>縦<input type="range" id="ovY" min="-60" max="60" value="0"></label>
+          </div>
+          <label>回転<input type="range" id="ovRot" min="-45" max="45" value="0"></label>
+          <button type="button" class="btn ghost small" id="ovRemove">重ねる画像を外す</button>
+        </div>
+        <label class="check"><input type="checkbox" id="photoShadow" checked> 影をつける</label>
+        <div class="row">
+          <label>大きさ<input type="range" id="photoSize" min="60" max="120" value="100"></label>
+          <label>傾き<input type="range" id="photoTilt" min="-10" max="10" value="-3"></label>
+        </div>
+        <div class="row">
+          <label>写真の中の位置 横<input type="range" id="photoX" min="0" max="100" value="50"></label>
+          <label>縦<input type="range" id="photoY" min="0" max="100" value="50"></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>メッセージ</legend>
+        <label>本文<textarea id="msg">いつも応援ありがとう！
+みんなのおかげで今日もがんばれました。
+これからもよろしくね</textarea></label>
+        <label>差出人(空欄なら表示しません)<input type="text" id="sign" value="シフォンより"></label>
+        <label>文字の揃え</label>
+        <div class="seg" id="alignSeg">
+          <button type="button" data-v="left" aria-pressed="false">左</button>
+          <button type="button" data-v="center" aria-pressed="true">中央</button>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>フォント</legend>
+        <label>フォント<select id="font"></select></label>
+        <label>フォントファイルを追加(.ttf / .otf / .woff)<input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2"></label>
+        <label>PCに入っているフォント名で指定<input type="text" id="localFont" placeholder="例:けいふぉんと"></label>
+        <label>文字の大きさ<input type="range" id="size" min="28" max="120" value="62"></label>
+        <div class="row">
+          <label>文字色<input type="color" id="color" value="#5a2a48"></label>
+          <label>縁取り色<input type="color" id="strokeColor" value="#ffffff"></label>
+        </div>
+        <label>縁取りの太さ<input type="range" id="stroke" min="0" max="30" value="10"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>文字の下地</legend>
+        <label class="check"><input type="checkbox" id="panelOn" checked> 半透明の下地を敷く</label>
+        <div class="row">
+          <label>下地の色<input type="color" id="panelColor" value="#ffffff"></label>
+          <label>濃さ<input type="range" id="panelAlpha" min="10" max="100" value="62"></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>初期値</legend>
+        <p class="hint">今のスライダーや色、配置などの設定を、次に開いたときの初期値にできます(本文・画像・追加したフォントファイルは含みません)。スライダーはダブルクリックでその初期値に戻ります。</p>
+        <div class="btns">
+          <button type="button" class="btn small" id="defSave">今の設定を初期値にする</button>
+          <button type="button" class="btn ghost small" id="defApply">初期値に戻す</button>
+          <button type="button" class="btn ghost small" id="defClear">保存した初期値を消す</button>
+        </div>
+        <p class="hint" id="defMsg" role="status"></p>
+      </fieldset>
+    </form>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const FONTS = [
+  {name:"Zen Maru Gothic(丸ゴシック)", fam:"Zen Maru Gothic", w:700},
+  {name:"M PLUS Rounded 1c(丸ゴシック太)", fam:"M PLUS Rounded 1c", w:800},
+  {name:"Kiwi Maru(やわらか明朝)", fam:"Kiwi Maru", w:500},
+  {name:"Klee One(手書き風)", fam:"Klee One", w:600},
+  {name:"Yusei Magic(マーカー風)", fam:"Yusei Magic", w:400},
+  {name:"Hachi Maru Pop(まるもじ)", fam:"Hachi Maru Pop", w:400},
+  {name:"Mochiy Pop One(ポップ)", fam:"Mochiy Pop One", w:400},
+  {name:"RocknRoll One(太ゴシック)", fam:"RocknRoll One", w:400},
+  {name:"Dela Gothic One(極太)", fam:"Dela Gothic One", w:400},
+  {name:"Noto Serif JP(明朝)", fam:"Noto Serif JP", w:600},
+];
+const fontSel = $('font');
+function addFontOption(f, select){
+  const o = document.createElement('option');
+  o.value = String(FONTS.indexOf(f)); o.textContent = f.name;
+  fontSel.appendChild(o); if(select) fontSel.value = o.value;
+}
+FONTS.forEach(f => addFontOption(f));
+
+const st = {ratio:"16:9", pos:"left", frame:"polaroid", align:"center", bgMode:"cover"};
+const SEGS = {ratio:'ratioSeg', pos:'posSeg', frame:'frameSeg', align:'alignSeg', bgMode:'bgModeSeg'};
+function setSeg(key, v){
+  const el = $(SEGS[key]); const b = el.querySelector(`[data-v="${v}"]`); if(!b) return;
+  st[key] = v;
+  el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x===b));
+  if(key==='bgMode') $('tileOpts').hidden = v!=='tile';
+}
+function seg(id, key){
+  const el = $(id);
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    setSeg(key, b.dataset.v);
+    schedule();
+  });
+}
+seg('ratioSeg','ratio'); seg('posSeg','pos'); seg('frameSeg','frame'); seg('alignSeg','align'); seg('bgModeSeg','bgMode');
+
+/* ---------- サンプル素材 ---------- */
+function sampleBg(){
+  const c = document.createElement('canvas'); c.width=1600; c.height=1600;
+  const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0,0,1600,1600);
+  gr.addColorStop(0,'#ffd6e7'); gr.addColorStop(.55,'#e9d5ff'); gr.addColorStop(1,'#c7e3ff');
+  g.fillStyle = gr; g.fillRect(0,0,1600,1600);
+  let s = 7; const rnd = () => (s = (s*16807)%2147483647)/2147483647;
+  for(let i=0;i<46;i++){
+    const x=rnd()*1600, y=rnd()*1600, r=20+rnd()*120;
+    g.fillStyle = `rgba(255,255,255,${.12+rnd()*.25})`;
+    g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
+  }
+  for(let i=0;i<40;i++){
+    const x=rnd()*1600, y=rnd()*1600, r=4+rnd()*8;
+    g.fillStyle='rgba(255,255,255,.85)'; star(g,x,y,r);
+  }
+  return c;
+}
+function star(g,x,y,r){
+  g.beginPath();
+  for(let i=0;i<8;i++){const a=i*Math.PI/4, rr=i%2?r*.35:r; g.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);}
+  g.closePath(); g.fill();
+}
+function samplePhoto(){
+  const c = document.createElement('canvas'); c.width=800; c.height=1000;
+  const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0,0,0,1000);
+  gr.addColorStop(0,'#ffb4c8'); gr.addColorStop(1,'#ffe3b3');
+  g.fillStyle=gr; g.fillRect(0,0,800,1000);
+  g.fillStyle='rgba(255,255,255,.9)'; g.beginPath(); g.arc(400,380,150,0,Math.PI*2); g.fill();
+  g.fillStyle='#f3a0b8'; g.beginPath(); g.ellipse(400,900,330,260,0,Math.PI,0); g.fill();
+  g.fillStyle='rgba(120,60,90,.55)'; g.font='700 52px "Zen Maru Gothic", sans-serif';
+  g.textAlign='center'; g.fillText('サンプル写真',400,660);
+  return c;
+}
+let bgImg = sampleBg(), photoImg = samplePhoto();
+
+let overlayImg = null;
+
+function loadImageFile(file){
+  return new Promise((res,rej) => {
+    const url = URL.createObjectURL(file); const im = new Image();
+    im.onload = () => res(im); im.onerror = rej; im.src = url;
+  });
+}
+$('bgFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if(!f) return;
+  try{ bgImg = await loadImageFile(f); schedule(); }catch(err){ alertHint('背景画像を読み込めませんでした。PNGかJPEGを選んでください。'); }
+});
+$('photoFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if(!f) return;
+  try{ photoImg = await loadImageFile(f); if(st.pos==='none'){ $('posSeg').querySelector('[data-v=left]').click(); } schedule(); }
+  catch(err){ alertHint('写真を読み込めませんでした。PNGかJPEGを選んでください。'); }
+});
+$('overlayFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if(!f) return;
+  try{ overlayImg = await loadImageFile(f); $('overlayOpts').hidden=false; schedule(); }
+  catch(err){ alertHint('重ねる画像を読み込めませんでした。PNGを選んでください。'); }
+});
+$('ovRemove').addEventListener('click', () => { overlayImg=null; $('overlayFile').value=''; $('overlayOpts').hidden=true; schedule(); });
+let userFontN = 0;
+$('fontFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if(!f) return;
+  try{
+    const buf = await f.arrayBuffer();
+    const fam = 'UserFont' + (++userFontN);
+    const ff = new FontFace(fam, buf); await ff.load(); document.fonts.add(ff);
+    const entry = {name: f.name.replace(/\.[^.]+$/,'') + '(追加したフォント)', fam, w:400};
+    FONTS.push(entry); addFontOption(entry, true); $('localFont').value=''; schedule();
+  }catch(err){ alertHint('フォントを読み込めませんでした。ttf / otf / woff ファイルを選んでください。'); }
+});
+function alertHint(t){ const h=document.querySelector('.hint'); h.textContent=t; h.style.color='var(--accent)'; }
+
+/* ---------- 描画 ---------- */
+const cv = document.createElement('canvas'); const ctx = cv.getContext('2d');
+
+function drawCover(img,x,y,w,h,fx=.5,fy=.5,c=ctx){
+  const iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height;
+  const s=Math.max(w/iw,h/ih), sw=w/s, sh=h/s;
+  c.drawImage(img,(iw-sw)*fx,(ih-sh)*fy,sw,sh,x,y,w,h);
+}
+function rr(x,y,w,h,r){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
+function hexA(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`; }
+
+const NO_START = '、。，．,.！？!?）)」』】〉》ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ～〜…‥';
+function wrap(text, maxW){
+  const out=[];
+  for(const para of text.split('\n')){
+    if(para===''){ out.push(''); continue; }
+    let line='';
+    const chars=[...para];
+    for(let i=0;i<chars.length;i++){
+      const ch=chars[i];
+      if(line && ctx.measureText(line+ch).width>maxW && !NO_START.includes(ch)){ out.push(line); line=ch; }
+      else line+=ch;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+function currentFont(){
+  const local = $('localFont').value.trim();
+  if(local) return {fam:local, w:400};
+  return FONTS[+fontSel.value] || FONTS[0];
+}
+
+async function render(){
+  const [W,H] = st.ratio==='1:1' ? [1200,1200] : [1600,900];
+  cv.width=W; cv.height=H;
+  const S = Math.min(W/1600, H/900);
+  const f = currentFont();
+  const msg = $('msg').value, sign = $('sign').value.trim();
+  try{ await document.fonts.load(`${f.w} 60px "${f.fam}"`, msg+sign+'あ'); }catch(e){}
+
+  // 背景
+  ctx.save();
+  const blur=+$('bgBlur').value;
+  if(blur) ctx.filter=`blur(${blur*S}px)`;
+  if(st.bgMode==='tile') drawTiles(W,H,S,blur);
+  else if(blur) drawCover(bgImg,-blur*2,-blur*2,W+blur*4,H+blur*4);
+  else drawCover(bgImg,0,0,W,H);
+  ctx.filter='none';
+  ctx.restore();
+  const dim=+$('bgDim').value/100; if(dim){ ctx.fillStyle=`rgba(0,0,0,${dim})`; ctx.fillRect(0,0,W,H); }
+  const light=+$('bgLight').value/100; if(light){ ctx.fillStyle=`rgba(255,255,255,${light})`; ctx.fillRect(0,0,W,H); }
+
+  // レイアウト
+  const pad = 70*S;
+  const stacked = W/H < 1.3;
+  let tb = {x:pad,y:pad,w:W-pad*2,h:H-pad*2};
+  if(st.pos!=='none' && photoImg){
+    const k = +$('photoSize').value/100;
+    let pw, ph;
+    if(stacked){ ph = H*.44*k; pw = st.frame==='circle'? ph : ph*1.0; }
+    else { ph = H*.74*k; pw = st.frame==='circle'? ph : ph*.82; }
+    let px, py;
+    if(stacked){ px=(W-pw)/2 + (st.pos==='left'?-1:st.pos==='right'?1:0)*W*.18; py=pad*.9; tb={x:pad,y:py+ph+pad*.6,w:W-pad*2,h:H-(py+ph+pad*.6)-pad}; }
+    else{
+      py=(H-ph)/2;
+      px = st.pos==='left' ? pad+20*S : W-pad-20*S-pw;
+      const gap=60*S;
+      tb = st.pos==='left' ? {x:px+pw+gap,y:pad,w:W-(px+pw+gap)-pad,h:H-pad*2} : {x:pad,y:pad,w:px-gap-pad,h:H-pad*2};
+    }
+    drawPhoto(px,py,pw,ph,S);
+  }
+
+  // 文字
+  let size = +$('size').value*S;
+  const lh = 1.55;
+  const innerPad = 44*S;
+  const maxW = tb.w - innerPad*2;
+  let lines, signSize, blockH;
+  for(let tries=0; tries<40; tries++){
+    ctx.font = `${f.w} ${size}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
+    lines = wrap(msg, maxW);
+    signSize = size*.62;
+    blockH = lines.length*size*lh + (sign? signSize*1.9 : 0);
+    if(blockH <= tb.h - innerPad*2 || size < 14*S) break;
+    size *= .94;
+  }
+  ctx.font = `${f.w} ${size}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
+  let widest = Math.max(1,...lines.map(l=>ctx.measureText(l).width));
+  if(sign){ ctx.font = `${f.w} ${signSize}px "${f.fam}", "Zen Maru Gothic", sans-serif`; widest=Math.max(widest, ctx.measureText(sign).width); }
+
+  if($('panelOn').checked){
+    const pw2 = Math.min(tb.w, widest + innerPad*2), ph2 = Math.min(tb.h, blockH + innerPad*2);
+    const px2 = tb.x + (tb.w-pw2)/2, py2 = tb.y + (tb.h-ph2)/2;
+    ctx.save();
+    ctx.shadowColor='rgba(0,0,0,.12)'; ctx.shadowBlur=30*S; ctx.shadowOffsetY=8*S;
+    ctx.fillStyle = hexA($('panelColor').value, +$('panelAlpha').value/100);
+    rr(px2,py2,pw2,ph2,36*S); ctx.fill();
+    ctx.restore();
+  }
+
+  const strokeW = +$('stroke').value*S*(size/(62*S));
+  const color=$('color').value, sc=$('strokeColor').value;
+  ctx.textBaseline='middle'; ctx.lineJoin='round'; ctx.miterLimit=2;
+  const blockX = tb.x + (tb.w - widest)/2;
+  let y = tb.y + (tb.h-blockH)/2 + size*lh/2;
+  const put = (t, sz, align) => {
+    ctx.font = `${f.w} ${sz}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
+    let x;
+    if(align==='right'){ ctx.textAlign='right'; x = blockX+widest; }
+    else if(align==='center'){ ctx.textAlign='center'; x = tb.x+tb.w/2; }
+    else { ctx.textAlign='left'; x = blockX; }
+    if(strokeW>0){ ctx.lineWidth=strokeW*(sz/size); ctx.strokeStyle=sc; ctx.strokeText(t,x,y); }
+    ctx.fillStyle=color; ctx.fillText(t,x,y);
+  };
+  for(const l of lines){ if(l) put(l,size,st.align); y += size*lh; }
+  if(sign){ y += signSize*.5 - size*lh/2 + signSize*.7; put(sign,signSize,'right'); }
+
+  $('sizeLabel').textContent = `${W}×${H}px`;
+  cv.toBlob(b => {
+    if(!b) return;
+    lastBlob = b;
+    const url = URL.createObjectURL(b);
+    const img=$('preview'); const old=img.dataset.url;
+    img.src=url; img.dataset.url=url; if(old) setTimeout(()=>URL.revokeObjectURL(old),2000);
+  }, 'image/png');
+}
+
+function drawTiles(W,H,S,blur){
+  ctx.fillStyle=$('tileBg').value; ctx.fillRect(-blur*2,-blur*2,W+blur*4,H+blur*4);
+  const iw=bgImg.naturalWidth||bgImg.width, ih=bgImg.naturalHeight||bgImg.height;
+  const tw=Math.max(8, 1600*S*(+$('tileSize').value/100)), th=tw*ih/iw;
+  const gap=+$('tileGap').value*S, sx=tw+gap, sy=th+gap;
+  const rot=+$('tileRot').value*Math.PI/180, shift=$('tileShift').checked;
+  ctx.save();
+  ctx.translate(W/2,H/2); ctx.rotate(rot);
+  const R=Math.hypot(W,H)/2+Math.max(sx,sy)*2;
+  const r0=Math.floor(-R/sy)-1, r1=Math.ceil(R/sy)+1;
+  for(let r=r0;r<=r1;r++){
+    const off = shift && (r&1) ? sx/2 : 0;
+    const c0=Math.floor((-R-off)/sx)-1, c1=Math.ceil((R-off)/sx)+1;
+    for(let c=c0;c<=c1;c++) ctx.drawImage(bgImg, c*sx+off-tw/2, r*sy-th/2, tw, th);
+  }
+  ctx.restore();
+}
+
+function drawPhoto(x,y,w,h,S){
+  const fx=+$('photoX').value/100, fy=+$('photoY').value/100;
+  const tilt=+$('photoTilt').value*Math.PI/180;
+  ctx.save();
+  ctx.translate(x+w/2,y+h/2); ctx.rotate(st.frame==='circle'?0:tilt); ctx.translate(-w/2,-h/2);
+  const fc=$('frameColor').value;
+  if($('photoShadow').checked){ ctx.shadowColor='rgba(40,10,30,.28)'; ctx.shadowBlur=34*S; ctx.shadowOffsetY=12*S; }
+  if(st.frame==='circle'){
+    ctx.fillStyle=fc; ctx.beginPath(); ctx.arc(w/2,h/2,w/2,0,Math.PI*2); ctx.fill();
+    ctx.shadowColor='transparent';
+    const b=12*S; ctx.save(); ctx.beginPath(); ctx.arc(w/2,h/2,w/2-b,0,Math.PI*2); ctx.clip();
+    drawCover(photoImg,b,b,w-b*2,h-b*2,fx,fy); ctx.restore();
+  } else if(st.frame==='polaroid'){
+    ctx.fillStyle=fc; rr(0,0,w,h,6*S); ctx.fill();
+    ctx.shadowColor='transparent';
+    const b=w*.06, bottom=w*.2;
+    drawCover(photoImg,b,b,w-b*2,h-b-bottom,fx,fy);
+  } else {
+    ctx.fillStyle=fc; rr(0,0,w,h,34*S); ctx.fill();
+    ctx.shadowColor='transparent';
+    const b=10*S; ctx.save(); rr(b,b,w-b*2,h-b*2,26*S); ctx.clip();
+    drawCover(photoImg,b,b,w-b*2,h-b*2,fx,fy); ctx.restore();
+  }
+  if(overlayImg){
+    ctx.shadowColor='transparent';
+    const iw=overlayImg.naturalWidth||overlayImg.width, ih=overlayImg.naturalHeight||overlayImg.height;
+    const k=Math.min(w/iw,h/ih)*(+$('ovSize').value/100);
+    const ow=iw*k, oh=ih*k;
+    ctx.save();
+    ctx.translate(w/2+(+$('ovX').value/100)*w, h/2+(+$('ovY').value/100)*h);
+    ctx.rotate(+$('ovRot').value*Math.PI/180);
+    ctx.drawImage(overlayImg,-ow/2,-oh/2,ow,oh);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+let lastBlob=null;
+let timer=null, running=false, again=false;
+function schedule(){
+  clearTimeout(timer);
+  timer = setTimeout(async () => {
+    if(running){ again=true; return; }
+    running=true;
+    try{ await render(); }finally{ running=false; if(again){ again=false; schedule(); } }
+  }, 120);
+}
+$('form').addEventListener('input', schedule);
+$('form').addEventListener('change', schedule);
+document.fonts && document.fonts.ready.then(schedule);
+
+let downloadsP = null;
+try{ downloadsP = window.claude?.use ? window.claude.use("downloads") : null; }catch(e){ downloadsP = null; }
+$('dl').addEventListener('click', async () => {
+  const src=$('preview').src; if(!src) return;
+  const d=new Date(), p=n=>String(n).padStart(2,'0');
+  const filename=`messagecard_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.png`;
+  const dl = downloadsP ? await downloadsP.catch(()=>null) : null;
+  if(dl){
+    try{
+      await dl.save({filename, data: lastBlob});
+    }catch(err){
+      if(err && err.code==='declined') return;
+      if(err && err.code==='rate_limited'){ alertHint('保存の確認画面がすでに開いています。少し待ってからもう一度押してください。'); return; }
+      alertHint('ここでは保存ボタンが使えません。プレビュー画像を右クリック(スマホは長押し)して保存してください。');
+    }
+    return;
+  }
+  const a=document.createElement('a');
+  a.href=src; a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+});
+
+/* ---------- スライダーの数値表示 ---------- */
+const UNITS={photoTilt:'°', tileRot:'°', ovRot:'°', ovSize:'%'};
+document.querySelectorAll('#form input[type=range]').forEach(inp => {
+  const lab=inp.closest('label'); const t=lab.firstChild;
+  const head=document.createElement('span'); head.className='lab';
+  const name=document.createElement('span'); name.textContent=t.textContent.trim();
+  const out=document.createElement('output');
+  head.append(name,out); lab.replaceChild(head,t);
+  const upd=()=>{ out.textContent=inp.value+(UNITS[inp.id]||''); };
+  inp.addEventListener('input',upd); inp._upd=upd; upd();
+  inp.addEventListener('dblclick',()=>{
+    const d=(saved||factory)[inp.id]; if(d==null) return;
+    inp.value=d; upd(); schedule();
+  });
+});
+
+/* ---------- 初期値の保存 ---------- */
+const KEY='messagecard-defaults-v1';
+const EXCLUDE=new Set(['msg','bgFile','photoFile','fontFile','overlayFile']);
+function collect(){
+  const o={};
+  document.querySelectorAll('#form input, #form select').forEach(el => {
+    if(!el.id || EXCLUDE.has(el.id) || el.type==='file') return;
+    o[el.id] = el.type==='checkbox' ? el.checked : el.value;
+  });
+  o.fontName = FONTS[+fontSel.value]?.fam;
+  o._seg = {...st};
+  return o;
+}
+function apply(o){
+  for(const [id,v] of Object.entries(o)){
+    if(id==='_seg'||id==='fontName'||id==='font') continue;
+    const el=$(id); if(!el) continue;
+    if(el.type==='checkbox') el.checked=!!v; else el.value=v;
+    el._upd && el._upd();
+  }
+  const fi = FONTS.findIndex(f=>f.fam===o.fontName);
+  if(fi>=0) fontSel.value=String(fi);
+  if(o._seg) for(const k of Object.keys(SEGS)) if(o._seg[k]) setSeg(k,o._seg[k]);
+  schedule();
+}
+function say(t){ $('defMsg').textContent=t; }
+const factory=collect();
+let saved=null;
+try{ const raw=localStorage.getItem(KEY); if(raw) saved=JSON.parse(raw); }catch(e){ saved=null; }
+if(saved) apply(saved);
+$('defSave').addEventListener('click',()=>{
+  const o=collect();
+  try{ localStorage.setItem(KEY, JSON.stringify(o)); saved=o; say('今の設定を初期値として保存しました。'); }
+  catch(e){ saved=o; say('このブラウザでは保存できないため、ページを開いている間だけ初期値として使います。'); }
+});
+$('defApply').addEventListener('click',()=>{ apply(saved||factory); say(saved?'保存した初期値に戻しました。':'まだ初期値を保存していないので、最初の状態に戻しました。'); });
+$('defClear').addEventListener('click',()=>{
+  try{ localStorage.removeItem(KEY); }catch(e){}
+  saved=null; apply(factory); say('保存した初期値を消して、最初の状態に戻しました。');
+});
+
+schedule();
+})();
+</script>
+
+</body>
+</html>

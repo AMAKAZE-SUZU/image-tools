@@ -1,0 +1,758 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>ポスターメーカー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700&family=M+PLUS+Rounded+1c:wght@500;800&family=Kiwi+Maru:wght@500&family=Yusei+Magic&family=Klee+One:wght@600&family=Hachi+Maru+Pop&family=Dela+Gothic+One&family=RocknRoll+One&family=Mochiy+Pop+One&family=Noto+Serif+JP:wght@600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* Layout: 左にポスターの大きなプレビュー(枠をドラッグ編集)、右に「作る/差し込む」の操作パネル */
+:root{
+  --bg:#f3f4f8; --surface:#ffffff; --fg:#23222c; --muted:#676577;
+  --line:#dfdfe8; --accent:#4f5bd5; --accent-fg:#ffffff; --field:#f8f8fb;
+  --sel:#ff4f8b;
+  --font-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#17171d; --surface:#212129; --fg:#eeedf5; --muted:#a3a1b4;
+  --line:#34343f; --accent:#8f98ff; --accent-fg:#17171d; --field:#292932; --sel:#ff7aa8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#17171d; --surface:#212129; --fg:#eeedf5; --muted:#a3a1b4;
+  --line:#34343f; --accent:#8f98ff; --accent-fg:#17171d; --field:#292932; --sel:#ff7aa8; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.6}
+.wrap{max-width:1320px;margin:0 auto;padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;margin-bottom:16px}
+h1{font-family:var(--font-display);font-weight:700;font-size:1.5rem;margin:0}
+.tabs{min-width:min(100%,320px)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:20px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stage{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:10px;min-width:0}
+@media (max-width:920px){.stage{position:static}}
+.board{position:relative;margin:0 auto;max-width:100%;box-shadow:0 8px 28px rgba(20,20,60,.2);border-radius:4px;overflow:hidden;background:var(--surface)}
+.board canvas{display:block;width:100%;height:100%}
+.overlay{position:absolute;inset:0}
+.box{position:absolute;border:1.5px dashed rgba(255,255,255,.9);outline:1.5px dashed rgba(30,30,60,.55);outline-offset:-3px;cursor:move;touch-action:none}
+.box.sel{border:2px solid var(--sel);outline:none;background:rgba(255,79,139,.08)}
+.box .tagl{position:absolute;left:0;top:0;font-size:11px;line-height:1;padding:3px 5px;background:rgba(30,30,60,.7);color:#fff;border-bottom-right-radius:4px;pointer-events:none;white-space:nowrap}
+.box.sel .tagl{background:var(--sel)}
+.box .h{position:absolute;right:-8px;bottom:-8px;width:18px;height:18px;border-radius:50%;background:var(--sel);border:2px solid #fff;cursor:nwse-resize;touch-action:none;display:none}
+.box.sel .h{display:block}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hint{color:var(--muted);font-size:.8rem;margin:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 16px 16px;display:flex;flex-direction:column;min-width:0}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 6px;display:flex;flex-direction:column;gap:10px;min-width:0}
+fieldset:first-child{border-top:0}
+legend{font-family:var(--font-display);font-weight:700;font-size:.95rem;padding:0;margin-bottom:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row>label{flex:1 1 90px}
+input[type=text],input[type=number],textarea,select{font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 9px;width:100%}
+input[type=number]{font-variant-numeric:tabular-nums}
+textarea{min-height:56px;resize:vertical;line-height:1.5}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:100%;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--field);padding:2px}
+input[type=file]{font-size:.78rem;color:var(--muted);max-width:100%}
+.check{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;font:inherit;font-size:.82rem;padding:7px 6px;border:0;background:var(--field);color:var(--fg);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-fg);font-weight:700}
+.btn{font:inherit;font-weight:700;border-radius:999px;padding:8px 16px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{font-size:.76rem;padding:4px 11px}
+.btn.danger{border-color:#d4405f;color:#d4405f;background:transparent}
+.btn:disabled{opacity:.5;cursor:default}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.slots{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.slots li{display:flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field);cursor:pointer}
+.slots li.sel{border-color:var(--sel);box-shadow:inset 3px 0 0 var(--sel)}
+.slots li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kind{font-size:.68rem;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 7px;white-space:nowrap}
+.mini{font:inherit;font-size:.75rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:1px 7px;cursor:pointer}
+.item{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
+.item .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.item .top b{font-size:.85rem}
+.status{min-height:1.3em}
+.progress{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+@media (prefers-reduced-motion: reduce){.progress i{transition:none}}
+.toplink{font-size:.8rem;color:var(--muted);text-decoration:none;flex-basis:100%}
+.toplink:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <a class="toplink" href="./">← ツール一覧</a>
+    <h1>ポスターメーカー</h1>
+    <div class="seg tabs" id="modeSeg">
+      <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
+      <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="stage">
+      <div class="board" id="board">
+        <canvas id="cv"></canvas>
+        <div class="overlay" id="overlay"></div>
+      </div>
+      <div class="actions">
+        <button class="btn" id="savePng" type="button" hidden>PNGで保存</button>
+        <span class="hint" id="sizeLabel"></span>
+      </div>
+      <p class="hint" id="stageHint">枠をドラッグで移動、右下の丸で大きさを変えられます。位置は背景に対する割合で記録されるので、背景画像の大きさが変わっても同じレイアウトになります。</p>
+    </div>
+
+    <div class="panel">
+      <fieldset>
+        <legend>テンプレート</legend>
+        <select id="tplSel" aria-label="テンプレートを選ぶ"></select>
+        <div id="tplEditBox" class="row" style="flex-direction:column;gap:8px">
+          <label>テンプレート名<input type="text" id="tplName"></label>
+          <div class="btns">
+            <button class="btn small" id="tplNew" type="button">新規</button>
+            <button class="btn ghost small" id="tplDup" type="button">複製</button>
+            <button class="btn danger small" id="tplDel" type="button">削除</button>
+          </div>
+          <div class="btns">
+            <button class="btn ghost small" id="tplReset" type="button">レイアウトを初期値に戻す</button>
+          </div>
+          <div class="btns">
+            <button class="btn ghost small" id="tplExport" type="button">ファイルに書き出す</button>
+            <label class="btn ghost small" style="flex-direction:row;display:inline-flex">ファイルから読み込む<input type="file" id="tplImport" accept=".json,application/json" hidden></label>
+          </div>
+        </div>
+        <p class="hint status" id="tplMsg" role="status"></p>
+      </fieldset>
+
+      <!-- テンプレート編集 -->
+      <div id="editPanel">
+        <fieldset>
+          <legend>背景とフレーム(テンプレートに保存)</legend>
+          <label>背景画像(省略可。ポスター作成時に差し替えられます)<input type="file" id="eBg" accept="image/*"></label>
+          <div class="btns"><button class="mini" id="eBgClear" type="button">背景を外す</button></div>
+          <label>装飾フレーム(ポスター全体に重ねる透明PNG)<input type="file" id="eFrame" accept="image/png,image/webp,image/gif"></label>
+          <div class="btns"><button class="mini" id="eFrameClear" type="button">フレームを外す</button></div>
+        </fieldset>
+        <fieldset>
+          <legend>枠の一覧</legend>
+          <p class="hint">下にある枠ほど手前に表示されます。</p>
+          <ul class="slots" id="slotList"></ul>
+          <div class="btns">
+            <button class="btn ghost small" data-add="photo" type="button">+ 写真</button>
+            <button class="btn ghost small" data-add="image" type="button">+ 画像</button>
+            <button class="btn ghost small" data-add="logo" type="button">+ ロゴ</button>
+            <button class="btn ghost small" data-add="text" type="button">+ 文字</button>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>選択中の枠</legend>
+          <div id="props"></div>
+        </fieldset>
+      </div>
+
+      <!-- ポスター作成 -->
+      <div id="makePanel" hidden>
+        <fieldset>
+          <legend>背景とフレーム</legend>
+          <label>背景画像(この画像の大きさでポスターを作ります)<input type="file" id="mBg" accept="image/*"></label>
+          <p class="hint" id="mBgNote"></p>
+          <label>装飾フレーム(テンプレートのものを差し替えたいときだけ)<input type="file" id="mFrame" accept="image/png,image/webp,image/gif"></label>
+        </fieldset>
+        <fieldset>
+          <legend>名前</legend>
+          <label>メンバー名(文字枠の {名前} に入ります)<input type="text" id="mName" placeholder="例:シフォン"></label>
+        </fieldset>
+        <fieldset>
+          <legend>素材</legend>
+          <div id="mSlots" style="display:flex;flex-direction:column;gap:8px"></div>
+        </fieldset>
+        <fieldset>
+          <legend>まとめて作成</legend>
+          <p class="hint">メンバーの写真を複数選ぶと、1人1枚ずつポスターを作ってZIPで保存します。{名前} にはファイル名(拡張子なし)が入るので、「シフォン.png」のように名前を付けておくと便利です。ほかの素材は上で選んだものを共通で使います。</p>
+          <label>差し替える枠<select id="bTarget"></select></label>
+          <label>写真をまとめて選ぶ<input type="file" id="bFiles" accept="image/*" multiple></label>
+          <button class="btn" id="bRun" type="button" disabled>まとめて作成してZIPで保存</button>
+          <div class="progress" aria-hidden="true"><i id="bBar"></i></div>
+          <p class="hint status" id="bMsg" role="status"></p>
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const uid = () => Math.random().toString(36).slice(2,10);
+const FONTS = [
+  {name:"Zen Maru Gothic(丸ゴシック)", fam:"Zen Maru Gothic", w:700},
+  {name:"M PLUS Rounded 1c(丸ゴシック太)", fam:"M PLUS Rounded 1c", w:800},
+  {name:"Kiwi Maru(やわらか明朝)", fam:"Kiwi Maru", w:500},
+  {name:"Klee One(手書き風)", fam:"Klee One", w:600},
+  {name:"Yusei Magic(マーカー風)", fam:"Yusei Magic", w:400},
+  {name:"Hachi Maru Pop(まるもじ)", fam:"Hachi Maru Pop", w:400},
+  {name:"Mochiy Pop One(ポップ)", fam:"Mochiy Pop One", w:400},
+  {name:"RocknRoll One(太ゴシック)", fam:"RocknRoll One", w:400},
+  {name:"Dela Gothic One(極太)", fam:"Dela Gothic One", w:400},
+  {name:"Noto Serif JP(明朝)", fam:"Noto Serif JP", w:600},
+];
+const KIND = {photo:'写真', image:'画像', logo:'ロゴ', text:'文字'};
+
+/* ---------- テンプレート ---------- */
+function newSlot(type, n){
+  const base = {id:uid(), type, label:KIND[type]+(n?n:''), x:.3, y:.4, w:.4, h:.2, rot:0,
+    shape:type==='photo'?'round':'rect', fit:type==='logo'?'contain':'cover',
+    border:type==='photo'?6:0, borderColor:'#ffffff', shadow:type==='photo'||type==='image',
+    above:type==='logo'||type==='text', fixed:null};
+  if(type==='text') Object.assign(base,{text:'テキスト', font:0, size:5, color:'#ffffff', stroke:14, strokeColor:'#4f5bd5', align:'center', shadow:false});
+  if(type==='image') Object.assign(base,{w:.2,h:.14});
+  if(type==='logo') Object.assign(base,{w:.25,h:.1});
+  return base;
+}
+function defaultTemplate(){
+  const s=[];
+  const photo=newSlot('photo'); Object.assign(photo,{x:.08,y:.17,w:.84,h:.48}); s.push(photo);
+  for(let i=0;i<5;i++){ const im=newSlot('image',i+1); Object.assign(im,{x:.08+i*.1725,y:.69,w:.15,h:.11,shape:'round',border:4}); s.push(im); }
+  const logo=newSlot('logo'); Object.assign(logo,{x:.66,y:.04,w:.26,h:.1}); s.push(logo);
+  const t1=newSlot('text'); Object.assign(t1,{label:'名前',text:'{名前}',x:.08,y:.04,w:.56,h:.1,size:6,align:'left'}); s.push(t1);
+  const t2=newSlot('text'); Object.assign(t2,{label:'日付など',text:'',x:.08,y:.84,w:.84,h:.1,size:3.6}); s.push(t2);
+  return {id:uid(), name:'基本レイアウト', bg:null, frame:null, slots:s};
+}
+
+/* ---------- 保存(IndexedDB) ---------- */
+const DB = {
+  db:null, ok:true,
+  open(){
+    if(this.db) return Promise.resolve(this.db);
+    return new Promise((res,rej)=>{
+      try{
+        const r=indexedDB.open('poster-maker',1);
+        r.onupgradeneeded=()=>r.result.createObjectStore('templates',{keyPath:'id'});
+        r.onsuccess=()=>{ this.db=r.result; res(r.result); };
+        r.onerror=()=>rej(r.error);
+      }catch(e){ rej(e); }
+    });
+  },
+  async tx(mode, fn){
+    const db=await this.open();
+    return new Promise((res,rej)=>{
+      const t=db.transaction('templates',mode); const st=t.objectStore('templates');
+      const r=fn(st); t.oncomplete=()=>res(r&&r.result); t.onerror=()=>rej(t.error);
+    });
+  },
+  all(){ return this.tx('readonly', st=>st.getAll()); },
+  put(v){ return this.tx('readwrite', st=>st.put(v)); },
+  del(id){ return this.tx('readwrite', st=>st.delete(id)); },
+};
+
+let templates=[], curId=null, selId=null, mode='edit';
+const cur = () => templates.find(t=>t.id===curId);
+const prod = {bg:null, frame:null, img:{}, text:{}, name:''};
+
+function msg(t){ $('tplMsg').textContent=t; }
+let saveTimer=null;
+function changed(){
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    const T=cur(); if(!T) return;
+    if(!DB.ok) return;
+    try{ await DB.put(structuredClone(T)); }
+    catch(e){ DB.ok=false; msg('このブラウザでは自動保存できません。「ファイルに書き出す」で保存してください。'); }
+  },400);
+}
+
+/* ---------- 画像 ---------- */
+const imgCache=new Map();
+function getImg(src){
+  if(!src) return Promise.resolve(null);
+  if(!imgCache.has(src)) imgCache.set(src, new Promise(res=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src=src; }));
+  return imgCache.get(src);
+}
+const readDataURL = f => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(f); });
+
+const sampleBg = (()=>{
+  const c=document.createElement('canvas'); c.width=1414; c.height=2000;
+  const g=c.getContext('2d');
+  const gr=g.createLinearGradient(0,0,1414,2000);
+  gr.addColorStop(0,'#c9d2ff'); gr.addColorStop(.5,'#f3cfee'); gr.addColorStop(1,'#ffe1c4');
+  g.fillStyle=gr; g.fillRect(0,0,1414,2000);
+  let s=11; const rnd=()=>(s=(s*16807)%2147483647)/2147483647;
+  for(let i=0;i<60;i++){ g.fillStyle=`rgba(255,255,255,${.1+rnd()*.25})`; g.beginPath(); g.arc(rnd()*1414,rnd()*2000,20+rnd()*140,0,Math.PI*2); g.fill(); }
+  return c;
+})();
+
+/* ---------- 描画 ---------- */
+const NO_START='、。，．,.！？!?）)」』】〉》ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ～〜…‥';
+function wrap(c,text,maxW){
+  const out=[];
+  for(const para of text.split('\n')){
+    if(para===''){ out.push(''); continue; }
+    let line='';
+    for(const ch of [...para]){
+      if(line && c.measureText(line+ch).width>maxW && !NO_START.includes(ch)){ out.push(line); line=ch; }
+      else line+=ch;
+    }
+    out.push(line);
+  }
+  return out;
+}
+function drawCover(c,im,x,y,w,h){
+  const iw=im.naturalWidth||im.width, ih=im.naturalHeight||im.height;
+  const s=Math.max(w/iw,h/ih), sw=w/s, sh=h/s;
+  c.drawImage(im,(iw-sw)/2,(ih-sh)/2,sw,sh,x,y,w,h);
+}
+function shapePath(c,slot,x,y,w,h){
+  c.beginPath();
+  if(slot.shape==='circle') c.ellipse(x+w/2,y+h/2,Math.max(1,w/2),Math.max(1,h/2),0,0,Math.PI*2);
+  else c.roundRect(x,y,w,h, slot.shape==='round'? Math.min(w,h)*.12 : 0);
+}
+
+function slotSrc(slot, rmode){
+  if(rmode==='edit') return slot.fixed;
+  return (slot.id in prod.img) ? prod.img[slot.id] : slot.fixed;
+}
+function slotText(slot, rmode, vars){
+  const raw = rmode==='edit' ? (slot.text||'') : ((slot.id in prod.text) ? prod.text[slot.id] : (slot.text||''));
+  return raw.replaceAll('{名前}', vars.name || (rmode==='edit' ? 'メンバー名' : ''));
+}
+
+async function drawSlot(c,slot,W,H,rmode,vars){
+  const x=slot.x*W, y=slot.y*H, w=Math.max(1,slot.w*W), h=Math.max(1,slot.h*H), S=Math.min(W,H)/1000;
+  c.save();
+  c.translate(x+w/2,y+h/2); c.rotate((slot.rot||0)*Math.PI/180); c.translate(-w/2,-h/2);
+  if(slot.shadow){ c.shadowColor='rgba(20,10,40,.3)'; c.shadowBlur=24*S; c.shadowOffsetY=8*S; }
+
+  if(slot.type==='text'){
+    const t=slotText(slot,rmode,vars);
+    if(!t.trim()){ c.shadowColor='transparent'; if(rmode==='edit') placeholder(c,slot,w,h,S); c.restore(); return; }
+    const f=FONTS[slot.font]||FONTS[0];
+    try{ await document.fonts.load(`${f.w} 40px "${f.fam}"`, t); }catch(e){}
+    let size=slot.size/100*H, lines;
+    for(let i=0;i<50;i++){
+      c.font=`${f.w} ${size}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
+      lines=wrap(c,t,w);
+      if(lines.length*size*1.35<=h && Math.max(...lines.map(l=>c.measureText(l).width))<=w*1.01 || size<6) break;
+      size*=.94;
+    }
+    c.textBaseline='middle'; c.lineJoin='round'; c.miterLimit=2;
+    const ax = slot.align==='left'?0 : slot.align==='right'? w : w/2;
+    c.textAlign = slot.align||'center';
+    let ty = h/2 - (lines.length-1)*size*1.35/2;
+    for(const l of lines){
+      if(slot.stroke>0){ c.lineWidth=size*slot.stroke/100; c.strokeStyle=slot.strokeColor; c.strokeText(l,ax,ty); }
+      c.shadowColor='transparent';
+      c.fillStyle=slot.color; c.fillText(l,ax,ty);
+      ty+=size*1.35;
+    }
+    c.restore(); return;
+  }
+
+  const im = await getImg(slotSrc(slot,rmode));
+  if(!im){ c.shadowColor='transparent'; if(rmode!=='export') placeholder(c,slot,w,h,S); c.restore(); return; }
+  const bw=(slot.border||0)*S;
+  if(slot.fit==='contain'){
+    const iw=im.naturalWidth||im.width, ih=im.naturalHeight||im.height;
+    const k=Math.min(w/iw,h/ih), dw=iw*k, dh=ih*k;
+    if(slot.shape!=='rect'){ c.save(); c.shadowColor='transparent'; shapePath(c,slot,0,0,w,h); c.clip(); c.drawImage(im,(w-dw)/2,(h-dh)/2,dw,dh); c.restore(); }
+    else c.drawImage(im,(w-dw)/2,(h-dh)/2,dw,dh);
+  } else {
+    c.fillStyle=slot.borderColor; shapePath(c,slot,0,0,w,h); c.fill();
+    c.shadowColor='transparent';
+    c.save(); shapePath(c,slot,bw,bw,w-bw*2,h-bw*2); c.clip(); drawCover(c,im,bw,bw,w-bw*2,h-bw*2); c.restore();
+  }
+  c.restore();
+}
+function placeholder(c,slot,w,h,S){
+  c.fillStyle='rgba(79,91,213,.16)'; shapePath(c,slot,0,0,w,h); c.fill();
+  c.setLineDash([10*S,8*S]); c.lineWidth=3*S; c.strokeStyle='rgba(79,91,213,.7)'; c.stroke(); c.setLineDash([]);
+  c.fillStyle='rgba(40,40,90,.75)'; c.textAlign='center'; c.textBaseline='middle';
+  c.font=`700 ${Math.max(10,Math.min(w,h)*.2)}px "Zen Maru Gothic", sans-serif`;
+  c.fillText(slot.label,w/2,h/2);
+}
+
+async function renderTo(c, rmode, maxSide, vars={name:prod.name}){
+  const T=cur(); if(!T) return null;
+  const bgSrc = rmode==='edit' ? T.bg : (prod.bg || T.bg);
+  const bg = (await getImg(bgSrc)) || sampleBg;
+  const BW=bg.naturalWidth||bg.width, BH=bg.naturalHeight||bg.height;
+  let s = maxSide ? Math.min(1, maxSide/Math.max(BW,BH)) : 1;
+  const LIMIT=16e6; if(BW*BH*s*s>LIMIT) s=Math.sqrt(LIMIT/(BW*BH));
+  if(Math.max(BW,BH)*s>8192) s=8192/Math.max(BW,BH);
+  const W=Math.round(BW*s), H=Math.round(BH*s);
+  c.width=W; c.height=H;
+  const g=c.getContext('2d');
+  g.drawImage(bg,0,0,W,H);
+  const frameSrc = rmode==='edit' ? T.frame : (prod.frame || T.frame);
+  const frame = await getImg(frameSrc);
+  for(const slot of T.slots) if(!slot.above) await drawSlot(g,slot,W,H,rmode,vars);
+  if(frame) g.drawImage(frame,0,0,W,H);
+  for(const slot of T.slots) if(slot.above) await drawSlot(g,slot,W,H,rmode,vars);
+  return {W,H,BW,BH,scaled:s<1 && !maxSide, usingSample: bg===sampleBg};
+}
+
+const cv=$('cv');
+let timer=null, running=false, again=false;
+function schedule(){
+  if(timer) return;
+  timer=requestAnimationFrame(async()=>{
+    timer=null;
+    if(running){ again=true; return; }
+    running=true;
+    try{
+      const r = await renderTo(cv, mode, 1200);
+      if(r){
+        const board=$('board');
+        board.style.aspectRatio = `${r.W} / ${r.H}`;
+        board.style.width = `min(100%, calc(78vh * ${r.W/r.H}))`;
+        if(r.BW!==dimW || r.BH!==dimH){ dimW=r.BW; dimH=r.BH; refreshTags(); }
+        $('sizeLabel').textContent = r.usingSample ? '背景未設定(サンプル表示)' : `出力サイズ ${r.BW}×${r.BH}px`;
+      }
+    } finally { running=false; if(again){ again=false; schedule(); } }
+  });
+}
+
+/* ---------- オーバーレイ(枠のドラッグ) ---------- */
+const overlay=$('overlay');
+function buildOverlay(){
+  overlay.innerHTML='';
+  if(mode!=='edit') return;
+  const T=cur(); if(!T) return;
+  T.slots.forEach(slot=>{
+    const b=document.createElement('div'); b.className='box'+(slot.id===selId?' sel':''); b.dataset.id=slot.id;
+    const tg=document.createElement('span'); tg.className='tagl'; tg.textContent=tagText(slot);
+    const h=document.createElement('div'); h.className='h'; h.setAttribute('aria-label','大きさを変える');
+    b.append(tg,h); overlay.appendChild(b); placeBox(b,slot);
+    drag(b,slot,'move'); drag(h,slot,'resize');
+  });
+}
+let dimW=0, dimH=0, dragKind=null;
+function tagText(slot){
+  if(slot.id!==selId || !dimW) return slot.label;
+  const w=Math.round(slot.w*dimW), h=Math.round(slot.h*dimH);
+  let t=`${slot.label}  ${w}×${h}px`;
+  if(dragKind==='move') t+=`  (左 ${Math.round(slot.x*dimW)}, 上 ${Math.round(slot.y*dimH)})`;
+  return t;
+}
+function refreshTags(){
+  const T=cur(); if(!T) return;
+  overlay.querySelectorAll('.box').forEach(b=>{ const s=T.slots.find(x=>x.id===b.dataset.id); const tg=b.querySelector('.tagl'); if(s&&tg) tg.textContent=tagText(s); });
+}
+function placeBox(b,slot){
+  const tg=b.querySelector('.tagl'); if(tg) tg.textContent=tagText(slot);
+  b.style.left=slot.x*100+'%'; b.style.top=slot.y*100+'%';
+  b.style.width=slot.w*100+'%'; b.style.height=slot.h*100+'%';
+  b.style.transform=`rotate(${slot.rot||0}deg)`;
+}
+function drag(el,slot,kind){
+  el.addEventListener('pointerdown',e=>{
+    e.stopPropagation(); e.preventDefault();
+    if(selId!==slot.id) select(slot.id);
+    const r=overlay.getBoundingClientRect(), sx=e.clientX, sy=e.clientY;
+    const o={x:slot.x,y:slot.y,w:slot.w,h:slot.h};
+    dragKind=kind;
+    try{ el.setPointerCapture(e.pointerId); }catch(_){}
+    const mv=ev=>{
+      const dx=(ev.clientX-sx)/r.width, dy=(ev.clientY-sy)/r.height;
+      if(kind==='move'){ slot.x=o.x+dx; slot.y=o.y+dy; }
+      else { slot.w=Math.max(.02,o.w+dx); slot.h=Math.max(.02,o.h+dy); }
+      const box=overlay.querySelector(`[data-id="${slot.id}"]`); if(box) placeBox(box,slot);
+      syncGeom(); schedule();
+    };
+    const up=()=>{ dragKind=null; refreshTags(); el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up); changed(); };
+    el.addEventListener('pointermove',mv); el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
+  });
+}
+overlay.addEventListener('pointerdown',e=>{ if(e.target===overlay){ select(null); } });
+
+/* ---------- 初期値 ---------- */
+function defaultSlotFor(slot){
+  const d=defaultTemplate().slots.find(s=>s.type===slot.type && s.label===slot.label);
+  if(d) return d;
+  const n=newSlot(slot.type);
+  return n;
+}
+let resetArmed=false;
+$('tplReset').onclick=()=>{
+  const btn=$('tplReset');
+  if(!resetArmed){ resetArmed=true; btn.textContent='もう一度押すと戻します'; setTimeout(()=>{ resetArmed=false; btn.textContent='レイアウトを初期値に戻す'; },3000); return; }
+  resetArmed=false; btn.textContent='レイアウトを初期値に戻す';
+  const T=cur(); const old=T.slots;
+  T.slots=defaultTemplate().slots.map(s=>{ const o=old.find(x=>x.type===s.type && x.label===s.label); if(o && o.fixed) s.fixed=o.fixed; return s; });
+  changed(); select(null); buildMake(); schedule();
+  msg('レイアウトを初期値に戻しました。背景・フレーム・固定の画像はそのままです。');
+};
+
+/* ---------- 編集パネル ---------- */
+function select(id){ selId=id; buildOverlay(); buildSlotList(); buildProps(); }
+function buildSlotList(){
+  const T=cur(), ul=$('slotList'); ul.innerHTML='';
+  if(!T) return;
+  T.slots.forEach((slot,i)=>{
+    const li=document.createElement('li'); if(slot.id===selId) li.className='sel';
+    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=slot.label;
+    const kd=document.createElement('span'); kd.className='kind'; kd.textContent=KIND[slot.type];
+    const up=document.createElement('button'); up.className='mini'; up.type='button'; up.textContent='↑'; up.setAttribute('aria-label','奥へ'); up.disabled=i===0;
+    const dn=document.createElement('button'); dn.className='mini'; dn.type='button'; dn.textContent='↓'; dn.setAttribute('aria-label','手前へ'); dn.disabled=i===T.slots.length-1;
+    up.onclick=e=>{ e.stopPropagation(); [T.slots[i-1],T.slots[i]]=[T.slots[i],T.slots[i-1]]; changed(); select(selId); schedule(); };
+    dn.onclick=e=>{ e.stopPropagation(); [T.slots[i+1],T.slots[i]]=[T.slots[i],T.slots[i+1]]; changed(); select(selId); schedule(); };
+    li.append(nm,kd,up,dn); li.onclick=()=>select(slot.id);
+    ul.appendChild(li);
+  });
+}
+document.querySelectorAll('[data-add]').forEach(b=>b.addEventListener('click',()=>{
+  const T=cur(); const type=b.dataset.add;
+  const n=T.slots.filter(s=>s.type===type).length+1;
+  const s=newSlot(type, type==='text'||type==='photo'||type==='logo' ? (n>1?n:'') : n);
+  T.slots.push(s); changed(); select(s.id); schedule();
+}));
+
+const pct = v => Math.round(v*1000)/10;
+function syncGeom(){
+  const slot=cur()?.slots.find(s=>s.id===selId); if(!slot) return;
+  const px=$('p_px'); if(px && dimW) px.textContent=`実際の大きさ:幅 ${Math.round(slot.w*dimW)} × 高さ ${Math.round(slot.h*dimH)} px(左 ${Math.round(slot.x*dimW)} / 上 ${Math.round(slot.y*dimH)})`;
+  for(const k of ['x','y','w','h']){ const el=$('p_'+k); if(el && document.activeElement!==el) el.value=pct(slot[k]); }
+}
+function buildProps(){
+  const box=$('props'); box.innerHTML='';
+  const T=cur(); const slot=T?.slots.find(s=>s.id===selId);
+  if(!slot){ box.innerHTML='<p class="hint">プレビューか一覧で枠を選ぶと、ここで細かく調整できます。</p>'; return; }
+  const H=[];
+  H.push(`<label>枠の名前<input type="text" id="p_label"></label>`);
+  H.push(`<div class="row">
+    <label>左 (%)<input type="number" step="0.5" id="p_x"></label><label>上 (%)<input type="number" step="0.5" id="p_y"></label>
+    <label>幅 (%)<input type="number" step="0.5" id="p_w"></label><label>高さ (%)<input type="number" step="0.5" id="p_h"></label></div>`);
+  H.push(`<p class="hint" id="p_px"></p>`);
+  H.push(`<label>回転 (°)<input type="range" id="p_rot" min="-45" max="45"></label>`);
+  if(slot.type==='text'){
+    H.push(`<label>初期の文字(ポスター作成時に変更できます。{名前} はメンバー名に置き換わります)<textarea id="p_text"></textarea></label>`);
+    H.push(`<label>フォント<select id="p_font">${FONTS.map((f,i)=>`<option value="${i}">${f.name}</option>`).join('')}</select></label>`);
+    H.push(`<label>文字の大きさ(背景の高さに対する%)<input type="range" id="p_size" min="1" max="15" step="0.1"></label>`);
+    H.push(`<div class="row"><label>文字色<input type="color" id="p_color"></label><label>縁取り色<input type="color" id="p_strokeColor"></label></div>`);
+    H.push(`<label>縁取りの太さ<input type="range" id="p_stroke" min="0" max="40"></label>`);
+    H.push(`<label>揃え<select id="p_align"><option value="left">左</option><option value="center">中央</option><option value="right">右</option></select></label>`);
+  } else {
+    H.push(`<div class="row"><label>形<select id="p_shape"><option value="rect">四角</option><option value="round">角丸</option><option value="circle">丸</option></select></label>
+      <label>入れ方<select id="p_fit"><option value="cover">枠いっぱい(はみ出しは切る)</option><option value="contain">全体を収める</option></select></label></div>`);
+    H.push(`<div class="row"><label>縁の太さ<input type="range" id="p_border" min="0" max="30"></label><label>縁の色<input type="color" id="p_borderColor"></label></div>`);
+    H.push(`<label class="check"><input type="checkbox" id="p_shadow"> 影をつける</label>`);
+    H.push(`<label>固定の画像(全ポスター共通にしたいとき。ロゴなど)<input type="file" id="p_fixed" accept="image/*"></label>`);
+    H.push(`<div class="btns"><button class="mini" id="p_fixedClear" type="button">固定の画像を外す</button></div>`);
+  }
+  H.push(`<label class="check"><input type="checkbox" id="p_above"> 装飾フレームより手前に出す</label>`);
+  H.push(`<div class="btns"><button class="btn ghost small" id="p_reset" type="button">この枠を初期値に戻す</button><button class="btn ghost small" id="p_dup" type="button">この枠を複製</button><button class="btn danger small" id="p_del" type="button">この枠を削除</button></div>`);
+  box.innerHTML=H.join('');
+
+  const bind=(k,conv=v=>v)=>{
+    const el=$('p_'+k); if(!el) return;
+    if(el.type==='checkbox') el.checked=!!slot[k]; else el.value=slot[k]??'';
+    el.addEventListener('input',()=>{
+      slot[k] = el.type==='checkbox' ? el.checked : conv(el.value);
+      if(k==='label'){ buildSlotList(); buildOverlay(); }
+      if(['x','y','w','h','rot'].includes(k)){ const b=overlay.querySelector(`[data-id="${slot.id}"]`); if(b) placeBox(b,slot); }
+      changed(); schedule();
+    });
+    if(el.type==='checkbox') el.addEventListener('change',()=>{ slot[k]=el.checked; changed(); schedule(); });
+  };
+  bind('label');
+  for(const k of ['x','y','w','h']){
+    const el=$('p_'+k); el.value=pct(slot[k]);
+    el.addEventListener('input',()=>{ const v=parseFloat(el.value); if(isNaN(v)) return; slot[k]=Math.max(k==='w'||k==='h'?.01:-1, v/100);
+      const b=overlay.querySelector(`[data-id="${slot.id}"]`); if(b) placeBox(b,slot); syncGeom(); changed(); schedule(); });
+  }
+  bind('rot',Number); bind('above'); syncGeom();
+  if(slot.type==='text'){ bind('text'); bind('font',Number); bind('size',Number); bind('color'); bind('strokeColor'); bind('stroke',Number); bind('align'); }
+  else {
+    bind('shape'); bind('fit'); bind('border',Number); bind('borderColor'); bind('shadow');
+    $('p_fixed').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; slot.fixed=await readDataURL(f); changed(); schedule(); });
+    $('p_fixedClear').onclick=()=>{ slot.fixed=null; changed(); schedule(); };
+  }
+  $('p_reset').onclick=()=>{
+    const d=defaultSlotFor(slot);
+    const keep={id:slot.id,label:slot.label,fixed:slot.fixed,text:slot.text};
+    for(const k of Object.keys(slot)) delete slot[k];
+    Object.assign(slot,d,keep);
+    changed(); select(slot.id); schedule();
+  };
+  $('p_dup').onclick=()=>{ const c=structuredClone(slot); c.id=uid(); c.label=slot.label+'のコピー'; c.x+=.02; c.y+=.02; T.slots.splice(T.slots.indexOf(slot)+1,0,c); changed(); select(c.id); schedule(); };
+  $('p_del').onclick=()=>{ T.slots.splice(T.slots.indexOf(slot),1); changed(); select(null); schedule(); };
+}
+
+$('eBg').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; cur().bg=await readDataURL(f); e.target.value=''; changed(); schedule(); });
+$('eBgClear').onclick=()=>{ cur().bg=null; changed(); schedule(); };
+$('eFrame').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; cur().frame=await readDataURL(f); e.target.value=''; changed(); schedule(); });
+$('eFrameClear').onclick=()=>{ cur().frame=null; changed(); schedule(); };
+
+/* ---------- テンプレート操作 ---------- */
+function buildTplSel(){
+  const sel=$('tplSel'); sel.innerHTML='';
+  templates.forEach(t=>{ const o=document.createElement('option'); o.value=t.id; o.textContent=t.name||'(名前なし)'; sel.appendChild(o); });
+  sel.value=curId;
+  $('tplName').value=cur()?.name||'';
+}
+function useTemplate(id){
+  curId=id; selId=null;
+  try{ localStorage.setItem('poster-maker-last', id); }catch(e){}
+  resetProd(); buildTplSel(); buildSlotList(); buildProps(); buildOverlay(); buildMake(); schedule();
+}
+$('tplSel').addEventListener('change',e=>useTemplate(e.target.value));
+$('tplName').addEventListener('input',e=>{ cur().name=e.target.value; const o=$('tplSel').selectedOptions[0]; if(o) o.textContent=e.target.value||'(名前なし)'; changed(); });
+$('tplNew').onclick=()=>{ const t=defaultTemplate(); t.name='新しいテンプレート'; templates.push(t); curId=t.id; changed(); useTemplate(t.id); msg('新しいテンプレートを作りました。'); };
+$('tplDup').onclick=()=>{ const t=structuredClone(cur()); t.id=uid(); t.name=(t.name||'')+'のコピー'; t.slots.forEach(s=>s.id=uid()); templates.push(t); curId=t.id; changed(); useTemplate(t.id); msg('テンプレートを複製しました。'); };
+let delArmed=false;
+$('tplDel').onclick=async()=>{
+  if(!delArmed){ delArmed=true; $('tplDel').textContent='もう一度押すと削除'; setTimeout(()=>{ delArmed=false; $('tplDel').textContent='削除'; },3000); return; }
+  delArmed=false; $('tplDel').textContent='削除';
+  const id=curId; templates=templates.filter(t=>t.id!==id);
+  try{ await DB.del(id); }catch(e){}
+  if(!templates.length){ const t=defaultTemplate(); templates.push(t); curId=t.id; changed(); }
+  useTemplate(templates[0].id); msg('テンプレートを削除しました。');
+};
+
+let downloadsP=null;
+try{ downloadsP = window.claude?.use ? window.claude.use('downloads') : null; }catch(e){}
+async function saveFile(filename, data){
+  const dl = downloadsP ? await Promise.resolve(downloadsP).catch(()=>null) : null;
+  if(dl){
+    try{ await dl.save({filename, data}); return 'saved'; }
+    catch(err){ if(err?.code==='declined') return 'declined'; if(err?.code==='rate_limited') return 'busy'; return 'failed'; }
+  }
+  const blob = data instanceof Blob ? data : new Blob([data]);
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
+  return 'saved';
+}
+const safeName = s => (s||'poster').replace(/[\\/:*?"<>|]/g,'_').trim() || 'poster';
+$('tplExport').onclick=async()=>{
+  const T=cur(); const r=await saveFile(safeName(T.name)+'.json', JSON.stringify({app:'poster-maker',version:1,template:T}));
+  msg(r==='saved'?'テンプレートをファイルに書き出しました。画像も含まれています。': r==='declined'?'書き出しを取り消しました。':'書き出せませんでした。少し待ってからもう一度試してください。');
+};
+$('tplImport').addEventListener('change',async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{
+    const j=JSON.parse(await f.text()); const t=j.template||j;
+    if(!Array.isArray(t.slots)) throw new Error('bad');
+    t.id=uid(); t.slots.forEach(s=>{ s.id=uid(); });
+    templates.push(t); curId=t.id; changed(); useTemplate(t.id); msg(`「${t.name||'テンプレート'}」を読み込みました。`);
+  }catch(err){ msg('読み込めませんでした。このツールで書き出したテンプレートのファイルを選んでください。'); }
+});
+
+/* ---------- ポスター作成 ---------- */
+function resetProd(){
+  for(const k of Object.keys(prod.img)) if(prod.img[k]?.startsWith('blob:')) URL.revokeObjectURL(prod.img[k]);
+  prod.bg=null; prod.frame=null; prod.img={}; prod.text={};
+  $('mBg').value=''; $('mFrame').value='';
+}
+function buildMake(){
+  const T=cur(); const box=$('mSlots'); box.innerHTML='';
+  if(!T) return;
+  $('mBgNote').textContent = T.bg ? '未選択のときはテンプレートの背景を使います。' : 'テンプレートに背景がないので、ここで選んでください。';
+  T.slots.forEach(slot=>{
+    const d=document.createElement('div'); d.className='item';
+    const top=document.createElement('div'); top.className='top';
+    const b=document.createElement('b'); b.textContent=slot.label;
+    const kd=document.createElement('span'); kd.className='kind'; kd.textContent=KIND[slot.type];
+    top.append(b,kd); d.appendChild(top);
+    if(slot.type==='text'){
+      const ta=document.createElement('textarea'); ta.value=slot.text||''; ta.setAttribute('aria-label',slot.label);
+      ta.placeholder='空欄ならこの文字は入りません';
+      ta.addEventListener('input',()=>{ prod.text[slot.id]=ta.value; schedule(); });
+      d.appendChild(ta);
+    } else {
+      const fi=document.createElement('input'); fi.type='file'; fi.accept='image/*'; fi.setAttribute('aria-label',slot.label+'の画像');
+      const note=document.createElement('span'); note.className='hint'; note.textContent = slot.fixed ? 'テンプレートの固定画像を使用中' : '';
+      const clr=document.createElement('button'); clr.type='button'; clr.className='mini'; clr.textContent='この枠を空にする';
+      fi.addEventListener('change',()=>{ const f=fi.files[0]; if(!f) return; if(prod.img[slot.id]?.startsWith('blob:')) URL.revokeObjectURL(prod.img[slot.id]); prod.img[slot.id]=URL.createObjectURL(f); note.textContent=''; schedule(); });
+      clr.onclick=()=>{ prod.img[slot.id]=null; fi.value=''; note.textContent='空にしました(画像なし)'; schedule(); };
+      const row=document.createElement('div'); row.className='btns'; row.append(clr, note);
+      d.append(fi,row);
+    }
+    box.appendChild(d);
+  });
+  const bt=$('bTarget'); bt.innerHTML='';
+  T.slots.filter(s=>s.type!=='text').forEach(s=>{ const o=document.createElement('option'); o.value=s.id; o.textContent=s.label; bt.appendChild(o); });
+  const firstPhoto=T.slots.find(s=>s.type==='photo'); if(firstPhoto) bt.value=firstPhoto.id;
+}
+$('mBg').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; prod.bg=URL.createObjectURL(f); schedule(); });
+$('mFrame').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; prod.frame=URL.createObjectURL(f); schedule(); });
+$('mName').addEventListener('input',e=>{ prod.name=e.target.value; schedule(); });
+
+$('savePng').onclick=async()=>{
+  const btn=$('savePng'); btn.disabled=true; btn.textContent='作成中…';
+  try{
+    const c=document.createElement('canvas'); const r=await renderTo(c,'export',null);
+    const blob=await new Promise(res=>c.toBlob(res,'image/png'));
+    const res=await saveFile(safeName(prod.name||cur().name)+'.png', blob);
+    $('bMsg').textContent = res==='saved' ? (r.scaled?'保存しました(背景が大きすぎたため縮小しています)。':'') : res==='declined' ? '' : '保存できませんでした。もう一度試してください。';
+  } finally { btn.disabled=false; btn.textContent='PNGで保存'; }
+};
+
+let batchFiles=[];
+$('bFiles').addEventListener('change',e=>{ batchFiles=[...e.target.files]; $('bRun').disabled=!batchFiles.length; $('bMsg').textContent = batchFiles.length ? `${batchFiles.length}人分の写真を選びました。` : ''; });
+$('bRun').onclick=async()=>{
+  if(typeof JSZip==='undefined'){ $('bMsg').textContent='ZIPの作成機能を読み込めませんでした。ページを開き直してください。'; return; }
+  const target=$('bTarget').value; if(!target) return;
+  const btn=$('bRun'); btn.disabled=true;
+  const zip=new JSZip(); const prev=(target in prod.img)?prod.img[target]:undefined;
+  const used=new Set();
+  try{
+    for(let i=0;i<batchFiles.length;i++){
+      const f=batchFiles[i]; const stem=f.name.replace(/\.[^.]+$/,'');
+      $('bMsg').textContent=`${i+1} / ${batchFiles.length} 人目を作成中…(${stem})`;
+      $('bBar').style.width=(i/batchFiles.length*100)+'%';
+      const url=URL.createObjectURL(f); prod.img[target]=url;
+      const c=document.createElement('canvas'); await renderTo(c,'export',null,{name:stem});
+      const blob=await new Promise(res=>c.toBlob(res,'image/png'));
+      let n=safeName(stem), k=2; while(used.has(n)) n=safeName(stem)+'_'+(k++); used.add(n);
+      zip.file(n+'.png', blob);
+      URL.revokeObjectURL(url); imgCache.delete(url);
+      await new Promise(r=>setTimeout(r,0));
+    }
+    $('bBar').style.width='100%';
+    $('bMsg').textContent='ZIPにまとめています…';
+    const zblob=await zip.generateAsync({type:'blob'});
+    const res=await saveFile(safeName(cur().name)+'_'+batchFiles.length+'枚.zip', zblob);
+    $('bMsg').textContent = res==='saved' ? `${batchFiles.length}枚のポスターをZIPで保存しました。` : res==='declined' ? '保存を取り消しました。' : '保存できませんでした。もう一度試してください。';
+  } finally {
+    if(prev===undefined) delete prod.img[target]; else prod.img[target]=prev;
+    btn.disabled=false; schedule();
+  }
+};
+
+/* ---------- モード ---------- */
+$('modeSeg').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  mode=b.dataset.v;
+  $('modeSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  $('editPanel').hidden = mode!=='edit'; $('makePanel').hidden = mode!=='make';
+  $('tplEditBox').hidden = mode!=='edit'; $('savePng').hidden = mode!=='make';
+  $('stageHint').textContent = mode==='edit'
+    ? '枠をドラッグで移動、右下の丸で大きさを変えられます。位置は背景に対する割合で記録されるので、背景画像の大きさが変わっても同じレイアウトになります。'
+    : '点線の枠はまだ画像が入っていない場所です。保存した画像には表示されません。';
+  buildOverlay(); buildMake(); schedule();
+});
+
+/* ---------- 起動 ---------- */
+(async()=>{
+  try{ templates = await DB.all() || []; }catch(e){ DB.ok=false; templates=[]; msg('このブラウザでは自動保存できません。「ファイルに書き出す」で保存してください。'); }
+  if(!templates.length){ const t=defaultTemplate(); templates.push(t); curId=t.id; changed(); }
+  let last=null; try{ last=localStorage.getItem('poster-maker-last'); }catch(e){}
+  useTemplate(templates.some(t=>t.id===last) ? last : templates[0].id);
+  if(DB.ok) msg('テンプレートはこのブラウザに自動で保存されます。');
+})();
+document.fonts && document.fonts.ready.then(schedule);
+})();
+</script>
+
+</body>
+</html>
