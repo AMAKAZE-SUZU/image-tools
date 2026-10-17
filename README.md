@@ -7,6 +7,8 @@
 
 使い方はトップページ(`index.html`)にまとめています。
 
+更新内容は [CHANGELOG.md](CHANGELOG.md) にまとめています。
+
 ## ファイル構成
 
 | ファイル | 内容 |
@@ -14,6 +16,7 @@
 | `index.html` | トップページ(ツール一覧と使い方) |
 | `message-card.html` | メッセージカードメーカー |
 | `poster-maker.html` | ポスターメーカー |
+| `CHANGELOG.md` | 更新履歴 |
 
 ## 使用しているもの
 

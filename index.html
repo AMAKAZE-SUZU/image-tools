@@ -45,6 +45,9 @@ ol,ul{padding-left:1.4em;margin:6px 0}
 li{margin:3px 0}
 .note{background:var(--field);border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:.9rem}
 code{font-size:.88em;background:var(--field);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+.log{margin:10px 0}
+.log b{font-variant-numeric:tabular-nums}
+.log ul{margin:2px 0 0}
 footer{margin-top:48px;color:var(--muted);font-size:.8rem}
 @media (prefers-reduced-motion: reduce){.tool{transition:none}.tool:hover{transform:none}}
 </style>
@@ -57,14 +60,14 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
   <div class="tools">
     <a class="tool card" href="message-card.html">
       <div class="thumb" aria-hidden="true"><i style="width:70px;height:80px;transform:rotate(-4deg)"></i><i style="width:110px;height:44px;opacity:.8"></i></div>
-      <span class="ratio">16:9 / 1:1 ・ Twitter向け</span>
+      <span class="ratio">16:9 / 1:1 ・ Twitter向け ・ v1.4</span>
       <h2>メッセージカードメーカー</h2>
       <p>背景・写真・メッセージ・フォントを選んで、カード画像を作ります。たくさんのカードをまとめて作ってZIPで保存することもできます。</p>
       <span class="go">使ってみる →</span>
     </a>
     <a class="tool poster" href="poster-maker.html">
       <div class="thumb" aria-hidden="true"><i style="width:56px;height:76px"></i><i style="width:56px;height:76px;opacity:.85"></i><i style="width:56px;height:76px;opacity:.7"></i></div>
-      <span class="ratio">背景画像のサイズに自動で合わせる</span>
+      <span class="ratio">背景画像のサイズに自動で合わせる ・ v1.0</span>
       <h2>ポスターメーカー</h2>
       <p>レイアウトのテンプレートを作って保存し、画像を差し込むだけでポスターを量産できます。</p>
       <span class="go">使ってみる →</span>
@@ -134,6 +137,18 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
         <li>Chrome / Edge / Safari の新しいバージョンでの利用がおすすめです。</li>
       </ul>
     </div>
+  </section>
+
+  <section id="changelog">
+    <h2>更新履歴</h2>
+    <h3>メッセージカードメーカー</h3>
+    <div class="log"><b>v1.4(2026-10-18)</b><ul><li>自動の改行で行の長さをそろえるようにした(1文字だけの行ができないようにする)。「行の長さをそろえる」で切り替え可能</li></ul></div>
+    <div class="log"><b>v1.3(2026-10-18)</b><ul><li>全カードのメッセージと設定を、画像ごとファイル(.json)に書き出し・読み込みできるようにした</li></ul></div>
+    <div class="log"><b>v1.2(2026-10-18)</b><ul><li>写真の切り抜きを、0を基準にした拡大・縮小(−100〜+100)に変更</li></ul></div>
+    <div class="log"><b>v1.1(2026-10-18)</b><ul><li>写真の切り抜きの形(縦横比)を選べるようにした(正方形・縦長・横長・元の写真のまま・自由)</li><li>切り抜きの拡大と位置をカードごとに覚えるようにした</li><li>複数枚のカードを1ページで作れるようにした(カード一覧、複製・削除・並べ替え)</li><li>メッセージと写真をまとめて入れてカードを作る機能を追加</li><li>全カードをZIPでまとめて保存できるようにした</li><li>メッセージを自動で保存し、次に開いたときに復元するようにした</li></ul></div>
+    <div class="log"><b>v1.0(2026-10-16)</b><ul><li>公開</li><li>背景(全面・タイル、暗さ・白さ・ぼかし)、写真(配置・フレーム・重ねる画像・影)、メッセージ、フォント、文字の下地</li><li>今の設定を初期値として保存する機能</li></ul></div>
+    <h3>ポスターメーカー</h3>
+    <div class="log"><b>v1.0(2026-10-16)</b><ul><li>公開</li><li>テンプレート(写真・画像・ロゴ・文字の枠、背景、装飾フレーム)の作成と自動保存、ファイルへの書き出し・読み込み</li><li>枠のドラッグ操作と実際のピクセルサイズの表示</li><li>レイアウト・枠を初期値に戻す機能</li><li>メンバーの写真をまとめて選んでポスターを一括作成(ZIP保存)</li></ul></div>
   </section>
 
   <footer>フォントは Google Fonts(SIL Open Font License)を使用しています。</footer>
