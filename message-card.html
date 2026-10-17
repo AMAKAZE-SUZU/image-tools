@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700&family=M+PLUS+Rounded+1c:wght@500;800&family=Kiwi+Maru:wght@500&family=Yusei+Magic&family=Klee+One:wght@600&family=Hachi+Maru+Pop&family=Dela+Gothic+One&family=RocknRoll+One&family=Mochiy+Pop+One&family=Noto+Serif+JP:wght@600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 /* Layout: 大きなプレビューを主役に、右(スマホでは下)に操作パネルを積む作業台 */
 :root{
@@ -62,6 +63,22 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .btns{display:flex;flex-wrap:wrap;gap:8px}
 #defMsg{min-height:1.3em}
 .tag{font-size:.7rem;letter-spacing:.05em;color:var(--muted)}
+.cards{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.cards-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.cards-head b{font-family:var(--font-display);font-size:.95rem;margin-right:auto;font-variant-numeric:tabular-nums}
+.mini{font:inherit;font-size:.75rem;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:6px;padding:3px 9px;cursor:pointer}
+.mini:disabled{opacity:.45;cursor:default}
+.strip{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;scroll-snap-type:x proximity}
+.thumb{flex:0 0 auto;position:relative;padding:0;border:2px solid transparent;border-radius:8px;background:var(--field);cursor:pointer;scroll-snap-align:start;line-height:0}
+.thumb canvas{display:block;width:112px;height:auto;border-radius:6px}
+.thumb.square canvas{width:72px}
+.thumb[aria-current=true]{border-color:var(--accent)}
+.thumb span{position:absolute;left:4px;top:4px;line-height:1;font-size:.68rem;font-weight:700;padding:2px 5px;border-radius:4px;background:rgba(30,20,35,.72);color:#fff;font-variant-numeric:tabular-nums}
+.btn:disabled{opacity:.5;cursor:default}
+.status{min-height:1.3em}
+details.bulk summary{cursor:pointer;font-size:.85rem;color:var(--fg)}
+details.bulk[open] summary{margin-bottom:8px}
+details.bulk>div{display:flex;flex-direction:column;gap:10px}
 .toplink{font-size:.8rem;color:var(--muted);text-decoration:none;flex-basis:100%}
 .toplink:hover{text-decoration:underline}
 </style>
@@ -72,17 +89,28 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>メッセージカードメーカー</h1>
-    <p>背景・写真・メッセージ・フォントを選んで、Twitter向けの画像を1枚作ります</p>
+    <p>背景・写真・メッセージ・フォントを選んで、Twitter向けの画像を作ります。複数枚まとめて作ることもできます</p>
   </header>
 
   <div class="grid">
     <div class="stage">
       <img id="preview" class="preview" alt="作成中のメッセージカードのプレビュー">
+      <div class="cards">
+        <div class="cards-head">
+          <b id="cardPos">カード 1 / 1</b>
+          <button type="button" class="mini" id="cardPrev" aria-label="前へ移動">← 前へ</button>
+          <button type="button" class="mini" id="cardNext" aria-label="後ろへ移動">後ろへ →</button>
+          <button type="button" class="mini" id="cardAdd">+ 複製して追加</button>
+          <button type="button" class="mini" id="cardDel">削除</button>
+        </div>
+        <div class="strip" id="strip" role="list" aria-label="カードの一覧"></div>
+      </div>
       <div class="actions">
-        <button id="dl" class="btn" type="button">PNGで保存</button>
+        <button id="dl" class="btn" type="button">このカードをPNGで保存</button>
+        <button id="dlAll" class="btn ghost" type="button">全部まとめてZIPで保存</button>
         <span id="sizeLabel" class="tag"></span>
       </div>
-      <p class="hint">保存ボタンが効かない場合は、プレビュー画像を右クリック(スマホは長押し)して「画像を保存」してください。最初はサンプルの背景と写真が入っています。</p>
+      <p class="hint status" id="stageHint" role="status">背景・フォント・フレームなどの設定は全カード共通です。メッセージ・差出人・写真・写真の切り抜き位置はカードごとに変えられます。</p>
     </div>
 
     <form class="panel" id="form" onsubmit="return false">
@@ -92,6 +120,28 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
           <button type="button" data-v="16:9" aria-pressed="true">16:9 横長</button>
           <button type="button" data-v="1:1" aria-pressed="false">1:1 正方形</button>
         </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>まとめて作る</legend>
+        <details class="bulk" id="bulkBox">
+          <summary>メッセージや写真をまとめて入れる</summary>
+          <div>
+            <label>メッセージ(1枚ごとに「---」だけの行で区切ります)<textarea id="bulkText" style="min-height:150px" placeholder="1枚目のメッセージ
+---
+2枚目のメッセージ
+＠ミルクより
+---
+3枚目のメッセージ"></textarea></label>
+            <p class="hint">最後の行を「＠ミルクより」のように＠で始めると、そのカードの差出人になります。書かなければ今のカードの差出人を使います。</p>
+            <div class="btns">
+              <button type="button" class="btn small" id="bulkReplace">今のカードと入れ替えて作る</button>
+              <button type="button" class="btn ghost small" id="bulkAppend">後ろに追加する</button>
+            </div>
+            <label>写真をまとめて選ぶ(ファイル名順に、1枚目のカードから順に入ります。足りない分はカードを追加します)<input type="file" id="bulkPhotos" accept="image/*" multiple></label>
+          </div>
+        </details>
+        <p class="hint status" id="bulkMsg" role="status"></p>
       </fieldset>
 
       <fieldset>
@@ -118,7 +168,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
       <fieldset>
         <legend>写真</legend>
-        <input type="file" id="photoFile" accept="image/*">
+        <label>このカードの写真<input type="file" id="photoFile" accept="image/*"></label>
+        <div class="btns"><span class="hint" id="photoName" style="flex:1 1 100%"></span>
+          <button type="button" class="mini" id="photoToAll">この写真を全カードに使う</button></div>
         <label>配置</label>
         <div class="seg" id="posSeg">
           <button type="button" data-v="left" aria-pressed="true">左</button>
@@ -146,17 +198,34 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
         </div>
         <label class="check"><input type="checkbox" id="photoShadow" checked> 影をつける</label>
         <div class="row">
-          <label>大きさ<input type="range" id="photoSize" min="60" max="120" value="100"></label>
+          <label>大きさ<input type="range" id="photoSize" min="50" max="150" value="100"></label>
           <label>傾き<input type="range" id="photoTilt" min="-10" max="10" value="-3"></label>
         </div>
+        <label>切り抜きの形(縦横比)<select id="photoAspect">
+          <option value="auto">標準(フレームに合わせる)</option>
+          <option value="orig">元の写真のまま</option>
+          <option value="1">1:1 正方形</option>
+          <option value="0.75">3:4 縦長</option>
+          <option value="0.6667">2:3 縦長</option>
+          <option value="0.5625">9:16 縦長</option>
+          <option value="1.3333">4:3 横長</option>
+          <option value="1.5">3:2 横長</option>
+          <option value="1.7778">16:9 横長</option>
+          <option value="free">自由に決める</option>
+        </select></label>
+        <div id="aspectFreeBox" hidden>
+          <label>縦横比(左で縦長、右で横長)<input type="range" id="aspectFree" min="-100" max="100" value="0"></label>
+        </div>
+        <p class="hint">ここから下はカードごとに覚えます。</p>
+        <label>切り抜きの拡大<input type="range" id="photoZoom" min="100" max="400" value="100"></label>
         <div class="row">
-          <label>写真の中の位置 横<input type="range" id="photoX" min="0" max="100" value="50"></label>
+          <label>切り抜く位置 横<input type="range" id="photoX" min="0" max="100" value="50"></label>
           <label>縦<input type="range" id="photoY" min="0" max="100" value="50"></label>
         </div>
       </fieldset>
 
       <fieldset>
-        <legend>メッセージ</legend>
+        <legend>メッセージ(このカード)</legend>
         <label>本文<textarea id="msg">いつも応援ありがとう！
 みんなのおかげで今日もがんばれました。
 これからもよろしくね</textarea></label>
@@ -192,7 +261,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
       <fieldset>
         <legend>初期値</legend>
-        <p class="hint">今のスライダーや色、配置などの設定を、次に開いたときの初期値にできます(本文・画像・追加したフォントファイルは含みません)。スライダーはダブルクリックでその初期値に戻ります。</p>
+        <p class="hint">今のスライダーや色、配置などの設定を、次に開いたときの初期値にできます(本文・画像・追加したフォントファイルは含みません。切り抜きの拡大と位置は、新しく作るカードの初期値になります)。スライダーはダブルクリックでその初期値に戻ります。</p>
         <div class="btns">
           <button type="button" class="btn small" id="defSave">今の設定を初期値にする</button>
           <button type="button" class="btn ghost small" id="defApply">初期値に戻す</button>
@@ -240,7 +309,7 @@ function seg(id, key){
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if(!b) return;
     setSeg(key, b.dataset.v);
-    schedule();
+    sharedChanged();
   });
 }
 seg('ratioSeg','ratio'); seg('posSeg','pos'); seg('frameSeg','frame'); seg('alignSeg','align'); seg('bgModeSeg','bgMode');
@@ -281,31 +350,61 @@ function samplePhoto(){
   g.textAlign='center'; g.fillText('サンプル写真',400,660);
   return c;
 }
-let bgImg = sampleBg(), photoImg = samplePhoto();
-
+let bgImg = sampleBg();
+const SAMPLE_PHOTO = samplePhoto();
 let overlayImg = null;
 
+/* ---------- カード ---------- */
+const PER_CARD = ['msg','sign','photoX','photoY','photoZoom'];
+let uidN = 0;
+function newCard(from){
+  const c = {id: ++uidN, msg:'', sign:'', photo:null, photoName:'', photoX:50, photoY:50, photoZoom:100, thumbV:-1};
+  if(from) Object.assign(c, {msg:from.msg, sign:from.sign, photo:from.photo, photoName:from.photoName,
+    photoX:from.photoX, photoY:from.photoY, photoZoom:from.photoZoom});
+  return c;
+}
+let cards = [], curIdx = 0;
+const curCard = () => cards[curIdx];
+
+function loadFields(){
+  const c = curCard();
+  $('msg').value = c.msg; $('sign').value = c.sign;
+  for(const k of ['photoX','photoY','photoZoom']){ $(k).value = c[k]; $(k)._upd && $(k)._upd(); }
+  $('photoFile').value = '';
+  $('photoName').textContent = c.photo ? `使用中:${c.photoName || '写真'}` : '使用中:サンプル写真(写真を選ぶと差し替わります)';
+}
+
+/* ---------- 読み込み ---------- */
 function loadImageFile(file){
   return new Promise((res,rej) => {
     const url = URL.createObjectURL(file); const im = new Image();
     im.onload = () => res(im); im.onerror = rej; im.src = url;
   });
 }
+function hint(t){ $('stageHint').textContent = t; }
 $('bgFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if(!f) return;
-  try{ bgImg = await loadImageFile(f); schedule(); }catch(err){ alertHint('背景画像を読み込めませんでした。PNGかJPEGを選んでください。'); }
+  try{ bgImg = await loadImageFile(f); sharedChanged(); }catch(err){ hint('背景画像を読み込めませんでした。PNGかJPEGを選んでください。'); }
 });
 $('photoFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if(!f) return;
-  try{ photoImg = await loadImageFile(f); if(st.pos==='none'){ $('posSeg').querySelector('[data-v=left]').click(); } schedule(); }
-  catch(err){ alertHint('写真を読み込めませんでした。PNGかJPEGを選んでください。'); }
+  try{
+    const c = curCard(); c.photo = await loadImageFile(f); c.photoName = f.name;
+    if(st.pos==='none') setSeg('pos','left');
+    loadFields(); cardChanged();
+  } catch(err){ hint('写真を読み込めませんでした。PNGかJPEGを選んでください。'); }
+});
+$('photoToAll').addEventListener('click', () => {
+  const c = curCard();
+  cards.forEach(x => { x.photo = c.photo; x.photoName = c.photoName; });
+  sharedChanged(); hint(`この写真を${cards.length}枚すべてのカードに使いました。`);
 });
 $('overlayFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if(!f) return;
-  try{ overlayImg = await loadImageFile(f); $('overlayOpts').hidden=false; schedule(); }
-  catch(err){ alertHint('重ねる画像を読み込めませんでした。PNGを選んでください。'); }
+  try{ overlayImg = await loadImageFile(f); $('overlayOpts').hidden=false; sharedChanged(); }
+  catch(err){ hint('重ねる画像を読み込めませんでした。PNGを選んでください。'); }
 });
-$('ovRemove').addEventListener('click', () => { overlayImg=null; $('overlayFile').value=''; $('overlayOpts').hidden=true; schedule(); });
+$('ovRemove').addEventListener('click', () => { overlayImg=null; $('overlayFile').value=''; $('overlayOpts').hidden=true; sharedChanged(); });
 let userFontN = 0;
 $('fontFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if(!f) return;
@@ -314,17 +413,16 @@ $('fontFile').addEventListener('change', async e => {
     const fam = 'UserFont' + (++userFontN);
     const ff = new FontFace(fam, buf); await ff.load(); document.fonts.add(ff);
     const entry = {name: f.name.replace(/\.[^.]+$/,'') + '(追加したフォント)', fam, w:400};
-    FONTS.push(entry); addFontOption(entry, true); $('localFont').value=''; schedule();
-  }catch(err){ alertHint('フォントを読み込めませんでした。ttf / otf / woff ファイルを選んでください。'); }
+    FONTS.push(entry); addFontOption(entry, true); $('localFont').value=''; sharedChanged();
+  }catch(err){ hint('フォントを読み込めませんでした。ttf / otf / woff ファイルを選んでください。'); }
 });
-function alertHint(t){ const h=document.querySelector('.hint'); h.textContent=t; h.style.color='var(--accent)'; }
+$('photoAspect').addEventListener('change', () => { $('aspectFreeBox').hidden = $('photoAspect').value!=='free'; });
 
 /* ---------- 描画 ---------- */
-const cv = document.createElement('canvas'); const ctx = cv.getContext('2d');
-
-function drawCover(img,x,y,w,h,fx=.5,fy=.5,c=ctx){
+let ctx = null;
+function drawCover(img,x,y,w,h,fx=.5,fy=.5,c=ctx,zoom=1){
   const iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height;
-  const s=Math.max(w/iw,h/ih), sw=w/s, sh=h/s;
+  const s=Math.max(w/iw,h/ih)*zoom, sw=w/s, sh=h/s;
   c.drawImage(img,(iw-sw)*fx,(ih-sh)*fy,sw,sh,x,y,w,h);
 }
 function rr(x,y,w,h,r){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
@@ -336,9 +434,7 @@ function wrap(text, maxW){
   for(const para of text.split('\n')){
     if(para===''){ out.push(''); continue; }
     let line='';
-    const chars=[...para];
-    for(let i=0;i<chars.length;i++){
-      const ch=chars[i];
+    for(const ch of [...para]){
       if(line && ctx.measureText(line+ch).width>maxW && !NO_START.includes(ch)){ out.push(line); line=ch; }
       else line+=ch;
     }
@@ -346,20 +442,39 @@ function wrap(text, maxW){
   }
   return out;
 }
-
 function currentFont(){
   const local = $('localFont').value.trim();
   if(local) return {fam:local, w:400};
   return FONTS[+fontSel.value] || FONTS[0];
 }
+function freeAspect(){ return Math.pow(2, +$('aspectFree').value/50); }
+function photoAspect(img){
+  const v = $('photoAspect').value;
+  if(v==='auto') return st.frame==='circle' ? 1 : st.frame==='polaroid' ? .917 : .8;
+  if(v==='orig'){ const w=img.naturalWidth||img.width, h=img.naturalHeight||img.height; return w/h; }
+  if(v==='free') return freeAspect();
+  return +v;
+}
 
-async function render(){
+// 写真の外枠サイズ(切り抜き部分の縦横比 A から計算)
+function photoOuter(A, maxW, maxH, S){
+  if(st.frame==='polaroid'){
+    const ih = Math.min(maxW*.88/A, maxH/(1+.26*A/.88));
+    const ow = A*ih/.88; return [ow, ih+.26*ow];
+  }
+  const b = (st.frame==='circle'?12:10)*S;
+  const ih = Math.max(10, Math.min((maxW-2*b)/A, maxH-2*b));
+  return [A*ih+2*b, ih+2*b];
+}
+
+async function renderCard(c, card){
   const [W,H] = st.ratio==='1:1' ? [1200,1200] : [1600,900];
-  cv.width=W; cv.height=H;
+  c.width=W; c.height=H; ctx = c.getContext('2d');
   const S = Math.min(W/1600, H/900);
   const f = currentFont();
-  const msg = $('msg').value, sign = $('sign').value.trim();
+  const msg = card.msg, sign = card.sign.trim();
   try{ await document.fonts.load(`${f.w} 60px "${f.fam}"`, msg+sign+'あ'); }catch(e){}
+  ctx = c.getContext('2d');
 
   // 背景
   ctx.save();
@@ -377,31 +492,33 @@ async function render(){
   const pad = 70*S;
   const stacked = W/H < 1.3;
   let tb = {x:pad,y:pad,w:W-pad*2,h:H-pad*2};
-  if(st.pos!=='none' && photoImg){
+  const photo = card.photo || SAMPLE_PHOTO;
+  if(st.pos!=='none'){
     const k = +$('photoSize').value/100;
-    let pw, ph;
-    if(stacked){ ph = H*.44*k; pw = st.frame==='circle'? ph : ph*1.0; }
-    else { ph = H*.74*k; pw = st.frame==='circle'? ph : ph*.82; }
+    const A = photoAspect(photo);
+    const maxW = stacked ? W*.8*k : W*.44*k, maxH = stacked ? H*.46*k : H*.76*k;
+    const [pw, ph] = photoOuter(A, Math.min(maxW, W-pad*2), Math.min(maxH, H-pad*2), S);
     let px, py;
-    if(stacked){ px=(W-pw)/2 + (st.pos==='left'?-1:st.pos==='right'?1:0)*W*.18; py=pad*.9; tb={x:pad,y:py+ph+pad*.6,w:W-pad*2,h:H-(py+ph+pad*.6)-pad}; }
+    if(stacked){ px=(W-pw)/2 + (st.pos==='left'?-1:st.pos==='right'?1:0)*Math.max(0,(W-pad*2-pw)/2)*.6; py=pad*.9; tb={x:pad,y:py+ph+pad*.6,w:W-pad*2,h:H-(py+ph+pad*.6)-pad}; }
     else{
       py=(H-ph)/2;
       px = st.pos==='left' ? pad+20*S : W-pad-20*S-pw;
       const gap=60*S;
       tb = st.pos==='left' ? {x:px+pw+gap,y:pad,w:W-(px+pw+gap)-pad,h:H-pad*2} : {x:pad,y:pad,w:px-gap-pad,h:H-pad*2};
     }
-    drawPhoto(px,py,pw,ph,S);
+    drawPhoto(px,py,pw,ph,S,photo,card);
   }
+  tb.w = Math.max(tb.w, 120*S); tb.h = Math.max(tb.h, 80*S);
 
   // 文字
   let size = +$('size').value*S;
   const lh = 1.55;
   const innerPad = 44*S;
-  const maxW = tb.w - innerPad*2;
+  const maxTW = tb.w - innerPad*2;
   let lines, signSize, blockH;
   for(let tries=0; tries<40; tries++){
     ctx.font = `${f.w} ${size}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
-    lines = wrap(msg, maxW);
+    lines = wrap(msg, maxTW);
     signSize = size*.62;
     blockH = lines.length*size*lh + (sign? signSize*1.9 : 0);
     if(blockH <= tb.h - innerPad*2 || size < 14*S) break;
@@ -411,7 +528,7 @@ async function render(){
   let widest = Math.max(1,...lines.map(l=>ctx.measureText(l).width));
   if(sign){ ctx.font = `${f.w} ${signSize}px "${f.fam}", "Zen Maru Gothic", sans-serif`; widest=Math.max(widest, ctx.measureText(sign).width); }
 
-  if($('panelOn').checked){
+  if($('panelOn').checked && (msg.trim() || sign)){
     const pw2 = Math.min(tb.w, widest + innerPad*2), ph2 = Math.min(tb.h, blockH + innerPad*2);
     const px2 = tb.x + (tb.w-pw2)/2, py2 = tb.y + (tb.h-ph2)/2;
     ctx.save();
@@ -437,15 +554,7 @@ async function render(){
   };
   for(const l of lines){ if(l) put(l,size,st.align); y += size*lh; }
   if(sign){ y += signSize*.5 - size*lh/2 + signSize*.7; put(sign,signSize,'right'); }
-
-  $('sizeLabel').textContent = `${W}×${H}px`;
-  cv.toBlob(b => {
-    if(!b) return;
-    lastBlob = b;
-    const url = URL.createObjectURL(b);
-    const img=$('preview'); const old=img.dataset.url;
-    img.src=url; img.dataset.url=url; if(old) setTimeout(()=>URL.revokeObjectURL(old),2000);
-  }, 'image/png');
+  return {W,H};
 }
 
 function drawTiles(W,H,S,blur){
@@ -466,28 +575,28 @@ function drawTiles(W,H,S,blur){
   ctx.restore();
 }
 
-function drawPhoto(x,y,w,h,S){
-  const fx=+$('photoX').value/100, fy=+$('photoY').value/100;
+function drawPhoto(x,y,w,h,S,photo,card){
+  const fx=card.photoX/100, fy=card.photoY/100, z=card.photoZoom/100;
   const tilt=+$('photoTilt').value*Math.PI/180;
   ctx.save();
-  ctx.translate(x+w/2,y+h/2); ctx.rotate(st.frame==='circle'?0:tilt); ctx.translate(-w/2,-h/2);
+  ctx.translate(x+w/2,y+h/2); ctx.rotate(tilt); ctx.translate(-w/2,-h/2);
   const fc=$('frameColor').value;
   if($('photoShadow').checked){ ctx.shadowColor='rgba(40,10,30,.28)'; ctx.shadowBlur=34*S; ctx.shadowOffsetY=12*S; }
   if(st.frame==='circle'){
-    ctx.fillStyle=fc; ctx.beginPath(); ctx.arc(w/2,h/2,w/2,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=fc; ctx.beginPath(); ctx.ellipse(w/2,h/2,w/2,h/2,0,0,Math.PI*2); ctx.fill();
     ctx.shadowColor='transparent';
-    const b=12*S; ctx.save(); ctx.beginPath(); ctx.arc(w/2,h/2,w/2-b,0,Math.PI*2); ctx.clip();
-    drawCover(photoImg,b,b,w-b*2,h-b*2,fx,fy); ctx.restore();
+    const b=12*S; ctx.save(); ctx.beginPath(); ctx.ellipse(w/2,h/2,Math.max(1,w/2-b),Math.max(1,h/2-b),0,0,Math.PI*2); ctx.clip();
+    drawCover(photo,b,b,w-b*2,h-b*2,fx,fy,ctx,z); ctx.restore();
   } else if(st.frame==='polaroid'){
     ctx.fillStyle=fc; rr(0,0,w,h,6*S); ctx.fill();
     ctx.shadowColor='transparent';
     const b=w*.06, bottom=w*.2;
-    drawCover(photoImg,b,b,w-b*2,h-b-bottom,fx,fy);
+    drawCover(photo,b,b,w-b*2,h-b-bottom,fx,fy,ctx,z);
   } else {
     ctx.fillStyle=fc; rr(0,0,w,h,34*S); ctx.fill();
     ctx.shadowColor='transparent';
     const b=10*S; ctx.save(); rr(b,b,w-b*2,h-b*2,26*S); ctx.clip();
-    drawCover(photoImg,b,b,w-b*2,h-b*2,fx,fy); ctx.restore();
+    drawCover(photo,b,b,w-b*2,h-b*2,fx,fy,ctx,z); ctx.restore();
   }
   if(overlayImg){
     ctx.shadowColor='transparent';
@@ -503,61 +612,234 @@ function drawPhoto(x,y,w,h,S){
   ctx.restore();
 }
 
-let lastBlob=null;
-let timer=null, running=false, again=false;
+/* ---------- 描画の順番待ち(同時に描かないように) ---------- */
+let chain = Promise.resolve();
+function enqueue(fn){ const p = chain.then(fn, fn); chain = p.catch(()=>{}); return p; }
+
+const mainCv = document.createElement('canvas');
+let lastBlob = null, sharedV = 0;
+let timer=null;
 function schedule(){
   clearTimeout(timer);
-  timer = setTimeout(async () => {
-    if(running){ again=true; return; }
-    running=true;
-    try{ await render(); }finally{ running=false; if(again){ again=false; schedule(); } }
-  }, 120);
+  timer = setTimeout(() => enqueue(async () => {
+    const card = curCard();
+    const r = await renderCard(mainCv, card);
+    $('sizeLabel').textContent = `${r.W}×${r.H}px`;
+    paintThumb(card, mainCv); card.thumbV = sharedV;
+    await new Promise(res => mainCv.toBlob(b => {
+      if(b){
+        lastBlob = b;
+        const url = URL.createObjectURL(b);
+        const img=$('preview'); const old=img.dataset.url;
+        img.src=url; img.dataset.url=url; if(old) setTimeout(()=>URL.revokeObjectURL(old),2000);
+      }
+      res();
+    }, 'image/png'));
+    scheduleThumbs();
+  }), 110);
 }
-$('form').addEventListener('input', schedule);
-$('form').addEventListener('change', schedule);
-document.fonts && document.fonts.ready.then(schedule);
+function sharedChanged(){ sharedV++; schedule(); }
+function cardChanged(){ schedule(); saveDraftSoon(); }
 
-let downloadsP = null;
-try{ downloadsP = window.claude?.use ? window.claude.use("downloads") : null; }catch(e){ downloadsP = null; }
-$('dl').addEventListener('click', async () => {
-  const src=$('preview').src; if(!src) return;
-  const d=new Date(), p=n=>String(n).padStart(2,'0');
-  const filename=`messagecard_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}.png`;
-  const dl = downloadsP ? await downloadsP.catch(()=>null) : null;
-  if(dl){
-    try{
-      await dl.save({filename, data: lastBlob});
-    }catch(err){
-      if(err && err.code==='declined') return;
-      if(err && err.code==='rate_limited'){ alertHint('保存の確認画面がすでに開いています。少し待ってからもう一度押してください。'); return; }
-      alertHint('ここでは保存ボタンが使えません。プレビュー画像を右クリック(スマホは長押し)して保存してください。');
-    }
-    return;
+/* ---------- サムネイル ---------- */
+function paintThumb(card, src){
+  const el = document.querySelector(`.thumb[data-id="${card.id}"] canvas`); if(!el) return;
+  el.width = Math.round(src.width/6); el.height = Math.round(src.height/6);
+  el.getContext('2d').drawImage(src,0,0,el.width,el.height);
+}
+const thumbCv = document.createElement('canvas');
+let thumbTimer=null;
+function scheduleThumbs(){
+  clearTimeout(thumbTimer);
+  thumbTimer = setTimeout(async function step(){
+    const card = cards.find(c => c.thumbV !== sharedV);
+    if(!card) return;
+    const v = sharedV;
+    await enqueue(async () => { await renderCard(thumbCv, card); paintThumb(card, thumbCv); card.thumbV = v; });
+    thumbTimer = setTimeout(step, 30);
+  }, 600);
+}
+function buildStrip(){
+  const strip = $('strip'); strip.innerHTML='';
+  cards.forEach((c,i) => {
+    const b = document.createElement('button'); b.type='button';
+    b.className = 'thumb' + (st.ratio==='1:1' ? ' square' : ''); b.dataset.id = c.id; b.setAttribute('role','listitem');
+    b.setAttribute('aria-label', `${i+1}枚目のカード`);
+    if(i===curIdx) b.setAttribute('aria-current','true');
+    const cv = document.createElement('canvas'); cv.width=160; cv.height=st.ratio==='1:1'?160:90;
+    const n = document.createElement('span'); n.textContent = i+1;
+    b.append(cv, n);
+    b.onclick = () => selectCard(i);
+    strip.appendChild(b);
+    c.thumbV = -1;
+  });
+  $('cardPos').textContent = `カード ${curIdx+1} / ${cards.length}`;
+  $('cardDel').disabled = cards.length<=1;
+  $('cardPrev').disabled = curIdx===0;
+  $('cardNext').disabled = curIdx===cards.length-1;
+  $('dlAll').textContent = `全部まとめてZIPで保存(${cards.length}枚)`;
+  const cur = strip.children[curIdx]; if(cur) cur.scrollIntoView({block:'nearest', inline:'nearest'});
+  scheduleThumbs();
+}
+function selectCard(i){
+  curIdx = Math.max(0, Math.min(cards.length-1, i));
+  loadFields(); buildStrip(); schedule();
+}
+$('cardAdd').onclick = () => { cards.splice(curIdx+1, 0, newCard(curCard())); curIdx++; loadFields(); buildStrip(); schedule(); saveDraftSoon(); };
+let delArmed=false;
+$('cardDel').onclick = () => {
+  if(cards.length<=1) return;
+  if(!delArmed){ delArmed=true; $('cardDel').textContent='もう一度押すと削除'; setTimeout(()=>{ delArmed=false; $('cardDel').textContent='削除'; },3000); return; }
+  delArmed=false; $('cardDel').textContent='削除';
+  cards.splice(curIdx,1); if(curIdx>=cards.length) curIdx=cards.length-1;
+  loadFields(); buildStrip(); schedule(); saveDraftSoon();
+};
+function move(d){
+  const j=curIdx+d; if(j<0||j>=cards.length) return;
+  [cards[curIdx],cards[j]]=[cards[j],cards[curIdx]]; curIdx=j; buildStrip(); schedule(); saveDraftSoon();
+}
+$('cardPrev').onclick = () => move(-1);
+$('cardNext').onclick = () => move(1);
+
+/* ---------- まとめて作る ---------- */
+function parseBulk(text){
+  return text.replace(/\r/g,'').split(/^\s*-{3,}\s*$/m)
+    .map(b => b.replace(/^\n+|\s+$/g,''))
+    .filter(b => b.trim())
+    .map(b => {
+      const ls = b.split('\n'); let sign = null;
+      const last = ls[ls.length-1].trim();
+      if(ls.length>1 && /^[@＠]/.test(last)){ sign = last.replace(/^[@＠]\s*/,''); ls.pop(); }
+      return {msg: ls.join('\n').replace(/\s+$/,''), sign};
+    });
+}
+function bulkMsg(t){ $('bulkMsg').textContent = t; }
+function makeFromBulk(replace){
+  const items = parseBulk($('bulkText').value);
+  if(!items.length){ bulkMsg('メッセージが入っていません。上の欄に入力してください。'); return; }
+  const base = curCard();
+  const made = items.map(it => { const c = newCard(base); c.msg = it.msg; if(it.sign!==null) c.sign = it.sign; return c; });
+  if(replace){ cards = made; curIdx = 0; }
+  else { cards.push(...made); curIdx = cards.length - made.length; }
+  loadFields(); buildStrip(); schedule(); saveDraftSoon();
+  bulkMsg(`${made.length}枚のカードを${replace?'作りました':'追加しました'}。全部で${cards.length}枚です。`);
+}
+let repArmed=false;
+$('bulkReplace').onclick = () => {
+  const busy = cards.length>1 || cards[0].msg.trim();
+  if(busy && !repArmed){ repArmed=true; $('bulkReplace').textContent='もう一度押すと入れ替えます'; setTimeout(()=>{ repArmed=false; $('bulkReplace').textContent='今のカードと入れ替えて作る'; },3000); return; }
+  repArmed=false; $('bulkReplace').textContent='今のカードと入れ替えて作る';
+  makeFromBulk(true);
+};
+$('bulkAppend').onclick = () => makeFromBulk(false);
+$('bulkPhotos').addEventListener('change', async e => {
+  const files = [...e.target.files].sort((a,b)=>a.name.localeCompare(b.name,'ja',{numeric:true}));
+  e.target.value=''; if(!files.length) return;
+  bulkMsg('写真を読み込んでいます…');
+  let ok=0, added=0;
+  for(let i=0;i<files.length;i++){
+    let im; try{ im = await loadImageFile(files[i]); }catch(err){ continue; }
+    if(i>=cards.length){ cards.push(newCard(cards[cards.length-1])); added++; }
+    cards[i].photo = im; cards[i].photoName = files[i].name; ok++;
   }
-  const a=document.createElement('a');
-  a.href=src; a.download=filename;
-  document.body.appendChild(a); a.click(); a.remove();
+  if(st.pos==='none') setSeg('pos','left');
+  loadFields(); buildStrip(); sharedChanged(); saveDraftSoon();
+  bulkMsg(`${ok}枚の写真を1枚目のカードから順に入れました。` + (added?`足りない${added}枚分はカードを追加しました。`:'') + (ok<files.length?`読み込めなかった写真が${files.length-ok}枚あります。`:''));
 });
 
+/* ---------- 保存 ---------- */
+let downloadsP = null;
+try{ downloadsP = window.claude?.use ? window.claude.use("downloads") : null; }catch(e){ downloadsP = null; }
+async function saveFile(filename, data){
+  const dl = downloadsP ? await Promise.resolve(downloadsP).catch(()=>null) : null;
+  if(dl){
+    try{ await dl.save({filename, data}); return 'saved'; }
+    catch(err){ if(err?.code==='declined') return 'declined'; if(err?.code==='rate_limited') return 'busy'; return 'failed'; }
+  }
+  const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data]));
+  const a=document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
+  return 'saved';
+}
+const stamp = () => { const d=new Date(), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; };
+function cardFileName(card, i){
+  const head = card.photoName ? card.photoName.replace(/\.[^.]+$/,'') : (card.msg.split('\n')[0] || 'card').slice(0,14);
+  const safe = head.replace(/[\\/:*?"<>|\s]+/g,'_').replace(/^_+|_+$/g,'') || 'card';
+  return `${String(i+1).padStart(2,'0')}_${safe}.png`;
+}
+$('dl').addEventListener('click', async () => {
+  if(!lastBlob) return;
+  const r = await saveFile(cardFileName(curCard(), curIdx).replace(/\.png$/, `_${stamp()}.png`), lastBlob);
+  if(r==='busy') hint('保存の確認画面がすでに開いています。少し待ってからもう一度押してください。');
+  else if(r==='failed') hint('ここでは保存ボタンが使えません。プレビュー画像を右クリック(スマホは長押し)して保存してください。');
+});
+$('dlAll').addEventListener('click', async () => {
+  if(typeof JSZip==='undefined'){ hint('ZIPの作成機能を読み込めませんでした。ページを開き直してください。'); return; }
+  const btn=$('dlAll'); btn.disabled=true; $('dl').disabled=true;
+  try{
+    const zip = new JSZip(); const used = new Set();
+    const ex = document.createElement('canvas');
+    for(let i=0;i<cards.length;i++){
+      hint(`${i+1} / ${cards.length} 枚目を作成中…`);
+      const blob = await enqueue(async () => { await renderCard(ex, cards[i]); return new Promise(res => ex.toBlob(res,'image/png')); });
+      let n = cardFileName(cards[i], i), k=2; while(used.has(n)) n = n.replace(/(_\d+)?\.png$/, `_${k++}.png`); used.add(n);
+      zip.file(n, blob);
+      await new Promise(r=>setTimeout(r,0));
+    }
+    hint('ZIPにまとめています…');
+    const z = await zip.generateAsync({type:'blob'});
+    const r = await saveFile(`messagecards_${cards.length}枚_${stamp()}.zip`, z);
+    hint(r==='saved' ? `${cards.length}枚のカードをZIPで保存しました。` : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。');
+  } finally { btn.disabled=false; $('dl').disabled=false; }
+});
+
+/* ---------- 入力 ---------- */
+$('form').addEventListener('input', e => {
+  const id = e.target.id;
+  if(PER_CARD.includes(id)){
+    const c = curCard(); c[id] = e.target.type==='range' ? +e.target.value : e.target.value;
+    cardChanged();
+  } else if(id && !['bulkText'].includes(id) && e.target.type!=='file') sharedChanged();
+});
+$('form').addEventListener('change', e => {
+  const id = e.target.id;
+  if(e.target.type==='file' || id==='bulkText' || PER_CARD.includes(id)) return;
+  if(e.target.tagName==='SELECT' || e.target.type==='checkbox' || e.target.type==='color') sharedChanged();
+});
+$('ratioSeg').addEventListener('click', () => setTimeout(buildStrip, 0));
+document.fonts && document.fonts.ready.then(sharedChanged);
+
+/* ---------- 下書き(メッセージの自動保存) ---------- */
+const DRAFT='messagecard-cards-v1';
+let draftTimer=null;
+function saveDraftSoon(){
+  clearTimeout(draftTimer);
+  draftTimer=setTimeout(()=>{
+    try{ localStorage.setItem(DRAFT, JSON.stringify({cur:curIdx, cards:cards.map(c=>({msg:c.msg,sign:c.sign,photoX:c.photoX,photoY:c.photoY,photoZoom:c.photoZoom}))})); }catch(e){}
+  },500);
+}
+
 /* ---------- スライダーの数値表示 ---------- */
-const UNITS={photoTilt:'°', tileRot:'°', ovRot:'°', ovSize:'%'};
+const UNITS={photoTilt:'°', tileRot:'°', ovRot:'°', ovSize:'%', photoZoom:'%', photoSize:'%'};
 document.querySelectorAll('#form input[type=range]').forEach(inp => {
   const lab=inp.closest('label'); const t=lab.firstChild;
   const head=document.createElement('span'); head.className='lab';
   const name=document.createElement('span'); name.textContent=t.textContent.trim();
   const out=document.createElement('output');
   head.append(name,out); lab.replaceChild(head,t);
-  const upd=()=>{ out.textContent=inp.value+(UNITS[inp.id]||''); };
+  const upd = inp.id==='aspectFree'
+    ? ()=>{ const a=freeAspect(); out.textContent = a>=1 ? `横 ${a.toFixed(2)} : 縦 1` : `横 1 : 縦 ${(1/a).toFixed(2)}`; }
+    : ()=>{ out.textContent=inp.value+(UNITS[inp.id]||''); };
   inp.addEventListener('input',upd); inp._upd=upd; upd();
   inp.addEventListener('dblclick',()=>{
     const d=(saved||factory)[inp.id]; if(d==null) return;
-    inp.value=d; upd(); schedule();
+    inp.value=d; upd(); inp.dispatchEvent(new Event('input',{bubbles:true}));
   });
 });
 
 /* ---------- 初期値の保存 ---------- */
 const KEY='messagecard-defaults-v1';
-const EXCLUDE=new Set(['msg','bgFile','photoFile','fontFile','overlayFile']);
+const EXCLUDE=new Set(['msg','bulkText','bgFile','photoFile','fontFile','overlayFile','bulkPhotos']);
 function collect(){
   const o={};
   document.querySelectorAll('#form input, #form select').forEach(el => {
@@ -568,7 +850,7 @@ function collect(){
   o._seg = {...st};
   return o;
 }
-function apply(o){
+function apply(o, toCard=true){
   for(const [id,v] of Object.entries(o)){
     if(id==='_seg'||id==='fontName'||id==='font') continue;
     const el=$(id); if(!el) continue;
@@ -578,13 +860,18 @@ function apply(o){
   const fi = FONTS.findIndex(f=>f.fam===o.fontName);
   if(fi>=0) fontSel.value=String(fi);
   if(o._seg) for(const k of Object.keys(SEGS)) if(o._seg[k]) setSeg(k,o._seg[k]);
-  schedule();
+  $('aspectFreeBox').hidden = $('photoAspect').value!=='free';
+  if(toCard && cards.length){
+    const c=curCard();
+    for(const k of ['sign','photoX','photoY','photoZoom']) if(k in o) c[k] = k==='sign' ? o[k] : +o[k];
+    saveDraftSoon();
+  }
+  buildStrip(); sharedChanged();
 }
 function say(t){ $('defMsg').textContent=t; }
 const factory=collect();
 let saved=null;
 try{ const raw=localStorage.getItem(KEY); if(raw) saved=JSON.parse(raw); }catch(e){ saved=null; }
-if(saved) apply(saved);
 $('defSave').addEventListener('click',()=>{
   const o=collect();
   try{ localStorage.setItem(KEY, JSON.stringify(o)); saved=o; say('今の設定を初期値として保存しました。'); }
@@ -596,7 +883,23 @@ $('defClear').addEventListener('click',()=>{
   saved=null; apply(factory); say('保存した初期値を消して、最初の状態に戻しました。');
 });
 
-schedule();
+/* ---------- 起動 ---------- */
+if(saved) apply(saved, false);
+const first = newCard();
+first.msg = $('msg').value; first.sign = $('sign').value;
+first.photoX = +$('photoX').value; first.photoY = +$('photoY').value; first.photoZoom = +$('photoZoom').value;
+cards = [first];
+let restored = false;
+try{
+  const d = JSON.parse(localStorage.getItem(DRAFT) || 'null');
+  if(d && Array.isArray(d.cards) && d.cards.length){
+    cards = d.cards.map(x => Object.assign(newCard(), {msg:String(x.msg??''), sign:String(x.sign??''), photoX:+x.photoX||50, photoY:+x.photoY||50, photoZoom:+x.photoZoom||100}));
+    curIdx = Math.min(cards.length-1, Math.max(0, d.cur|0));
+    restored = cards.length>1 || cards[0].msg !== first.msg;
+  }
+}catch(e){}
+loadFields(); buildStrip(); sharedChanged();
+if(restored) hint(`前回のメッセージ(${cards.length}枚)を復元しました。写真は保存されないので、もう一度選んでください。`);
 })();
 </script>
 
