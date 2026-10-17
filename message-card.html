@@ -91,7 +91,7 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>メッセージカードメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.5 ・ 2026-10-18 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.6 ・ 2026-10-18 更新</a>
     <p>背景・写真・メッセージ・フォントを選んで、Twitter向けの画像を作ります。複数枚まとめて作ることもできます</p>
   </header>
 
@@ -249,6 +249,7 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
         <label>フォントファイルを追加(.ttf / .otf / .woff)<input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2"></label>
         <label>PCに入っているフォント名で指定<input type="text" id="localFont" placeholder="例:けいふぉんと"></label>
         <label>文字の大きさ<input type="range" id="size" min="28" max="120" value="62"></label>
+        <label>差出人の大きさ(本文に対する%)<input type="range" id="signSize" min="30" max="150" value="62"></label>
         <div class="row">
           <label>文字色<input type="color" id="color" value="#5a2a48"></label>
           <label>縁取り色<input type="color" id="strokeColor" value="#ffffff"></label>
@@ -570,7 +571,7 @@ async function renderCard(c, card){
   for(let tries=0; tries<40; tries++){
     ctx.font = `${f.w} ${size}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
     lines = wrap(msg, maxTW);
-    signSize = size*.62;
+    signSize = size*(+$('signSize').value/100);
     blockH = lines.length*size*lh + (sign? signSize*1.9 : 0);
     if(blockH <= tb.h - innerPad*2 || size < 14*S) break;
     size *= .94;
@@ -871,7 +872,7 @@ function saveDraftSoon(){
 }
 
 /* ---------- スライダーの数値表示 ---------- */
-const UNITS={photoTilt:'°', tileRot:'°', ovRot:'°', ovSize:'%', photoSize:'%'};
+const UNITS={signSize:'%', photoTilt:'°', tileRot:'°', ovRot:'°', ovSize:'%', photoSize:'%'};
 document.querySelectorAll('#form input[type=range]').forEach(inp => {
   const lab=inp.closest('label'); const t=lab.firstChild;
   const head=document.createElement('span'); head.className='lab';
