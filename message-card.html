@@ -260,6 +260,17 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
       </fieldset>
 
       <fieldset>
+        <legend>ファイルに保存</legend>
+        <p class="hint">全カードのメッセージと、背景・フォント・写真などの設定をまとめて1つのファイル(.json)に書き出せます。読み込むと、書き出したときの状態に戻ります。別のPCに移したり、作ったものを残しておいたりするのに使えます。</p>
+        <label class="check"><input type="checkbox" id="ioImages" checked> 画像と追加したフォントも一緒に保存する</label>
+        <div class="btns">
+          <button type="button" class="btn small" id="ioExport">ファイルに書き出す</button>
+          <label class="btn ghost small" style="flex-direction:row;display:inline-flex;color:var(--accent)">ファイルから読み込む<input type="file" id="ioImport" accept=".json,application/json" hidden></label>
+        </div>
+        <p class="hint status" id="ioMsg" role="status"></p>
+      </fieldset>
+
+      <fieldset>
         <legend>初期値</legend>
         <p class="hint">今のスライダーや色、配置などの設定を、次に開いたときの初期値にできます(本文・画像・追加したフォントファイルは含みません。切り抜きの拡大と位置は、新しく作るカードの初期値になります)。スライダーはダブルクリックでその初期値に戻ります。</p>
         <div class="btns">
@@ -378,7 +389,7 @@ function loadFields(){
 function loadImageFile(file){
   return new Promise((res,rej) => {
     const url = URL.createObjectURL(file); const im = new Image();
-    im.onload = () => res(im); im.onerror = rej; im.src = url;
+    im.onload = () => { im._blob = file; res(im); }; im.onerror = rej; im.src = url;
   });
 }
 function hint(t){ $('stageHint').textContent = t; }
@@ -412,7 +423,7 @@ $('fontFile').addEventListener('change', async e => {
     const buf = await f.arrayBuffer();
     const fam = 'UserFont' + (++userFontN);
     const ff = new FontFace(fam, buf); await ff.load(); document.fonts.add(ff);
-    const entry = {name: f.name.replace(/\.[^.]+$/,'') + '(追加したフォント)', fam, w:400};
+    const entry = {name: f.name.replace(/\.[^.]+$/,'') + '(追加したフォント)', fam, w:400, blob:f};
     FONTS.push(entry); addFontOption(entry, true); $('localFont').value=''; sharedChanged();
   }catch(err){ hint('フォントを読み込めませんでした。ttf / otf / woff ファイルを選んでください。'); }
 });
@@ -849,7 +860,7 @@ document.querySelectorAll('#form input[type=range]').forEach(inp => {
 
 /* ---------- 初期値の保存 ---------- */
 const KEY='messagecard-defaults-v1';
-const EXCLUDE=new Set(['msg','bulkText','bgFile','photoFile','fontFile','overlayFile','bulkPhotos']);
+const EXCLUDE=new Set(['msg','bulkText','bgFile','photoFile','fontFile','overlayFile','bulkPhotos','ioImages','ioImport']);
 function collect(){
   const o={};
   document.querySelectorAll('#form input, #form select').forEach(el => {
@@ -894,6 +905,70 @@ $('defApply').addEventListener('click',()=>{ apply(saved||factory); say(saved?'�
 $('defClear').addEventListener('click',()=>{
   try{ localStorage.removeItem(KEY); }catch(e){}
   saved=null; apply(factory); say('保存した初期値を消して、最初の状態に戻しました。');
+});
+
+/* ---------- ファイルに書き出す・読み込む ---------- */
+const blobToDataURL = b => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
+function dataURLToBlob(u){
+  const [head, body] = u.split(','); const mime = (head.match(/data:([^;]+)/)||[])[1] || 'application/octet-stream';
+  const bin = atob(body); const a = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i);
+  return new Blob([a], {type:mime});
+}
+function imageFromBlob(b){
+  return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>{ im._blob=b; res(im); }; im.onerror=rej; im.src=URL.createObjectURL(b); });
+}
+function ioMsg(t){ $('ioMsg').textContent=t; }
+$('ioExport').addEventListener('click', async () => {
+  const withImages = $('ioImages').checked;
+  ioMsg('書き出しています…');
+  try{
+    const images = {}; const ids = new Map(); let n=0;
+    const ref = async img => {
+      if(!withImages || !img || !img._blob) return null;
+      if(!ids.has(img._blob)){ const id='i'+(++n); ids.set(img._blob,id); images[id]=await blobToDataURL(img._blob); }
+      return ids.get(img._blob);
+    };
+    const out = {app:'messagecard', version:2, settings:collect(),
+      bg: await ref(bgImg), overlay: await ref(overlayImg), images, fonts:[],
+      current: curIdx,
+      cards: []};
+    for(const c of cards) out.cards.push({msg:c.msg, sign:c.sign, photoX:c.photoX, photoY:c.photoY, photoZoom:c.photoZoom,
+      photoName:c.photoName, photo: await ref(c.photo)});
+    if(withImages) for(const f of FONTS) if(f.blob) out.fonts.push({name:f.name, fam:f.fam, data: await blobToDataURL(f.blob)});
+    const r = await saveFile(`messagecard_設定_${cards.length}枚_${stamp()}.json`, JSON.stringify(out));
+    ioMsg(r==='saved' ? `${cards.length}枚分の設定をファイルに書き出しました。` + (withImages?'画像とフォントも含まれています。':'画像は含まれていません。')
+      : r==='declined' ? '書き出しを取り消しました。' : '書き出せませんでした。少し待ってからもう一度試してください。');
+  }catch(err){ ioMsg('書き出せませんでした。画像が大きすぎる可能性があります。「画像も一緒に保存する」を外して試してください。'); }
+});
+$('ioImport').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value=''; if(!f) return;
+  ioMsg('読み込んでいます…');
+  try{
+    const d = JSON.parse(await f.text());
+    if(d.app!=='messagecard' || !Array.isArray(d.cards)) throw new Error('format');
+    const imgs = {};
+    for(const [id,u] of Object.entries(d.images||{})){ try{ imgs[id] = await imageFromBlob(dataURLToBlob(u)); }catch(err){} }
+    const famMap = {};
+    for(const ft of d.fonts||[]){
+      try{
+        const blob = dataURLToBlob(ft.data); const fam = 'UserFont' + (++userFontN);
+        const face = new FontFace(fam, await blob.arrayBuffer()); await face.load(); document.fonts.add(face);
+        const entry = {name: ft.name, fam, w:400, blob}; FONTS.push(entry); addFontOption(entry);
+        famMap[ft.fam] = fam;
+      }catch(err){}
+    }
+    const s = {...(d.settings||{})}; if(s.fontName && famMap[s.fontName]) s.fontName = famMap[s.fontName];
+    bgImg = (d.bg && imgs[d.bg]) || sampleBg();
+    overlayImg = (d.overlay && imgs[d.overlay]) || null; $('overlayOpts').hidden = !overlayImg;
+    cards = d.cards.map(x => Object.assign(newCard(), {msg:String(x.msg??''), sign:String(x.sign??''),
+      photoX:+x.photoX||50, photoY:+x.photoY||50, photoZoom:+x.photoZoom||0,
+      photo:(x.photo && imgs[x.photo]) || null, photoName:(x.photo && imgs[x.photo]) ? String(x.photoName||'') : ''}));
+    if(!cards.length) cards=[newCard()];
+    curIdx = Math.min(cards.length-1, Math.max(0, d.current|0));
+    apply(s, false); loadFields(); buildStrip(); sharedChanged(); saveDraftSoon();
+    ioMsg(`「${f.name}」を読み込みました(${cards.length}枚)。`);
+  }catch(err){ ioMsg('読み込めませんでした。このツールで書き出したファイル(.json)を選んでください。'); }
 });
 
 /* ---------- 起動 ---------- */
