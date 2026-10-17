@@ -226,6 +226,7 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
 
       <fieldset>
         <legend>メッセージ(このカード)</legend>
+        <label class="check"><input type="checkbox" id="balance" checked> 行の長さをそろえる(1文字だけの行ができないようにする)</label>
         <label>本文<textarea id="msg">いつも応援ありがとう！
 みんなのおかげで今日もがんばれました。
 これからもよろしくね</textarea></label>
@@ -448,16 +449,32 @@ function rr(x,y,w,h,r){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
 function hexA(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`; }
 
 const NO_START = '、。，．,.！？!?）)」』】〉》ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ～〜…‥';
+function wrapPara(para, maxW){
+  const out=[]; let line='';
+  for(const ch of [...para]){
+    if(line && ctx.measureText(line+ch).width>maxW && !NO_START.includes(ch)){ out.push(line); line=ch; }
+    else line+=ch;
+  }
+  out.push(line);
+  return out;
+}
+// 行数はそのままで、いちばん狭く収まる幅を探して各行の長さをそろえる(1文字だけの行を防ぐ)
+function wrapBalanced(para, maxW){
+  const greedy = wrapPara(para, maxW);
+  if(greedy.length < 2) return greedy;
+  let lo = 0, hi = maxW;
+  for(const ch of [...para]) lo = Math.max(lo, ctx.measureText(ch).width);
+  for(let i=0;i<14 && hi-lo>0.5;i++){
+    const mid = (lo+hi)/2;
+    if(wrapPara(para, mid).length > greedy.length) lo = mid; else hi = mid;
+  }
+  return wrapPara(para, hi);
+}
 function wrap(text, maxW){
-  const out=[];
+  const out=[]; const bal = $('balance').checked;
   for(const para of text.split('\n')){
     if(para===''){ out.push(''); continue; }
-    let line='';
-    for(const ch of [...para]){
-      if(line && ctx.measureText(line+ch).width>maxW && !NO_START.includes(ch)){ out.push(line); line=ch; }
-      else line+=ch;
-    }
-    out.push(line);
+    out.push(...(bal ? wrapBalanced(para, maxW) : wrapPara(para, maxW)));
   }
   return out;
 }
