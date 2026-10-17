@@ -60,7 +60,7 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
   <div class="tools">
     <a class="tool card" href="message-card.html">
       <div class="thumb" aria-hidden="true"><i style="width:70px;height:80px;transform:rotate(-4deg)"></i><i style="width:110px;height:44px;opacity:.8"></i></div>
-      <span class="ratio">16:9 / 1:1 ・ Twitter向け ・ v1.4</span>
+      <span class="ratio">16:9 / 1:1 ・ Twitter向け ・ v1.5</span>
       <h2>メッセージカードメーカー</h2>
       <p>背景・写真・メッセージ・フォントを選んで、カード画像を作ります。たくさんのカードをまとめて作ってZIPで保存することもできます。</p>
       <span class="go">使ってみる →</span>
@@ -90,7 +90,7 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
       <li>「まとめて作る」を開き、メッセージを「---」だけの行で区切って入力します。最後の行を「＠ミルクより」のように＠で始めると、そのカードの差出人になります。</li>
       <li>「今のカードと入れ替えて作る」を押すと、メッセージの数だけカードができます。</li>
       <li>写真を複数選ぶと、ファイル名順に1枚目のカードから入ります。</li>
-      <li>プレビュー下の一覧でカードを選ぶと、1枚ずつ確認・修正できます。背景やフォントなどの設定は全カード共通です。</li>
+      <li>プレビュー下の一覧でカードを選ぶと、1枚ずつ確認・修正できます。写真の配置・大きさ・傾き・切り抜きはカードごとに変えられます。背景やフォント、フレームなどの設定は全カード共通です。</li>
       <li>「全部まとめてZIPで保存」で、全カードを一度に保存できます。</li>
     </ol>
     <p>メッセージはブラウザに自動で保存され、次に開いたときに復元されます(写真は復元されません)。</p>
@@ -142,6 +142,7 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
   <section id="changelog">
     <h2>更新履歴</h2>
     <h3>メッセージカードメーカー</h3>
+    <div class="log"><b>v1.5(2026-10-18)</b><ul><li>写真の配置(左・右・なし)・大きさ・傾きをカードごとに設定できるようにした</li><li>写真の設定欄を「このカードだけの設定」と「全カード共通の設定」に分けた</li><li>写真の配置・大きさ・傾き・切り抜きを全カードにそろえるボタンを追加</li></ul></div>
     <div class="log"><b>v1.4(2026-10-18)</b><ul><li>自動の改行で行の長さをそろえるようにした(1文字だけの行ができないようにする)。「行の長さをそろえる」で切り替え可能</li></ul></div>
     <div class="log"><b>v1.3(2026-10-18)</b><ul><li>全カードのメッセージと設定を、画像ごとファイル(.json)に書き出し・読み込みできるようにした</li></ul></div>
     <div class="log"><b>v1.2(2026-10-18)</b><ul><li>写真の切り抜きを、0を基準にした拡大・縮小(−100〜+100)に変更</li></ul></div>

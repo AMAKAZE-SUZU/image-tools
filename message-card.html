@@ -91,7 +91,7 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>メッセージカードメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.4 ・ 2026-10-18 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.5 ・ 2026-10-18 更新</a>
     <p>背景・写真・メッセージ・フォントを選んで、Twitter向けの画像を作ります。複数枚まとめて作ることもできます</p>
   </header>
 
@@ -113,7 +113,7 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
         <button id="dlAll" class="btn ghost" type="button">全部まとめてZIPで保存</button>
         <span id="sizeLabel" class="tag"></span>
       </div>
-      <p class="hint status" id="stageHint" role="status">背景・フォント・フレームなどの設定は全カード共通です。メッセージ・差出人・写真・写真の切り抜き位置はカードごとに変えられます。</p>
+      <p class="hint status" id="stageHint" role="status">背景・フォント・フレームなどの設定は全カード共通です。メッセージ・差出人・写真とその配置・大きさ・傾き・切り抜きはカードごとに変えられます。</p>
     </div>
 
     <form class="panel" id="form" onsubmit="return false">
@@ -171,6 +171,7 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
 
       <fieldset>
         <legend>写真</legend>
+        <p class="hint"><b>このカードだけの設定</b></p>
         <label>このカードの写真<input type="file" id="photoFile" accept="image/*"></label>
         <div class="btns"><span class="hint" id="photoName" style="flex:1 1 100%"></span>
           <button type="button" class="mini" id="photoToAll">この写真を全カードに使う</button></div>
@@ -180,6 +181,17 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
           <button type="button" data-v="right" aria-pressed="false">右</button>
           <button type="button" data-v="none" aria-pressed="false">なし</button>
         </div>
+        <div class="row">
+          <label>大きさ<input type="range" id="photoSize" min="50" max="150" value="100"></label>
+          <label>傾き<input type="range" id="photoTilt" min="-10" max="10" value="-3"></label>
+        </div>
+        <label>切り抜きの拡大・縮小(0が枠にぴったり)<input type="range" id="photoZoom" min="-100" max="100" value="0"></label>
+        <div class="row">
+          <label>切り抜く位置 横<input type="range" id="photoX" min="0" max="100" value="50"></label>
+          <label>縦<input type="range" id="photoY" min="0" max="100" value="50"></label>
+        </div>
+        <div class="btns"><button type="button" class="mini" id="layoutToAll">この配置・大きさ・傾き・切り抜きを全カードに使う</button></div>
+        <p class="hint" style="margin-top:6px"><b>全カード共通の設定</b></p>
         <label>フレーム</label>
         <div class="seg" id="frameSeg">
           <button type="button" data-v="round" aria-pressed="false">角丸</button>
@@ -200,10 +212,6 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
           <button type="button" class="btn ghost small" id="ovRemove">重ねる画像を外す</button>
         </div>
         <label class="check"><input type="checkbox" id="photoShadow" checked> 影をつける</label>
-        <div class="row">
-          <label>大きさ<input type="range" id="photoSize" min="50" max="150" value="100"></label>
-          <label>傾き<input type="range" id="photoTilt" min="-10" max="10" value="-3"></label>
-        </div>
         <label>切り抜きの形(縦横比)<select id="photoAspect">
           <option value="auto">標準(フレームに合わせる)</option>
           <option value="orig">元の写真のまま</option>
@@ -218,12 +226,6 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
         </select></label>
         <div id="aspectFreeBox" hidden>
           <label>縦横比(左で縦長、右で横長)<input type="range" id="aspectFree" min="-100" max="100" value="0"></label>
-        </div>
-        <p class="hint">ここから下はカードごとに覚えます。</p>
-        <label>切り抜きの拡大・縮小(0が枠にぴったり)<input type="range" id="photoZoom" min="-100" max="100" value="0"></label>
-        <div class="row">
-          <label>切り抜く位置 横<input type="range" id="photoX" min="0" max="100" value="50"></label>
-          <label>縦<input type="range" id="photoY" min="0" max="100" value="50"></label>
         </div>
       </fieldset>
 
@@ -324,7 +326,8 @@ function seg(id, key){
   el.addEventListener('click', e => {
     const b = e.target.closest('button'); if(!b) return;
     setSeg(key, b.dataset.v);
-    sharedChanged();
+    if(key==='pos'){ curCard().pos = b.dataset.v; cardChanged(); }
+    else sharedChanged();
   });
 }
 seg('ratioSeg','ratio'); seg('posSeg','pos'); seg('frameSeg','frame'); seg('alignSeg','align'); seg('bgModeSeg','bgMode');
@@ -370,12 +373,14 @@ const SAMPLE_PHOTO = samplePhoto();
 let overlayImg = null;
 
 /* ---------- カード ---------- */
-const PER_CARD = ['msg','sign','photoX','photoY','photoZoom'];
+const PER_CARD = ['msg','sign','photoX','photoY','photoZoom','photoSize','photoTilt'];
+const LAYOUT_KEYS = ['pos','photoSize','photoTilt','photoX','photoY','photoZoom'];
 let uidN = 0;
 function newCard(from){
-  const c = {id: ++uidN, msg:'', sign:'', photo:null, photoName:'', photoX:50, photoY:50, photoZoom:0, thumbV:-1};
+  const c = {id: ++uidN, msg:'', sign:'', photo:null, photoName:'', photoX:50, photoY:50, photoZoom:0,
+    pos:st.pos, photoSize:+$('photoSize').value, photoTilt:+$('photoTilt').value, thumbV:-1};
   if(from) Object.assign(c, {msg:from.msg, sign:from.sign, photo:from.photo, photoName:from.photoName,
-    photoX:from.photoX, photoY:from.photoY, photoZoom:from.photoZoom});
+    photoX:from.photoX, photoY:from.photoY, photoZoom:from.photoZoom, pos:from.pos, photoSize:from.photoSize, photoTilt:from.photoTilt});
   return c;
 }
 let cards = [], curIdx = 0;
@@ -384,7 +389,8 @@ const curCard = () => cards[curIdx];
 function loadFields(){
   const c = curCard();
   $('msg').value = c.msg; $('sign').value = c.sign;
-  for(const k of ['photoX','photoY','photoZoom']){ $(k).value = c[k]; $(k)._upd && $(k)._upd(); }
+  for(const k of ['photoX','photoY','photoZoom','photoSize','photoTilt']){ $(k).value = c[k]; $(k)._upd && $(k)._upd(); }
+  setSeg('pos', c.pos);
   $('photoFile').value = '';
   $('photoName').textContent = c.photo ? `使用中:${c.photoName || '写真'}` : '使用中:サンプル写真(写真を選ぶと差し替わります)';
 }
@@ -405,7 +411,7 @@ $('photoFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if(!f) return;
   try{
     const c = curCard(); c.photo = await loadImageFile(f); c.photoName = f.name;
-    if(st.pos==='none') setSeg('pos','left');
+    if(c.pos==='none') c.pos = 'left';
     loadFields(); cardChanged();
   } catch(err){ hint('写真を読み込めませんでした。PNGかJPEGを選んでください。'); }
 });
@@ -413,6 +419,11 @@ $('photoToAll').addEventListener('click', () => {
   const c = curCard();
   cards.forEach(x => { x.photo = c.photo; x.photoName = c.photoName; });
   sharedChanged(); hint(`この写真を${cards.length}枚すべてのカードに使いました。`);
+});
+$('layoutToAll').addEventListener('click', () => {
+  const c = curCard();
+  cards.forEach(x => { for(const k of LAYOUT_KEYS) x[k] = c[k]; });
+  sharedChanged(); saveDraftSoon(); hint(`この写真の配置・大きさ・傾き・切り抜きを${cards.length}枚すべてのカードに使いました。`);
 });
 $('overlayFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if(!f) return;
@@ -532,18 +543,19 @@ async function renderCard(c, card){
   const stacked = W/H < 1.3;
   let tb = {x:pad,y:pad,w:W-pad*2,h:H-pad*2};
   const photo = card.photo || SAMPLE_PHOTO;
-  if(st.pos!=='none'){
-    const k = +$('photoSize').value/100;
+  const pos = card.pos;
+  if(pos!=='none'){
+    const k = card.photoSize/100;
     const A = photoAspect(photo);
     const maxW = stacked ? W*.8*k : W*.44*k, maxH = stacked ? H*.46*k : H*.76*k;
     const [pw, ph] = photoOuter(A, Math.min(maxW, W-pad*2), Math.min(maxH, H-pad*2), S);
     let px, py;
-    if(stacked){ px=(W-pw)/2 + (st.pos==='left'?-1:st.pos==='right'?1:0)*Math.max(0,(W-pad*2-pw)/2)*.6; py=pad*.9; tb={x:pad,y:py+ph+pad*.6,w:W-pad*2,h:H-(py+ph+pad*.6)-pad}; }
+    if(stacked){ px=(W-pw)/2 + (pos==='left'?-1:pos==='right'?1:0)*Math.max(0,(W-pad*2-pw)/2)*.6; py=pad*.9; tb={x:pad,y:py+ph+pad*.6,w:W-pad*2,h:H-(py+ph+pad*.6)-pad}; }
     else{
       py=(H-ph)/2;
-      px = st.pos==='left' ? pad+20*S : W-pad-20*S-pw;
+      px = pos==='left' ? pad+20*S : W-pad-20*S-pw;
       const gap=60*S;
-      tb = st.pos==='left' ? {x:px+pw+gap,y:pad,w:W-(px+pw+gap)-pad,h:H-pad*2} : {x:pad,y:pad,w:px-gap-pad,h:H-pad*2};
+      tb = pos==='left' ? {x:px+pw+gap,y:pad,w:W-(px+pw+gap)-pad,h:H-pad*2} : {x:pad,y:pad,w:px-gap-pad,h:H-pad*2};
     }
     drawPhoto(px,py,pw,ph,S,photo,card);
   }
@@ -616,7 +628,7 @@ function drawTiles(W,H,S,blur){
 
 function drawPhoto(x,y,w,h,S,photo,card){
   const fx=card.photoX/100, fy=card.photoY/100, z=zoomScale(card.photoZoom);
-  const tilt=+$('photoTilt').value*Math.PI/180;
+  const tilt=card.photoTilt*Math.PI/180;
   ctx.save();
   ctx.translate(x+w/2,y+h/2); ctx.rotate(tilt); ctx.translate(-w/2,-h/2);
   const fc=$('frameColor').value;
@@ -781,7 +793,7 @@ $('bulkPhotos').addEventListener('change', async e => {
     if(i>=cards.length){ cards.push(newCard(cards[cards.length-1])); added++; }
     cards[i].photo = im; cards[i].photoName = files[i].name; ok++;
   }
-  if(st.pos==='none') setSeg('pos','left');
+  for(let i=0;i<Math.min(files.length,cards.length);i++) if(cards[i].photo && cards[i].pos==='none') cards[i].pos='left';
   loadFields(); buildStrip(); sharedChanged(); saveDraftSoon();
   bulkMsg(`${ok}枚の写真を1枚目のカードから順に入れました。` + (added?`足りない${added}枚分はカードを追加しました。`:'') + (ok<files.length?`読み込めなかった写真が${files.length-ok}枚あります。`:''));
 });
@@ -854,7 +866,7 @@ let draftTimer=null;
 function saveDraftSoon(){
   clearTimeout(draftTimer);
   draftTimer=setTimeout(()=>{
-    try{ localStorage.setItem(DRAFT, JSON.stringify({v:2, cur:curIdx, cards:cards.map(c=>({msg:c.msg,sign:c.sign,photoX:c.photoX,photoY:c.photoY,photoZoom:c.photoZoom}))})); }catch(e){}
+    try{ localStorage.setItem(DRAFT, JSON.stringify({v:2, cur:curIdx, cards:cards.map(c=>({msg:c.msg,sign:c.sign,photoX:c.photoX,photoY:c.photoY,photoZoom:c.photoZoom,pos:c.pos,photoSize:c.photoSize,photoTilt:c.photoTilt}))})); }catch(e){}
   },500);
 }
 
@@ -907,7 +919,8 @@ function apply(o, toCard=true){
   $('aspectFreeBox').hidden = $('photoAspect').value!=='free';
   if(toCard && cards.length){
     const c=curCard();
-    for(const k of ['sign','photoX','photoY','photoZoom']) if(k in o) c[k] = k==='sign' ? o[k] : +o[k];
+    for(const k of ['sign','photoX','photoY','photoZoom','photoSize','photoTilt']) if(k in o) c[k] = k==='sign' ? o[k] : +o[k];
+    if(o._seg && o._seg.pos) c.pos = o._seg.pos;
     saveDraftSoon();
   }
   buildStrip(); sharedChanged();
@@ -927,6 +940,13 @@ $('defClear').addEventListener('click',()=>{
   saved=null; apply(factory); say('保存した初期値を消して、最初の状態に戻しました。');
 });
 
+function layoutFrom(x, seg){
+  const o = {};
+  o.pos = ['left','right','none'].includes(x.pos) ? x.pos : ((seg && seg.pos) || st.pos);
+  o.photoSize = Number.isFinite(+x.photoSize) && x.photoSize!=null ? +x.photoSize : +$('photoSize').value;
+  o.photoTilt = Number.isFinite(+x.photoTilt) && x.photoTilt!=null ? +x.photoTilt : +$('photoTilt').value;
+  return o;
+}
 /* ---------- ファイルに書き出す・読み込む ---------- */
 const blobToDataURL = b => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
 function dataURLToBlob(u){
@@ -954,6 +974,7 @@ $('ioExport').addEventListener('click', async () => {
       current: curIdx,
       cards: []};
     for(const c of cards) out.cards.push({msg:c.msg, sign:c.sign, photoX:c.photoX, photoY:c.photoY, photoZoom:c.photoZoom,
+      pos:c.pos, photoSize:c.photoSize, photoTilt:c.photoTilt,
       photoName:c.photoName, photo: await ref(c.photo)});
     if(withImages) for(const f of FONTS) if(f.blob) out.fonts.push({name:f.name, fam:f.fam, data: await blobToDataURL(f.blob)});
     const r = await saveFile(`messagecard_設定_${cards.length}枚_${stamp()}.json`, JSON.stringify(out));
@@ -983,7 +1004,7 @@ $('ioImport').addEventListener('change', async e => {
     overlayImg = (d.overlay && imgs[d.overlay]) || null; $('overlayOpts').hidden = !overlayImg;
     cards = d.cards.map(x => Object.assign(newCard(), {msg:String(x.msg??''), sign:String(x.sign??''),
       photoX:+x.photoX||50, photoY:+x.photoY||50, photoZoom:+x.photoZoom||0,
-      photo:(x.photo && imgs[x.photo]) || null, photoName:(x.photo && imgs[x.photo]) ? String(x.photoName||'') : ''}));
+      photo:(x.photo && imgs[x.photo]) || null, photoName:(x.photo && imgs[x.photo]) ? String(x.photoName||'') : ''}, layoutFrom(x, (d.settings||{})._seg)));
     if(!cards.length) cards=[newCard()];
     curIdx = Math.min(cards.length-1, Math.max(0, d.current|0));
     apply(s, false); loadFields(); buildStrip(); sharedChanged(); saveDraftSoon();
@@ -996,12 +1017,13 @@ if(saved) apply(saved, false);
 const first = newCard();
 first.msg = $('msg').value; first.sign = $('sign').value;
 first.photoX = +$('photoX').value; first.photoY = +$('photoY').value; first.photoZoom = +$('photoZoom').value;
+first.pos = st.pos; first.photoSize = +$('photoSize').value; first.photoTilt = +$('photoTilt').value;
 cards = [first];
 let restored = false;
 try{
   const d = JSON.parse(localStorage.getItem(DRAFT) || 'null');
   if(d && Array.isArray(d.cards) && d.cards.length){
-    cards = d.cards.map(x => Object.assign(newCard(), {msg:String(x.msg??''), sign:String(x.sign??''), photoX:+x.photoX||50, photoY:+x.photoY||50, photoZoom: d.v===2 ? (+x.photoZoom||0) : oldZoom(x.photoZoom)}));
+    cards = d.cards.map(x => Object.assign(newCard(), {msg:String(x.msg??''), sign:String(x.sign??''), photoX:+x.photoX||50, photoY:+x.photoY||50, photoZoom: d.v===2 ? (+x.photoZoom||0) : oldZoom(x.photoZoom)}, layoutFrom(x)));
     curIdx = Math.min(cards.length-1, Math.max(0, d.cur|0));
     restored = cards.length>1 || cards[0].msg !== first.msg;
   }
