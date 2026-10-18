@@ -83,6 +83,19 @@ details.bulk[open] summary{margin-bottom:8px}
 details.bulk>div{display:flex;flex-direction:column;gap:10px}
 .toplink{font-size:.8rem;color:var(--muted);text-decoration:none;flex-basis:100%}
 .toplink:hover{text-decoration:underline}
+.lab{align-items:flex-start}
+.lab .nm{flex:1;min-width:0}
+.lab output{white-space:nowrap}
+.scope{font:inherit;font-size:.66rem;line-height:1.3;padding:1px 8px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;white-space:nowrap;flex:0 0 auto;align-self:flex-start;font-weight:500;letter-spacing:.02em}
+.scope:hover{border-color:var(--accent);color:var(--accent)}
+.scope[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:700}
+.scope.demo{cursor:default;display:inline-block;vertical-align:1px}
+.check .scope{margin-left:auto}
+legend .scope{margin-left:8px;vertical-align:2px}
+.is-indiv{box-shadow:inset 3px 0 0 var(--accent);padding-left:9px;border-radius:2px}
+legend.is-indiv{box-shadow:none;padding-left:0}
+.scopehelp{background:var(--field);border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:10px 0 4px;font-size:.78rem;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.scopehelp p{margin:0}
 </style>
 </head>
 <body>
@@ -91,7 +104,7 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>メッセージカードメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.7 ・ 2026-10-18 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.0 ・ 2026-10-18 更新</a>
     <p>背景・写真・メッセージ・フォントを選んで、Twitter向けの画像を作ります。複数枚まとめて作ることもできます</p>
   </header>
 
@@ -105,6 +118,7 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
           <button type="button" class="mini" id="cardNext" aria-label="後ろへ移動">後ろへ →</button>
           <button type="button" class="mini" id="cardAdd">+ 複製して追加</button>
           <button type="button" class="mini" id="cardDel">削除</button>
+          <button type="button" class="mini" id="cardNew">新しく始める</button>
         </div>
         <div class="strip" id="strip" role="list" aria-label="カードの一覧"></div>
       </div>
@@ -113,13 +127,18 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
         <button id="dlAll" class="btn ghost" type="button">全部まとめてZIPで保存</button>
         <span id="sizeLabel" class="tag"></span>
       </div>
-      <p class="hint status" id="stageHint" role="status">背景・フォント・フレームなどの設定は全カード共通です。メッセージ・差出人・文字の色・写真とその配置・大きさ・傾き・切り抜きはカードごとに変えられます。</p>
+      <p class="hint status" id="stageHint" role="status"></p>
     </div>
 
     <form class="panel" id="form" onsubmit="return false">
+      <div class="scopehelp">
+        <p>各設定の右にある <span class="scope demo">共通</span> を押すと <span class="scope demo" aria-pressed="true">個別</span> になり、カードごとに別の値にできます。個別にした設定は、ほかのカードを調整しても変わりません。</p>
+        <p>個別を共通に戻すと、今表示しているカードの値が全カード共通になります。</p>
+      </div>
+
       <fieldset>
-        <legend>サイズ</legend>
-        <div class="seg" id="ratioSeg">
+        <legend data-key="ratio">サイズ</legend>
+        <div class="seg" id="ratioSeg" data-key="ratio">
           <button type="button" data-v="16:9" aria-pressed="true">16:9 横長</button>
           <button type="button" data-v="1:1" aria-pressed="false">1:1 正方形</button>
         </div>
@@ -149,9 +168,9 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
 
       <fieldset>
         <legend>背景画像</legend>
-        <input type="file" id="bgFile" accept="image/*">
+        <label>背景画像<input type="file" id="bgFile" accept="image/*"></label>
         <label>並べ方</label>
-        <div class="seg" id="bgModeSeg">
+        <div class="seg" id="bgModeSeg" data-key="bgMode">
           <button type="button" data-v="cover" aria-pressed="true">全面に1枚</button>
           <button type="button" data-v="tile" aria-pressed="false">タイル</button>
         </div>
@@ -171,12 +190,11 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
 
       <fieldset>
         <legend>写真</legend>
-        <p class="hint"><b>このカードだけの設定</b></p>
-        <label>このカードの写真<input type="file" id="photoFile" accept="image/*"></label>
+        <label>このカードの写真(写真はいつもカードごとです)<input type="file" id="photoFile" accept="image/*"></label>
         <div class="btns"><span class="hint" id="photoName" style="flex:1 1 100%"></span>
           <button type="button" class="mini" id="photoToAll">この写真を全カードに使う</button></div>
         <label>配置</label>
-        <div class="seg" id="posSeg">
+        <div class="seg" id="posSeg" data-key="pos">
           <button type="button" data-v="left" aria-pressed="true">左</button>
           <button type="button" data-v="right" aria-pressed="false">右</button>
           <button type="button" data-v="none" aria-pressed="false">なし</button>
@@ -188,30 +206,8 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
         <label>切り抜きの拡大・縮小(0が枠にぴったり)<input type="range" id="photoZoom" min="-100" max="100" value="0"></label>
         <div class="row">
           <label>切り抜く位置 横<input type="range" id="photoX" min="0" max="100" value="50"></label>
-          <label>縦<input type="range" id="photoY" min="0" max="100" value="50"></label>
+          <label>切り抜く位置 縦<input type="range" id="photoY" min="0" max="100" value="50"></label>
         </div>
-        <div class="btns"><button type="button" class="mini" id="layoutToAll">この配置・大きさ・傾き・切り抜きを全カードに使う</button></div>
-        <p class="hint" style="margin-top:6px"><b>全カード共通の設定</b></p>
-        <label>フレーム</label>
-        <div class="seg" id="frameSeg">
-          <button type="button" data-v="round" aria-pressed="false">角丸</button>
-          <button type="button" data-v="circle" aria-pressed="false">丸</button>
-          <button type="button" data-v="polaroid" aria-pressed="true">チェキ風</button>
-        </div>
-        <div id="frameColorOpts" class="row">
-          <label>フレームの色<input type="color" id="frameColor" value="#ffffff"></label>
-        </div>
-        <label>フレームに重ねる画像(透明PNG。リボンや飾り枠など)<input type="file" id="overlayFile" accept="image/png,image/webp,image/gif"></label>
-        <div id="overlayOpts" hidden>
-          <label>重ねる画像の大きさ<input type="range" id="ovSize" min="30" max="250" value="100"></label>
-          <div class="row">
-            <label>位置 横<input type="range" id="ovX" min="-60" max="60" value="0"></label>
-            <label>縦<input type="range" id="ovY" min="-60" max="60" value="0"></label>
-          </div>
-          <label>回転<input type="range" id="ovRot" min="-45" max="45" value="0"></label>
-          <button type="button" class="btn ghost small" id="ovRemove">重ねる画像を外す</button>
-        </div>
-        <label class="check"><input type="checkbox" id="photoShadow" checked> 影をつける</label>
         <label>切り抜きの形(縦横比)<select id="photoAspect">
           <option value="auto">標準(フレームに合わせる)</option>
           <option value="orig">元の写真のまま</option>
@@ -227,12 +223,29 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
         <div id="aspectFreeBox" hidden>
           <label>縦横比(左で縦長、右で横長)<input type="range" id="aspectFree" min="-100" max="100" value="0"></label>
         </div>
+        <label>フレーム</label>
+        <div class="seg" id="frameSeg" data-key="frame">
+          <button type="button" data-v="round" aria-pressed="false">角丸</button>
+          <button type="button" data-v="circle" aria-pressed="false">丸</button>
+          <button type="button" data-v="polaroid" aria-pressed="true">チェキ風</button>
+        </div>
+        <label>フレームの色<input type="color" id="frameColor" value="#ffffff"></label>
+        <label class="check"><input type="checkbox" id="photoShadow" checked> 影をつける</label>
+        <label>フレームに重ねる画像(透明PNG。リボンや飾り枠など)<input type="file" id="overlayFile" accept="image/png,image/webp,image/gif"></label>
+        <div id="overlayOpts" hidden>
+          <label>重ねる画像の大きさ<input type="range" id="ovSize" min="30" max="250" value="100"></label>
+          <div class="row">
+            <label>重ねる画像の位置 横<input type="range" id="ovX" min="-60" max="60" value="0"></label>
+            <label>重ねる画像の位置 縦<input type="range" id="ovY" min="-60" max="60" value="0"></label>
+          </div>
+          <label>重ねる画像の回転<input type="range" id="ovRot" min="-45" max="45" value="0"></label>
+          <button type="button" class="btn ghost small" id="ovRemove">重ねる画像を外す</button>
+        </div>
       </fieldset>
 
       <fieldset>
         <legend>メッセージ</legend>
-        <p class="hint"><b>このカードだけの設定</b></p>
-        <label>本文<textarea id="msg">いつも応援ありがとう！
+        <label>本文(本文はいつもカードごとです)<textarea id="msg">いつも応援ありがとう！
 みんなのおかげで今日もがんばれました。
 これからもよろしくね</textarea></label>
         <label>差出人(空欄なら表示しません)<input type="text" id="sign" value="シフォンより"></label>
@@ -240,11 +253,9 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
           <label>文字色<input type="color" id="color" value="#5a2a48"></label>
           <label>縁取り色<input type="color" id="strokeColor" value="#ffffff"></label>
         </div>
-        <div class="btns"><button type="button" class="mini" id="colorToAll">この文字色・縁取り色を全カードに使う</button></div>
-        <p class="hint" style="margin-top:6px"><b>全カード共通の設定</b></p>
         <label class="check"><input type="checkbox" id="balance" checked> 行の長さをそろえる(1文字だけの行ができないようにする)</label>
         <label>文字の揃え</label>
-        <div class="seg" id="alignSeg">
+        <div class="seg" id="alignSeg" data-key="align">
           <button type="button" data-v="left" aria-pressed="false">左</button>
           <button type="button" data-v="center" aria-pressed="true">中央</button>
         </div>
@@ -265,13 +276,13 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
         <label class="check"><input type="checkbox" id="panelOn" checked> 半透明の下地を敷く</label>
         <div class="row">
           <label>下地の色<input type="color" id="panelColor" value="#ffffff"></label>
-          <label>濃さ<input type="range" id="panelAlpha" min="10" max="100" value="62"></label>
+          <label>下地の濃さ<input type="range" id="panelAlpha" min="10" max="100" value="62"></label>
         </div>
       </fieldset>
 
       <fieldset>
         <legend>ファイルに保存</legend>
-        <p class="hint">全カードのメッセージと、背景・フォント・写真などの設定をまとめて1つのファイル(.json)に書き出せます。読み込むと、書き出したときの状態に戻ります。別のPCに移したり、作ったものを残しておいたりするのに使えます。</p>
+        <p class="hint">全カードのメッセージと、背景・フォント・写真などの設定(共通・個別の状態も)をまとめて1つのファイル(.json)に書き出せます。読み込むと、書き出したときの状態に戻ります。</p>
         <label class="check"><input type="checkbox" id="ioImages" checked> 画像と追加したフォントも一緒に保存する</label>
         <div class="btns">
           <button type="button" class="btn small" id="ioExport">ファイルに書き出す</button>
@@ -282,13 +293,13 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
 
       <fieldset>
         <legend>初期値</legend>
-        <p class="hint">今のスライダーや色、配置などの設定を、次に開いたときの初期値にできます(本文・画像・追加したフォントファイルは含みません。切り抜きの拡大と位置は、新しく作るカードの初期値になります)。スライダーはダブルクリックでその初期値に戻ります。</p>
+        <p class="hint">今表示しているカードの設定と、どの設定を共通・個別にするかを、「新しく始める」ときの初期値にできます(本文・画像・追加したフォントファイルは含みません)。スライダーはダブルクリックでその初期値に戻ります。</p>
         <div class="btns">
           <button type="button" class="btn small" id="defSave">今の設定を初期値にする</button>
-          <button type="button" class="btn ghost small" id="defApply">初期値に戻す</button>
+          <button type="button" class="btn ghost small" id="defApply">このカードを初期値に戻す</button>
           <button type="button" class="btn ghost small" id="defClear">保存した初期値を消す</button>
         </div>
-        <p class="hint" id="defMsg" role="status"></p>
+        <p class="hint status" id="defMsg" role="status"></p>
       </fieldset>
     </form>
   </div>
@@ -297,6 +308,8 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
 <script>
 (() => {
 const $ = id => document.getElementById(id);
+
+/* ---------- フォント ---------- */
 const FONTS = [
   {name:"Zen Maru Gothic(丸ゴシック)", fam:"Zen Maru Gothic", w:700},
   {name:"M PLUS Rounded 1c(丸ゴシック太)", fam:"M PLUS Rounded 1c", w:800},
@@ -310,31 +323,51 @@ const FONTS = [
   {name:"Noto Serif JP(明朝)", fam:"Noto Serif JP", w:600},
 ];
 const fontSel = $('font');
-function addFontOption(f, select){
-  const o = document.createElement('option');
-  o.value = String(FONTS.indexOf(f)); o.textContent = f.name;
-  fontSel.appendChild(o); if(select) fontSel.value = o.value;
+function addFontOption(f){
+  const o = document.createElement('option'); o.value = f.fam; o.textContent = f.name; fontSel.appendChild(o);
 }
-FONTS.forEach(f => addFontOption(f));
+FONTS.forEach(addFontOption);
+let userFontN = 0;
 
-const st = {ratio:"16:9", pos:"left", frame:"polaroid", align:"center", bgMode:"cover"};
-const SEGS = {ratio:'ratioSeg', pos:'posSeg', frame:'frameSeg', align:'alignSeg', bgMode:'bgModeSeg'};
-function setSeg(key, v){
-  const el = $(SEGS[key]); const b = el.querySelector(`[data-v="${v}"]`); if(!b) return;
-  st[key] = v;
-  el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x===b));
-  if(key==='bgMode') $('tileOpts').hidden = v!=='tile';
+/* ---------- 設定の一覧 ----------
+   すべての設定は「共通の値(shared)」か「カードごとの値(card.ov)」のどちらかで決まる。
+   indiv に入っている設定はカードごと。本文と写真はいつもカードごと。 */
+const SEG_KEYS = {ratio:'ratioSeg', bgMode:'bgModeSeg', pos:'posSeg', frame:'frameSeg', align:'alignSeg'};
+const IMG_KEYS = {bgImage:'bgFile', overlayImage:'overlayFile'};
+const INPUT_KEYS = ['tileSize','tileGap','tileRot','tileBg','tileShift','bgDim','bgLight','bgBlur',
+  'photoSize','photoTilt','photoZoom','photoX','photoY','photoAspect','aspectFree','frameColor','photoShadow',
+  'ovSize','ovX','ovY','ovRot','sign','color','strokeColor','balance','font','localFont','size','signSize','stroke',
+  'panelOn','panelColor','panelAlpha'];
+const KEYS = [...Object.keys(SEG_KEYS), ...Object.keys(IMG_KEYS), ...INPUT_KEYS];
+const DEFAULT_INDIV = ['pos','photoSize','photoTilt','photoZoom','photoX','photoY','sign','color','strokeColor'];
+const NAMES = {ratio:'サイズ', bgImage:'背景画像', overlayImage:'重ねる画像'};
+
+function readControl(k){
+  if(SEG_KEYS[k]) return $(SEG_KEYS[k]).querySelector('[aria-pressed=true]')?.dataset.v;
+  const el = $(k);
+  if(el.type==='checkbox') return el.checked;
+  if(el.type==='range') return +el.value;
+  return el.value;
 }
-function seg(id, key){
-  const el = $(id);
-  el.addEventListener('click', e => {
-    const b = e.target.closest('button'); if(!b) return;
-    setSeg(key, b.dataset.v);
-    if(key==='pos'){ curCard().pos = b.dataset.v; cardChanged(); }
-    else sharedChanged();
-  });
+function writeControl(k, v){
+  if(IMG_KEYS[k]) return;
+  if(SEG_KEYS[k]){
+    const el=$(SEG_KEYS[k]); el.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v===v));
+    return;
+  }
+  const el = $(k);
+  if(el.type==='checkbox') el.checked = !!v;
+  else if(k==='font') el.value = FONTS.some(f=>f.fam===v) ? v : FONTS[0].fam;
+  else el.value = v;
+  el._upd && el._upd();
 }
-seg('ratioSeg','ratio'); seg('posSeg','pos'); seg('frameSeg','frame'); seg('alignSeg','align'); seg('bgModeSeg','bgMode');
+function cast(k, v){
+  if(SEG_KEYS[k]) return String(v);
+  const el = $(k); if(!el) return v;
+  if(el.type==='checkbox') return !!v;
+  if(el.type==='range') return +v;
+  return String(v ?? '');
+}
 
 /* ---------- サンプル素材 ---------- */
 function sampleBg(){
@@ -344,132 +377,180 @@ function sampleBg(){
   gr.addColorStop(0,'#ffd6e7'); gr.addColorStop(.55,'#e9d5ff'); gr.addColorStop(1,'#c7e3ff');
   g.fillStyle = gr; g.fillRect(0,0,1600,1600);
   let s = 7; const rnd = () => (s = (s*16807)%2147483647)/2147483647;
-  for(let i=0;i<46;i++){
-    const x=rnd()*1600, y=rnd()*1600, r=20+rnd()*120;
-    g.fillStyle = `rgba(255,255,255,${.12+rnd()*.25})`;
-    g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill();
-  }
-  for(let i=0;i<40;i++){
-    const x=rnd()*1600, y=rnd()*1600, r=4+rnd()*8;
-    g.fillStyle='rgba(255,255,255,.85)'; star(g,x,y,r);
-  }
+  for(let i=0;i<46;i++){ const x=rnd()*1600, y=rnd()*1600, r=20+rnd()*120; g.fillStyle=`rgba(255,255,255,${.12+rnd()*.25})`; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill(); }
+  for(let i=0;i<40;i++){ const x=rnd()*1600, y=rnd()*1600, r=4+rnd()*8; g.fillStyle='rgba(255,255,255,.85)'; star(g,x,y,r); }
   return c;
 }
-function star(g,x,y,r){
-  g.beginPath();
-  for(let i=0;i<8;i++){const a=i*Math.PI/4, rr=i%2?r*.35:r; g.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);}
-  g.closePath(); g.fill();
-}
+function star(g,x,y,r){ g.beginPath(); for(let i=0;i<8;i++){const a=i*Math.PI/4, rr=i%2?r*.35:r; g.lineTo(x+Math.cos(a)*rr,y+Math.sin(a)*rr);} g.closePath(); g.fill(); }
 function samplePhoto(){
   const c = document.createElement('canvas'); c.width=800; c.height=1000;
   const g = c.getContext('2d');
-  const gr = g.createLinearGradient(0,0,0,1000);
-  gr.addColorStop(0,'#ffb4c8'); gr.addColorStop(1,'#ffe3b3');
+  const gr = g.createLinearGradient(0,0,0,1000); gr.addColorStop(0,'#ffb4c8'); gr.addColorStop(1,'#ffe3b3');
   g.fillStyle=gr; g.fillRect(0,0,800,1000);
   g.fillStyle='rgba(255,255,255,.9)'; g.beginPath(); g.arc(400,380,150,0,Math.PI*2); g.fill();
   g.fillStyle='#f3a0b8'; g.beginPath(); g.ellipse(400,900,330,260,0,Math.PI,0); g.fill();
-  g.fillStyle='rgba(120,60,90,.55)'; g.font='700 52px "Zen Maru Gothic", sans-serif';
-  g.textAlign='center'; g.fillText('サンプル写真',400,660);
+  g.fillStyle='rgba(120,60,90,.55)'; g.font='700 52px "Zen Maru Gothic", sans-serif'; g.textAlign='center'; g.fillText('サンプル写真',400,660);
   return c;
 }
-let bgImg = sampleBg();
-const SAMPLE_PHOTO = samplePhoto();
-let overlayImg = null;
+const SAMPLE_BG = sampleBg(), SAMPLE_PHOTO = samplePhoto();
 
-/* ---------- カード ---------- */
-const PER_CARD = ['msg','sign','photoX','photoY','photoZoom','photoSize','photoTilt','color','strokeColor'];
-const LAYOUT_KEYS = ['pos','photoSize','photoTilt','photoX','photoY','photoZoom'];
-let uidN = 0;
+/* ---------- 状態 ---------- */
+let shared = {};
+let indiv = new Set(DEFAULT_INDIV);
+let cards = [], curIdx = 0, uidN = 0;
+const curCard = () => cards[curIdx];
+function val(card, k){ return (indiv.has(k) && card && card.ov && (k in card.ov)) ? card.ov[k] : shared[k]; }
 function newCard(from){
-  const c = {id: ++uidN, msg:'', sign:'', photo:null, photoName:'', photoX:50, photoY:50, photoZoom:0,
-    pos:st.pos, photoSize:+$('photoSize').value, photoTilt:+$('photoTilt').value,
-    color:$('color').value, strokeColor:$('strokeColor').value, thumbV:-1};
-  if(from) Object.assign(c, {msg:from.msg, sign:from.sign, photo:from.photo, photoName:from.photoName,
-    photoX:from.photoX, photoY:from.photoY, photoZoom:from.photoZoom, pos:from.pos, photoSize:from.photoSize, photoTilt:from.photoTilt, color:from.color, strokeColor:from.strokeColor});
+  const c = {id: ++uidN, msg:'', photo:null, photoName:'', ov:{}, thumbV:-1};
+  if(from){ c.msg = from.msg; c.photo = from.photo; c.photoName = from.photoName; c.ov = {...from.ov}; }
   return c;
 }
-let cards = [], curIdx = 0;
-const curCard = () => cards[curIdx];
+function setVal(k, v, card=curCard()){
+  if(indiv.has(k)){ card.ov[k] = v; if(card===curCard()) cardChanged(); else { card.thumbV=-1; scheduleThumbs(); } }
+  else { shared[k] = v; sharedChanged(); }
+  saveDraftSoon();
+}
+const noImg = o => { const r={}; for(const [k,v] of Object.entries(o)) if(!IMG_KEYS[k]) r[k]=v; return r; };
 
 function loadFields(){
   const c = curCard();
-  $('msg').value = c.msg; $('sign').value = c.sign;
-  for(const k of ['photoX','photoY','photoZoom','photoSize','photoTilt']){ $(k).value = c[k]; $(k)._upd && $(k)._upd(); }
-  setSeg('pos', c.pos);
-  $('color').value = c.color; $('strokeColor').value = c.strokeColor;
+  $('msg').value = c.msg;
+  for(const k of KEYS) writeControl(k, val(c,k));
   $('photoFile').value = '';
   $('photoName').textContent = c.photo ? `使用中:${c.photoName || '写真'}` : '使用中:サンプル写真(写真を選ぶと差し替わります)';
+  refreshVis();
+}
+function refreshVis(){
+  const c = curCard();
+  $('tileOpts').hidden = val(c,'bgMode')!=='tile';
+  $('aspectFreeBox').hidden = val(c,'photoAspect')!=='free';
+  $('overlayOpts').hidden = !val(c,'overlayImage');
 }
 
-/* ---------- 読み込み ---------- */
-function loadImageFile(file){
-  return new Promise((res,rej) => {
-    const url = URL.createObjectURL(file); const im = new Image();
-    im.onload = () => { im._blob = file; res(im); }; im.onerror = rej; im.src = url;
+/* ---------- 共通/個別の切り替えボタン ---------- */
+const pills = {};
+function headOf(label){
+  let h = label.querySelector(':scope > .lab');
+  if(h) return h;
+  const t = [...label.childNodes].find(n => n.nodeType===3 && n.textContent.trim());
+  h = document.createElement('span'); h.className='lab';
+  const nm = document.createElement('span'); nm.className='nm'; nm.textContent = t ? t.textContent.trim() : '';
+  h.appendChild(nm);
+  if(t) label.replaceChild(h, t); else label.prepend(h);
+  return h;
+}
+function anchorOf(k){
+  if(k==='ratio') return {box: document.querySelector('legend[data-key=ratio]'), mark: document.querySelector('legend[data-key=ratio]')};
+  if(SEG_KEYS[k]){ const seg=$(SEG_KEYS[k]); const lab=seg.previousElementSibling; return {box: headOf(lab), mark: lab}; }
+  const el = $(IMG_KEYS[k] || k); const lab = el.closest('label');
+  if(lab.classList.contains('check')) return {box: lab, mark: lab};
+  return {box: headOf(lab), mark: lab};
+}
+function nameOf(k){
+  if(NAMES[k]) return NAMES[k];
+  const a = anchorOf(k); const nm = a.box.querySelector('.nm');
+  return (nm ? nm.textContent : a.mark.textContent).replace(/[((].*$/,'').replace(/共通|個別/g,'').trim();
+}
+function buildPills(){
+  for(const k of KEYS){
+    const a = anchorOf(k);
+    const b = document.createElement('button'); b.type='button'; b.className='scope'; b.dataset.key=k;
+    b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); toggleScope(k); });
+    a.box.appendChild(b); pills[k] = {btn:b, mark:a.mark};
+  }
+  refreshPills();
+}
+function refreshPills(){
+  for(const [k,{btn,mark}] of Object.entries(pills)){
+    const on = indiv.has(k);
+    btn.setAttribute('aria-pressed', on); btn.textContent = on ? '個別' : '共通';
+    btn.title = on ? `「${nameOf(k)}」はカードごとの設定です。押すと全カード共通に戻します` : `「${nameOf(k)}」は全カード共通です。押すとカードごとに変えられます`;
+    mark.classList.toggle('is-indiv', on);
+  }
+}
+function toggleScope(k){
+  const nm = nameOf(k);
+  if(!indiv.has(k)){
+    for(const c of cards) c.ov[k] = shared[k];
+    indiv.add(k);
+    hint(`「${nm}」を個別にしました。ここから先はカードごとに調整できます。`);
+  } else {
+    shared[k] = val(curCard(), k);
+    for(const c of cards) delete c.ov[k];
+    indiv.delete(k);
+    hint(`「${nm}」を共通に戻しました。今のカード(${curIdx+1}枚目)の値を全カードに使っています。`);
+  }
+  refreshPills(); loadFields(); sharedChanged(); saveDraftSoon();
+}
+
+/* ---------- 入力 ---------- */
+function hint(t){ $('stageHint').textContent = t; }
+const DEFAULT_HINT = '各設定の「共通/個別」で、全カードそろえるか、カードごとに変えるかを選べます。';
+for(const [k,id] of Object.entries(SEG_KEYS)){
+  $(id).addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    writeControl(k, b.dataset.v); setVal(k, b.dataset.v); refreshVis();
   });
 }
-function hint(t){ $('stageHint').textContent = t; }
+function onInput(e){
+  const id = e.target.id;
+  if(id==='msg'){ curCard().msg = e.target.value; cardChanged(); saveDraftSoon(); return; }
+  if(!INPUT_KEYS.includes(id)) return;
+  const v = readControl(id);
+  if(val(curCard(), id) === v) return;
+  setVal(id, v); refreshVis();
+}
+$('form').addEventListener('input', onInput);
+$('form').addEventListener('change', onInput);
+
+function loadImageFile(file){
+  return new Promise((res,rej) => { const url = URL.createObjectURL(file); const im = new Image(); im.onload = () => { im._blob = file; res(im); }; im.onerror = rej; im.src = url; });
+}
 $('bgFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if(!f) return;
-  try{ bgImg = await loadImageFile(f); sharedChanged(); }catch(err){ hint('背景画像を読み込めませんでした。PNGかJPEGを選んでください。'); }
-});
-$('photoFile').addEventListener('change', async e => {
-  const f = e.target.files[0]; if(!f) return;
-  try{
-    const c = curCard(); c.photo = await loadImageFile(f); c.photoName = f.name;
-    if(c.pos==='none') c.pos = 'left';
-    loadFields(); cardChanged();
-  } catch(err){ hint('写真を読み込めませんでした。PNGかJPEGを選んでください。'); }
-});
-$('photoToAll').addEventListener('click', () => {
-  const c = curCard();
-  cards.forEach(x => { x.photo = c.photo; x.photoName = c.photoName; });
-  sharedChanged(); hint(`この写真を${cards.length}枚すべてのカードに使いました。`);
-});
-$('layoutToAll').addEventListener('click', () => {
-  const c = curCard();
-  cards.forEach(x => { for(const k of LAYOUT_KEYS) x[k] = c[k]; });
-  sharedChanged(); saveDraftSoon(); hint(`この写真の配置・大きさ・傾き・切り抜きを${cards.length}枚すべてのカードに使いました。`);
-});
-$('colorToAll').addEventListener('click', () => {
-  const c = curCard();
-  cards.forEach(x => { x.color = c.color; x.strokeColor = c.strokeColor; });
-  sharedChanged(); saveDraftSoon(); hint(`この文字色・縁取り色を${cards.length}枚すべてのカードに使いました。`);
+  try{ setVal('bgImage', await loadImageFile(f)); }catch(err){ hint('背景画像を読み込めませんでした。PNGかJPEGを選んでください。'); }
+  e.target.value='';
 });
 $('overlayFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if(!f) return;
-  try{ overlayImg = await loadImageFile(f); $('overlayOpts').hidden=false; sharedChanged(); }
-  catch(err){ hint('重ねる画像を読み込めませんでした。PNGを選んでください。'); }
+  try{ setVal('overlayImage', await loadImageFile(f)); refreshVis(); }catch(err){ hint('重ねる画像を読み込めませんでした。PNGを選んでください。'); }
+  e.target.value='';
 });
-$('ovRemove').addEventListener('click', () => { overlayImg=null; $('overlayFile').value=''; $('overlayOpts').hidden=true; sharedChanged(); });
-let userFontN = 0;
+$('ovRemove').addEventListener('click', () => { setVal('overlayImage', null); refreshVis(); });
+function ensurePhotoShown(card){ if(val(card,'pos')==='none') setVal('pos','left',card); }
+$('photoFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; if(!f) return;
+  try{ const c = curCard(); c.photo = await loadImageFile(f); c.photoName = f.name; ensurePhotoShown(c); loadFields(); cardChanged(); }
+  catch(err){ hint('写真を読み込めませんでした。PNGかJPEGを選んでください。'); }
+});
+$('photoToAll').addEventListener('click', () => {
+  const c = curCard(); cards.forEach(x => { x.photo = c.photo; x.photoName = c.photoName; });
+  sharedChanged(); hint(`この写真を${cards.length}枚すべてのカードに使いました。`);
+});
 $('fontFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if(!f) return;
   try{
-    const buf = await f.arrayBuffer();
     const fam = 'UserFont' + (++userFontN);
-    const ff = new FontFace(fam, buf); await ff.load(); document.fonts.add(ff);
+    const ff = new FontFace(fam, await f.arrayBuffer()); await ff.load(); document.fonts.add(ff);
     const entry = {name: f.name.replace(/\.[^.]+$/,'') + '(追加したフォント)', fam, w:400, blob:f};
-    FONTS.push(entry); addFontOption(entry, true); $('localFont').value=''; sharedChanged();
+    FONTS.push(entry); addFontOption(entry);
+    writeControl('font', fam); setVal('font', fam);
+    writeControl('localFont', ''); setVal('localFont', '');
   }catch(err){ hint('フォントを読み込めませんでした。ttf / otf / woff ファイルを選んでください。'); }
+  e.target.value='';
 });
-$('photoAspect').addEventListener('change', () => { $('aspectFreeBox').hidden = $('photoAspect').value!=='free'; });
 
 /* ---------- 描画 ---------- */
-let ctx = null;
+let ctx = null, RC = null;
+const V = k => val(RC, k);
 function drawCover(img,x,y,w,h,fx=.5,fy=.5,c=ctx,zoom=1){
   const iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height;
-  if(zoom===1){
-    const s=Math.max(w/iw,h/ih), sw=w/s, sh=h/s;
-    c.drawImage(img,(iw-sw)*fx,(ih-sh)*fy,sw,sh,x,y,w,h); return;
-  }
-  // 拡大・縮小:縮小したときは枠の中に余白ができ、フレームの色が見えます
+  if(zoom===1){ const s=Math.max(w/iw,h/ih), sw=w/s, sh=h/s; c.drawImage(img,(iw-sw)*fx,(ih-sh)*fy,sw,sh,x,y,w,h); return; }
   const s=Math.max(w/iw,h/ih)*zoom, dw=iw*s, dh=ih*s;
-  c.save(); c.beginPath(); c.rect(x,y,w,h); c.clip();
-  c.drawImage(img, x+(w-dw)*fx, y+(h-dh)*fy, dw, dh);
-  c.restore();
+  c.save(); c.beginPath(); c.rect(x,y,w,h); c.clip(); c.drawImage(img, x+(w-dw)*fx, y+(h-dh)*fy, dw, dh); c.restore();
 }
 const zoomScale = v => Math.pow(2, (+v||0)/50);
+const freeAspectOf = v => Math.pow(2, (+v||0)/50);
 function rr(x,y,w,h,r){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); }
 function hexA(hex,a){ const n=parseInt(hex.slice(1),16); return `rgba(${n>>16},${(n>>8)&255},${n&255},${a})`; }
 
@@ -480,23 +561,18 @@ function wrapPara(para, maxW){
     if(line && ctx.measureText(line+ch).width>maxW && !NO_START.includes(ch)){ out.push(line); line=ch; }
     else line+=ch;
   }
-  out.push(line);
-  return out;
+  out.push(line); return out;
 }
-// 行数はそのままで、いちばん狭く収まる幅を探して各行の長さをそろえる(1文字だけの行を防ぐ)
 function wrapBalanced(para, maxW){
   const greedy = wrapPara(para, maxW);
   if(greedy.length < 2) return greedy;
   let lo = 0, hi = maxW;
   for(const ch of [...para]) lo = Math.max(lo, ctx.measureText(ch).width);
-  for(let i=0;i<14 && hi-lo>0.5;i++){
-    const mid = (lo+hi)/2;
-    if(wrapPara(para, mid).length > greedy.length) lo = mid; else hi = mid;
-  }
+  for(let i=0;i<14 && hi-lo>0.5;i++){ const mid=(lo+hi)/2; if(wrapPara(para, mid).length > greedy.length) lo=mid; else hi=mid; }
   return wrapPara(para, hi);
 }
 function wrap(text, maxW){
-  const out=[]; const bal = $('balance').checked;
+  const out=[]; const bal = V('balance');
   for(const para of text.split('\n')){
     if(para===''){ out.push(''); continue; }
     out.push(...(bal ? wrapBalanced(para, maxW) : wrapPara(para, maxW)));
@@ -504,84 +580,77 @@ function wrap(text, maxW){
   return out;
 }
 function currentFont(){
-  const local = $('localFont').value.trim();
+  const local = String(V('localFont')||'').trim();
   if(local) return {fam:local, w:400};
-  return FONTS[+fontSel.value] || FONTS[0];
+  return FONTS.find(f => f.fam===V('font')) || FONTS[0];
 }
-function freeAspect(){ return Math.pow(2, +$('aspectFree').value/50); }
 function photoAspect(img){
-  const v = $('photoAspect').value;
-  if(v==='auto') return st.frame==='circle' ? 1 : st.frame==='polaroid' ? .917 : .8;
+  const v = V('photoAspect'), fr = V('frame');
+  if(v==='auto') return fr==='circle' ? 1 : fr==='polaroid' ? .917 : .8;
   if(v==='orig'){ const w=img.naturalWidth||img.width, h=img.naturalHeight||img.height; return w/h; }
-  if(v==='free') return freeAspect();
+  if(v==='free') return freeAspectOf(V('aspectFree'));
   return +v;
 }
-
-// 写真の外枠サイズ(切り抜き部分の縦横比 A から計算)
 function photoOuter(A, maxW, maxH, S){
-  if(st.frame==='polaroid'){
+  if(V('frame')==='polaroid'){
     const ih = Math.min(maxW*.88/A, maxH/(1+.26*A/.88));
     const ow = A*ih/.88; return [ow, ih+.26*ow];
   }
-  const b = (st.frame==='circle'?12:10)*S;
+  const b = (V('frame')==='circle'?12:10)*S;
   const ih = Math.max(10, Math.min((maxW-2*b)/A, maxH-2*b));
   return [A*ih+2*b, ih+2*b];
 }
 
 async function renderCard(c, card){
-  const [W,H] = st.ratio==='1:1' ? [1200,1200] : [1600,900];
-  c.width=W; c.height=H; ctx = c.getContext('2d');
+  RC = card;
+  const [W,H] = V('ratio')==='1:1' ? [1200,1200] : [1600,900];
+  c.width=W; c.height=H;
   const S = Math.min(W/1600, H/900);
   const f = currentFont();
-  const msg = card.msg, sign = card.sign.trim();
+  const msg = card.msg, sign = String(V('sign')||'').trim();
   try{ await document.fonts.load(`${f.w} 60px "${f.fam}"`, msg+sign+'あ'); }catch(e){}
-  ctx = c.getContext('2d');
+  RC = card; ctx = c.getContext('2d');
 
   // 背景
+  const bgImg = V('bgImage') || SAMPLE_BG;
   ctx.save();
-  const blur=+$('bgBlur').value;
+  const blur = V('bgBlur');
   if(blur) ctx.filter=`blur(${blur*S}px)`;
-  if(st.bgMode==='tile') drawTiles(W,H,S,blur);
+  if(V('bgMode')==='tile') drawTiles(W,H,S,blur,bgImg);
   else if(blur) drawCover(bgImg,-blur*2,-blur*2,W+blur*4,H+blur*4);
   else drawCover(bgImg,0,0,W,H);
-  ctx.filter='none';
-  ctx.restore();
-  const dim=+$('bgDim').value/100; if(dim){ ctx.fillStyle=`rgba(0,0,0,${dim})`; ctx.fillRect(0,0,W,H); }
-  const light=+$('bgLight').value/100; if(light){ ctx.fillStyle=`rgba(255,255,255,${light})`; ctx.fillRect(0,0,W,H); }
+  ctx.filter='none'; ctx.restore();
+  const dim=V('bgDim')/100; if(dim){ ctx.fillStyle=`rgba(0,0,0,${dim})`; ctx.fillRect(0,0,W,H); }
+  const light=V('bgLight')/100; if(light){ ctx.fillStyle=`rgba(255,255,255,${light})`; ctx.fillRect(0,0,W,H); }
 
   // レイアウト
-  const pad = 70*S;
-  const stacked = W/H < 1.3;
+  const pad = 70*S, stacked = W/H < 1.3;
   let tb = {x:pad,y:pad,w:W-pad*2,h:H-pad*2};
   const photo = card.photo || SAMPLE_PHOTO;
-  const pos = card.pos;
+  const pos = V('pos');
   if(pos!=='none'){
-    const k = card.photoSize/100;
-    const A = photoAspect(photo);
+    const k = V('photoSize')/100, A = photoAspect(photo);
     const maxW = stacked ? W*.8*k : W*.44*k, maxH = stacked ? H*.46*k : H*.76*k;
     const [pw, ph] = photoOuter(A, Math.min(maxW, W-pad*2), Math.min(maxH, H-pad*2), S);
     let px, py;
     if(stacked){ px=(W-pw)/2 + (pos==='left'?-1:pos==='right'?1:0)*Math.max(0,(W-pad*2-pw)/2)*.6; py=pad*.9; tb={x:pad,y:py+ph+pad*.6,w:W-pad*2,h:H-(py+ph+pad*.6)-pad}; }
     else{
-      py=(H-ph)/2;
-      px = pos==='left' ? pad+20*S : W-pad-20*S-pw;
+      py=(H-ph)/2; px = pos==='left' ? pad+20*S : W-pad-20*S-pw;
       const gap=60*S;
       tb = pos==='left' ? {x:px+pw+gap,y:pad,w:W-(px+pw+gap)-pad,h:H-pad*2} : {x:pad,y:pad,w:px-gap-pad,h:H-pad*2};
     }
-    drawPhoto(px,py,pw,ph,S,photo,card);
+    drawPhoto(px,py,pw,ph,S,photo);
   }
   tb.w = Math.max(tb.w, 120*S); tb.h = Math.max(tb.h, 80*S);
 
   // 文字
-  let size = +$('size').value*S;
-  const lh = 1.55;
-  const innerPad = 44*S;
-  const maxTW = tb.w - innerPad*2;
+  let size = V('size')*S;
+  const lh = 1.55, innerPad = 44*S, maxTW = tb.w - innerPad*2;
   let lines, signSize, blockH;
   for(let tries=0; tries<40; tries++){
     ctx.font = `${f.w} ${size}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
     lines = wrap(msg, maxTW);
-    signSize = size*(+$('signSize').value/100);
+    signSize = size*(V('signSize')/100);
     blockH = lines.length*size*lh + (sign? signSize*1.9 : 0);
     if(blockH <= tb.h - innerPad*2 || size < 14*S) break;
     size *= .94;
@@ -590,43 +659,37 @@ async function renderCard(c, card){
   let widest = Math.max(1,...lines.map(l=>ctx.measureText(l).width));
   if(sign){ ctx.font = `${f.w} ${signSize}px "${f.fam}", "Zen Maru Gothic", sans-serif`; widest=Math.max(widest, ctx.measureText(sign).width); }
 
-  if($('panelOn').checked && (msg.trim() || sign)){
+  if(V('panelOn') && (msg.trim() || sign)){
     const pw2 = Math.min(tb.w, widest + innerPad*2), ph2 = Math.min(tb.h, blockH + innerPad*2);
     const px2 = tb.x + (tb.w-pw2)/2, py2 = tb.y + (tb.h-ph2)/2;
-    ctx.save();
-    ctx.shadowColor='rgba(0,0,0,.12)'; ctx.shadowBlur=30*S; ctx.shadowOffsetY=8*S;
-    ctx.fillStyle = hexA($('panelColor').value, +$('panelAlpha').value/100);
-    rr(px2,py2,pw2,ph2,36*S); ctx.fill();
-    ctx.restore();
+    ctx.save(); ctx.shadowColor='rgba(0,0,0,.12)'; ctx.shadowBlur=30*S; ctx.shadowOffsetY=8*S;
+    ctx.fillStyle = hexA(V('panelColor'), V('panelAlpha')/100); rr(px2,py2,pw2,ph2,36*S); ctx.fill(); ctx.restore();
   }
-
-  const strokeW = +$('stroke').value*S*(size/(62*S));
-  const color=card.color, sc=card.strokeColor;
+  const strokeW = V('stroke')*S*(size/(62*S));
+  const color = V('color'), sc = V('strokeColor'), align = V('align');
   ctx.textBaseline='middle'; ctx.lineJoin='round'; ctx.miterLimit=2;
   const blockX = tb.x + (tb.w - widest)/2;
   let y = tb.y + (tb.h-blockH)/2 + size*lh/2;
-  const put = (t, sz, align) => {
+  const put = (t, sz, al) => {
     ctx.font = `${f.w} ${sz}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
     let x;
-    if(align==='right'){ ctx.textAlign='right'; x = blockX+widest; }
-    else if(align==='center'){ ctx.textAlign='center'; x = tb.x+tb.w/2; }
+    if(al==='right'){ ctx.textAlign='right'; x = blockX+widest; }
+    else if(al==='center'){ ctx.textAlign='center'; x = tb.x+tb.w/2; }
     else { ctx.textAlign='left'; x = blockX; }
     if(strokeW>0){ ctx.lineWidth=strokeW*(sz/size); ctx.strokeStyle=sc; ctx.strokeText(t,x,y); }
     ctx.fillStyle=color; ctx.fillText(t,x,y);
   };
-  for(const l of lines){ if(l) put(l,size,st.align); y += size*lh; }
+  for(const l of lines){ if(l) put(l,size,align); y += size*lh; }
   if(sign){ y += signSize*.5 - size*lh/2 + signSize*.7; put(sign,signSize,'right'); }
   return {W,H};
 }
-
-function drawTiles(W,H,S,blur){
-  ctx.fillStyle=$('tileBg').value; ctx.fillRect(-blur*2,-blur*2,W+blur*4,H+blur*4);
+function drawTiles(W,H,S,blur,bgImg){
+  ctx.fillStyle=V('tileBg'); ctx.fillRect(-blur*2,-blur*2,W+blur*4,H+blur*4);
   const iw=bgImg.naturalWidth||bgImg.width, ih=bgImg.naturalHeight||bgImg.height;
-  const tw=Math.max(8, 1600*S*(+$('tileSize').value/100)), th=tw*ih/iw;
-  const gap=+$('tileGap').value*S, sx=tw+gap, sy=th+gap;
-  const rot=+$('tileRot').value*Math.PI/180, shift=$('tileShift').checked;
-  ctx.save();
-  ctx.translate(W/2,H/2); ctx.rotate(rot);
+  const tw=Math.max(8, 1600*S*(V('tileSize')/100)), th=tw*ih/iw;
+  const gap=V('tileGap')*S, sx=tw+gap, sy=th+gap;
+  const rot=V('tileRot')*Math.PI/180, shift=V('tileShift');
+  ctx.save(); ctx.translate(W/2,H/2); ctx.rotate(rot);
   const R=Math.hypot(W,H)/2+Math.max(sx,sy)*2;
   const r0=Math.floor(-R/sy)-1, r1=Math.ceil(R/sy)+1;
   for(let r=r0;r<=r1;r++){
@@ -636,20 +699,19 @@ function drawTiles(W,H,S,blur){
   }
   ctx.restore();
 }
-
-function drawPhoto(x,y,w,h,S,photo,card){
-  const fx=card.photoX/100, fy=card.photoY/100, z=zoomScale(card.photoZoom);
-  const tilt=card.photoTilt*Math.PI/180;
+function drawPhoto(x,y,w,h,S,photo){
+  const fx=V('photoX')/100, fy=V('photoY')/100, z=zoomScale(V('photoZoom'));
+  const tilt=V('photoTilt')*Math.PI/180, frame=V('frame');
   ctx.save();
   ctx.translate(x+w/2,y+h/2); ctx.rotate(tilt); ctx.translate(-w/2,-h/2);
-  const fc=$('frameColor').value;
-  if($('photoShadow').checked){ ctx.shadowColor='rgba(40,10,30,.28)'; ctx.shadowBlur=34*S; ctx.shadowOffsetY=12*S; }
-  if(st.frame==='circle'){
+  const fc=V('frameColor');
+  if(V('photoShadow')){ ctx.shadowColor='rgba(40,10,30,.28)'; ctx.shadowBlur=34*S; ctx.shadowOffsetY=12*S; }
+  if(frame==='circle'){
     ctx.fillStyle=fc; ctx.beginPath(); ctx.ellipse(w/2,h/2,w/2,h/2,0,0,Math.PI*2); ctx.fill();
     ctx.shadowColor='transparent';
     const b=12*S; ctx.save(); ctx.beginPath(); ctx.ellipse(w/2,h/2,Math.max(1,w/2-b),Math.max(1,h/2-b),0,0,Math.PI*2); ctx.clip();
     drawCover(photo,b,b,w-b*2,h-b*2,fx,fy,ctx,z); ctx.restore();
-  } else if(st.frame==='polaroid'){
+  } else if(frame==='polaroid'){
     ctx.fillStyle=fc; rr(0,0,w,h,6*S); ctx.fill();
     ctx.shadowColor='transparent';
     const b=w*.06, bottom=w*.2;
@@ -660,52 +722,45 @@ function drawPhoto(x,y,w,h,S,photo,card){
     const b=10*S; ctx.save(); rr(b,b,w-b*2,h-b*2,26*S); ctx.clip();
     drawCover(photo,b,b,w-b*2,h-b*2,fx,fy,ctx,z); ctx.restore();
   }
-  if(overlayImg){
+  const ov = V('overlayImage');
+  if(ov){
     ctx.shadowColor='transparent';
-    const iw=overlayImg.naturalWidth||overlayImg.width, ih=overlayImg.naturalHeight||overlayImg.height;
-    const k=Math.min(w/iw,h/ih)*(+$('ovSize').value/100);
-    const ow=iw*k, oh=ih*k;
-    ctx.save();
-    ctx.translate(w/2+(+$('ovX').value/100)*w, h/2+(+$('ovY').value/100)*h);
-    ctx.rotate(+$('ovRot').value*Math.PI/180);
-    ctx.drawImage(overlayImg,-ow/2,-oh/2,ow,oh);
-    ctx.restore();
+    const iw=ov.naturalWidth||ov.width, ih=ov.naturalHeight||ov.height;
+    const k=Math.min(w/iw,h/ih)*(V('ovSize')/100), ow=iw*k, oh=ih*k;
+    ctx.save(); ctx.translate(w/2+(V('ovX')/100)*w, h/2+(V('ovY')/100)*h); ctx.rotate(V('ovRot')*Math.PI/180);
+    ctx.drawImage(ov,-ow/2,-oh/2,ow,oh); ctx.restore();
   }
   ctx.restore();
 }
 
-/* ---------- 描画の順番待ち(同時に描かないように) ---------- */
+/* ---------- 描画の順番待ち ---------- */
 let chain = Promise.resolve();
 function enqueue(fn){ const p = chain.then(fn, fn); chain = p.catch(()=>{}); return p; }
-
 const mainCv = document.createElement('canvas');
-let lastBlob = null, sharedV = 0;
-let timer=null;
+let lastBlob = null, sharedV = 0, timer = null;
 function schedule(){
   clearTimeout(timer);
   timer = setTimeout(() => enqueue(async () => {
-    const card = curCard();
+    const card = curCard(); if(!card) return;
     const r = await renderCard(mainCv, card);
     $('sizeLabel').textContent = `${r.W}×${r.H}px`;
     paintThumb(card, mainCv); card.thumbV = sharedV;
     await new Promise(res => mainCv.toBlob(b => {
-      if(b){
-        lastBlob = b;
-        const url = URL.createObjectURL(b);
-        const img=$('preview'); const old=img.dataset.url;
-        img.src=url; img.dataset.url=url; if(old) setTimeout(()=>URL.revokeObjectURL(old),2000);
-      }
+      if(b){ lastBlob = b; const url = URL.createObjectURL(b); const img=$('preview'); const old=img.dataset.url;
+        img.src=url; img.dataset.url=url; if(old) setTimeout(()=>URL.revokeObjectURL(old),2000); }
       res();
     }, 'image/png'));
     scheduleThumbs();
   }), 110);
 }
 function sharedChanged(){ sharedV++; schedule(); }
-function cardChanged(){ schedule(); saveDraftSoon(); }
+function cardChanged(){ curCard().thumbV = -1; schedule(); }
 
 /* ---------- サムネイル ---------- */
 function paintThumb(card, src){
-  const el = document.querySelector(`.thumb[data-id="${card.id}"] canvas`); if(!el) return;
+  const btn = document.querySelector(`.thumb[data-id="${card.id}"]`); if(!btn) return;
+  const el = btn.querySelector('canvas');
+  btn.classList.toggle('square', src.width===src.height);
   el.width = Math.round(src.width/6); el.height = Math.round(src.height/6);
   el.getContext('2d').drawImage(src,0,0,el.width,el.height);
 }
@@ -714,8 +769,7 @@ let thumbTimer=null;
 function scheduleThumbs(){
   clearTimeout(thumbTimer);
   thumbTimer = setTimeout(async function step(){
-    const card = cards.find(c => c.thumbV !== sharedV);
-    if(!card) return;
+    const card = cards.find(c => c.thumbV !== sharedV); if(!card) return;
     const v = sharedV;
     await enqueue(async () => { await renderCard(thumbCv, card); paintThumb(card, thumbCv); card.thumbV = v; });
     thumbTimer = setTimeout(step, 30);
@@ -724,75 +778,60 @@ function scheduleThumbs(){
 function buildStrip(){
   const strip = $('strip'); strip.innerHTML='';
   cards.forEach((c,i) => {
-    const b = document.createElement('button'); b.type='button';
-    b.className = 'thumb' + (st.ratio==='1:1' ? ' square' : ''); b.dataset.id = c.id; b.setAttribute('role','listitem');
+    const b = document.createElement('button'); b.type='button'; b.className='thumb'; b.dataset.id=c.id; b.setAttribute('role','listitem');
     b.setAttribute('aria-label', `${i+1}枚目のカード`);
     if(i===curIdx) b.setAttribute('aria-current','true');
-    const cv = document.createElement('canvas'); cv.width=160; cv.height=st.ratio==='1:1'?160:90;
+    if(val(c,'ratio')==='1:1') b.classList.add('square');
+    const cv = document.createElement('canvas'); cv.width=160; cv.height=val(c,'ratio')==='1:1'?160:90;
     const n = document.createElement('span'); n.textContent = i+1;
-    b.append(cv, n);
-    b.onclick = () => selectCard(i);
-    strip.appendChild(b);
-    c.thumbV = -1;
+    b.append(cv, n); b.onclick = () => selectCard(i);
+    strip.appendChild(b); c.thumbV = -1;
   });
   $('cardPos').textContent = `カード ${curIdx+1} / ${cards.length}`;
-  $('cardDel').disabled = cards.length<=1;
-  $('cardPrev').disabled = curIdx===0;
-  $('cardNext').disabled = curIdx===cards.length-1;
+  $('cardDel').disabled = cards.length<=1; $('cardPrev').disabled = curIdx===0; $('cardNext').disabled = curIdx===cards.length-1;
   $('dlAll').textContent = `全部まとめてZIPで保存(${cards.length}枚)`;
   const cur = strip.children[curIdx]; if(cur) cur.scrollIntoView({block:'nearest', inline:'nearest'});
   scheduleThumbs();
 }
-function selectCard(i){
-  curIdx = Math.max(0, Math.min(cards.length-1, i));
-  loadFields(); buildStrip(); schedule();
-}
+function selectCard(i){ curIdx = Math.max(0, Math.min(cards.length-1, i)); loadFields(); buildStrip(); schedule(); saveDraftSoon(); }
 $('cardAdd').onclick = () => { cards.splice(curIdx+1, 0, newCard(curCard())); curIdx++; loadFields(); buildStrip(); schedule(); saveDraftSoon(); };
-let delArmed=false;
-$('cardDel').onclick = () => {
+function armed(btn, label, armedLabel, fn){
+  let on=false;
+  btn.onclick = () => {
+    if(btn.disabled) return;
+    if(!on){ on=true; btn.textContent=armedLabel; setTimeout(()=>{ on=false; btn.textContent=label; },3000); return; }
+    on=false; btn.textContent=label; fn();
+  };
+}
+armed($('cardDel'), '削除', 'もう一度押すと削除', () => {
   if(cards.length<=1) return;
-  if(!delArmed){ delArmed=true; $('cardDel').textContent='もう一度押すと削除'; setTimeout(()=>{ delArmed=false; $('cardDel').textContent='削除'; },3000); return; }
-  delArmed=false; $('cardDel').textContent='削除';
   cards.splice(curIdx,1); if(curIdx>=cards.length) curIdx=cards.length-1;
   loadFields(); buildStrip(); schedule(); saveDraftSoon();
-};
-function move(d){
-  const j=curIdx+d; if(j<0||j>=cards.length) return;
-  [cards[curIdx],cards[j]]=[cards[j],cards[curIdx]]; curIdx=j; buildStrip(); schedule(); saveDraftSoon();
-}
+});
+armed($('cardNew'), '新しく始める', 'もう一度押すと全カードを消します', () => { startFresh(); hint('全カードを消して、初期値から新しく始めました。'); });
+function move(d){ const j=curIdx+d; if(j<0||j>=cards.length) return; [cards[curIdx],cards[j]]=[cards[j],cards[curIdx]]; curIdx=j; buildStrip(); schedule(); saveDraftSoon(); }
 $('cardPrev').onclick = () => move(-1);
 $('cardNext').onclick = () => move(1);
 
 /* ---------- まとめて作る ---------- */
 function parseBulk(text){
-  return text.replace(/\r/g,'').split(/^\s*-{3,}\s*$/m)
-    .map(b => b.replace(/^\n+|\s+$/g,''))
-    .filter(b => b.trim())
-    .map(b => {
-      const ls = b.split('\n'); let sign = null;
-      const last = ls[ls.length-1].trim();
-      if(ls.length>1 && /^[@＠]/.test(last)){ sign = last.replace(/^[@＠]\s*/,''); ls.pop(); }
-      return {msg: ls.join('\n').replace(/\s+$/,''), sign};
-    });
+  return text.replace(/\r/g,'').split(/^\s*-{3,}\s*$/m).map(b => b.replace(/^\n+|\s+$/g,'')).filter(b => b.trim())
+    .map(b => { const ls=b.split('\n'); let sign=null; const last=ls[ls.length-1].trim();
+      if(ls.length>1 && /^[@＠]/.test(last)){ sign=last.replace(/^[@＠]\s*/,''); ls.pop(); }
+      return {msg: ls.join('\n').replace(/\s+$/,''), sign}; });
 }
 function bulkMsg(t){ $('bulkMsg').textContent = t; }
 function makeFromBulk(replace){
   const items = parseBulk($('bulkText').value);
   if(!items.length){ bulkMsg('メッセージが入っていません。上の欄に入力してください。'); return; }
+  if(items.some(it => it.sign!==null) && !indiv.has('sign')){ for(const c of cards) c.ov.sign = shared.sign; indiv.add('sign'); refreshPills(); }
   const base = curCard();
-  const made = items.map(it => { const c = newCard(base); c.msg = it.msg; if(it.sign!==null) c.sign = it.sign; return c; });
-  if(replace){ cards = made; curIdx = 0; }
-  else { cards.push(...made); curIdx = cards.length - made.length; }
-  loadFields(); buildStrip(); schedule(); saveDraftSoon();
+  const made = items.map(it => { const c = newCard(base); c.msg = it.msg; if(it.sign!==null) c.ov.sign = it.sign; return c; });
+  if(replace){ cards = made; curIdx = 0; } else { cards.push(...made); curIdx = cards.length - made.length; }
+  loadFields(); buildStrip(); sharedChanged(); saveDraftSoon();
   bulkMsg(`${made.length}枚のカードを${replace?'作りました':'追加しました'}。全部で${cards.length}枚です。`);
 }
-let repArmed=false;
-$('bulkReplace').onclick = () => {
-  const busy = cards.length>1 || cards[0].msg.trim();
-  if(busy && !repArmed){ repArmed=true; $('bulkReplace').textContent='もう一度押すと入れ替えます'; setTimeout(()=>{ repArmed=false; $('bulkReplace').textContent='今のカードと入れ替えて作る'; },3000); return; }
-  repArmed=false; $('bulkReplace').textContent='今のカードと入れ替えて作る';
-  makeFromBulk(true);
-};
+armed($('bulkReplace'), '今のカードと入れ替えて作る', 'もう一度押すと入れ替えます', () => makeFromBulk(true));
 $('bulkAppend').onclick = () => makeFromBulk(false);
 $('bulkPhotos').addEventListener('change', async e => {
   const files = [...e.target.files].sort((a,b)=>a.name.localeCompare(b.name,'ja',{numeric:true}));
@@ -803,8 +842,8 @@ $('bulkPhotos').addEventListener('change', async e => {
     let im; try{ im = await loadImageFile(files[i]); }catch(err){ continue; }
     if(i>=cards.length){ cards.push(newCard(cards[cards.length-1])); added++; }
     cards[i].photo = im; cards[i].photoName = files[i].name; ok++;
+    if(val(cards[i],'pos')==='none'){ if(indiv.has('pos')) cards[i].ov.pos='left'; else shared.pos='left'; }
   }
-  for(let i=0;i<Math.min(files.length,cards.length);i++) if(cards[i].photo && cards[i].pos==='none') cards[i].pos='left';
   loadFields(); buildStrip(); sharedChanged(); saveDraftSoon();
   bulkMsg(`${ok}枚の写真を1枚目のカードから順に入れました。` + (added?`足りない${added}枚分はカードを追加しました。`:'') + (ok<files.length?`読み込めなかった写真が${files.length-ok}枚あります。`:''));
 });
@@ -839,14 +878,12 @@ $('dlAll').addEventListener('click', async () => {
   if(typeof JSZip==='undefined'){ hint('ZIPの作成機能を読み込めませんでした。ページを開き直してください。'); return; }
   const btn=$('dlAll'); btn.disabled=true; $('dl').disabled=true;
   try{
-    const zip = new JSZip(); const used = new Set();
-    const ex = document.createElement('canvas');
+    const zip = new JSZip(); const used = new Set(); const ex = document.createElement('canvas');
     for(let i=0;i<cards.length;i++){
       hint(`${i+1} / ${cards.length} 枚目を作成中…`);
       const blob = await enqueue(async () => { await renderCard(ex, cards[i]); return new Promise(res => ex.toBlob(res,'image/png')); });
       let n = cardFileName(cards[i], i), k=2; while(used.has(n)) n = n.replace(/(_\d+)?\.png$/, `_${k++}.png`); used.add(n);
-      zip.file(n, blob);
-      await new Promise(r=>setTimeout(r,0));
+      zip.file(n, blob); await new Promise(r=>setTimeout(r,0));
     }
     hint('ZIPにまとめています…');
     const z = await zip.generateAsync({type:'blob'});
@@ -855,123 +892,89 @@ $('dlAll').addEventListener('click', async () => {
   } finally { btn.disabled=false; $('dl').disabled=false; }
 });
 
-/* ---------- 入力 ---------- */
-$('form').addEventListener('input', e => {
-  const id = e.target.id;
-  if(PER_CARD.includes(id)){
-    const c = curCard(); c[id] = e.target.type==='range' ? +e.target.value : e.target.value;
-    cardChanged();
-  } else if(id && !['bulkText'].includes(id) && e.target.type!=='file') sharedChanged();
-});
-$('form').addEventListener('change', e => {
-  const id = e.target.id;
-  if(e.target.type==='file' || id==='bulkText' || PER_CARD.includes(id)) return;
-  if(e.target.tagName==='SELECT' || e.target.type==='checkbox' || e.target.type==='color') sharedChanged();
-});
-$('ratioSeg').addEventListener('click', () => setTimeout(buildStrip, 0));
-document.fonts && document.fonts.ready.then(sharedChanged);
+/* ---------- 以前の形式からの変換 ---------- */
+const oldZoom = v => Math.max(-100, Math.min(100, Math.round(50*Math.log2(Math.max(1,+v||100)/100))));
+const OLD_CARD_KEYS = ['sign','photoX','photoY','photoZoom','photoSize','photoTilt','color','strokeColor','pos'];
+function valuesFromOld(o){            // v1.x の設定(入力欄のid・_seg・fontName)を新しい値に
+  const v = {};
+  for(const k of INPUT_KEYS) if(k in o && k!=='font') v[k] = cast(k, o[k]);
+  if(o._seg) for(const k of Object.keys(SEG_KEYS)) if(o._seg[k]) v[k] = String(o._seg[k]);
+  if(o.fontName) v.font = o.fontName;
+  if(!o._v && 'photoZoom' in o) v.photoZoom = oldZoom(o.photoZoom);
+  return v;
+}
+function ovFromOldCard(x, zoomIsNew){
+  const ov = {};
+  for(const k of OLD_CARD_KEYS) if(x[k]!=null && x[k]!=='') ov[k] = cast(k, x[k]);
+  if('photoZoom' in ov && !zoomIsNew) ov.photoZoom = oldZoom(x.photoZoom);
+  return ov;
+}
 
-/* ---------- 下書き(メッセージの自動保存) ---------- */
+/* ---------- 下書き(自動保存) ---------- */
 const DRAFT='messagecard-cards-v1';
 let draftTimer=null;
 function saveDraftSoon(){
   clearTimeout(draftTimer);
   draftTimer=setTimeout(()=>{
-    try{ localStorage.setItem(DRAFT, JSON.stringify({v:2, cur:curIdx, cards:cards.map(c=>({msg:c.msg,sign:c.sign,photoX:c.photoX,photoY:c.photoY,photoZoom:c.photoZoom,pos:c.pos,photoSize:c.photoSize,photoTilt:c.photoTilt,color:c.color,strokeColor:c.strokeColor}))})); }catch(e){}
+    try{ localStorage.setItem(DRAFT, JSON.stringify({v:3, cur:curIdx, shared:noImg(shared), indiv:[...indiv],
+      cards:cards.map(c=>({msg:c.msg, ov:noImg(c.ov)}))})); }catch(e){}
   },500);
 }
 
 /* ---------- スライダーの数値表示 ---------- */
 const UNITS={signSize:'%', photoTilt:'°', tileRot:'°', ovRot:'°', ovSize:'%', photoSize:'%'};
 document.querySelectorAll('#form input[type=range]').forEach(inp => {
-  const lab=inp.closest('label'); const t=lab.firstChild;
-  const head=document.createElement('span'); head.className='lab';
-  const name=document.createElement('span'); name.textContent=t.textContent.trim();
-  const out=document.createElement('output');
-  head.append(name,out); lab.replaceChild(head,t);
+  const lab=inp.closest('label'); const head = headOf(lab);
+  const out=document.createElement('output'); head.appendChild(out);
   const upd = inp.id==='aspectFree'
-    ? ()=>{ const a=freeAspect(); out.textContent = a>=1 ? `横 ${a.toFixed(2)} : 縦 1` : `横 1 : 縦 ${(1/a).toFixed(2)}`; }
+    ? ()=>{ const a=freeAspectOf(inp.value); out.textContent = a>=1 ? `横 ${a.toFixed(2)} : 縦 1` : `横 1 : 縦 ${(1/a).toFixed(2)}`; }
     : inp.id==='photoZoom'
     ? ()=>{ const v=+inp.value; out.textContent = `${v>0?'+':''}${v}(${zoomScale(v).toFixed(2)}倍)`; }
     : ()=>{ out.textContent=inp.value+(UNITS[inp.id]||''); };
   inp.addEventListener('input',upd); inp._upd=upd; upd();
   inp.addEventListener('dblclick',()=>{
-    const d=(saved||factory)[inp.id]; if(d==null) return;
-    inp.value=d; upd(); inp.dispatchEvent(new Event('input',{bubbles:true}));
+    const d=(saved||factory).values[inp.id]; if(d==null) return;
+    writeControl(inp.id, d); setVal(inp.id, d);
   });
 });
 
-/* ---------- 初期値の保存 ---------- */
-const KEY='messagecard-defaults-v1';
-const EXCLUDE=new Set(['msg','bulkText','bgFile','photoFile','fontFile','overlayFile','bulkPhotos','ioImages','ioImport']);
-function collect(){
-  const o={};
-  document.querySelectorAll('#form input, #form select').forEach(el => {
-    if(!el.id || EXCLUDE.has(el.id) || el.type==='file') return;
-    o[el.id] = el.type==='checkbox' ? el.checked : el.value;
-  });
-  o.fontName = FONTS[+fontSel.value]?.fam;
-  o._seg = {...st};
-  o._v = 2;
-  return o;
-}
-const oldZoom = v => Math.max(-100, Math.min(100, Math.round(50*Math.log2(Math.max(1,+v||100)/100))));
-function apply(o, toCard=true){
-  if(!o._v && 'photoZoom' in o) o = {...o, photoZoom: oldZoom(o.photoZoom), _v:2};
-  for(const [id,v] of Object.entries(o)){
-    if(id==='_seg'||id==='fontName'||id==='font') continue;
-    const el=$(id); if(!el) continue;
-    if(el.type==='checkbox') el.checked=!!v; else el.value=v;
-    el._upd && el._upd();
-  }
-  const fi = FONTS.findIndex(f=>f.fam===o.fontName);
-  if(fi>=0) fontSel.value=String(fi);
-  if(o._seg) for(const k of Object.keys(SEGS)) if(o._seg[k]) setSeg(k,o._seg[k]);
-  $('aspectFreeBox').hidden = $('photoAspect').value!=='free';
-  if(toCard && cards.length){
-    const c=curCard();
-    for(const k of ['sign','photoX','photoY','photoZoom','photoSize','photoTilt','color','strokeColor']) if(k in o) c[k] = ['sign','color','strokeColor'].includes(k) ? o[k] : +o[k];
-    if(o._seg && o._seg.pos) c.pos = o._seg.pos;
-    saveDraftSoon();
-  }
-  buildStrip(); sharedChanged();
+/* ---------- 初期値 ---------- */
+const KEY='messagecard-defaults-v2', OLD_KEY='messagecard-defaults-v1';
+function collectDefaults(){
+  const c = curCard(), values = {};
+  for(const k of KEYS) if(!IMG_KEYS[k]) values[k] = c ? val(c,k) : readControl(k);
+  return {v:3, values, indiv:[...indiv]};
 }
 function say(t){ $('defMsg').textContent=t; }
-const factory=collect();
-let saved=null;
-try{ const raw=localStorage.getItem(KEY); if(raw) saved=JSON.parse(raw); }catch(e){ saved=null; }
-$('defSave').addEventListener('click',()=>{
-  const o=collect();
-  try{ localStorage.setItem(KEY, JSON.stringify(o)); saved=o; say('今の設定を初期値として保存しました。'); }
-  catch(e){ saved=o; say('このブラウザでは保存できないため、ページを開いている間だけ初期値として使います。'); }
-});
-$('defApply').addEventListener('click',()=>{ apply(saved||factory); say(saved?'保存した初期値に戻しました。':'まだ初期値を保存していないので、最初の状態に戻しました。'); });
-$('defClear').addEventListener('click',()=>{
-  try{ localStorage.removeItem(KEY); }catch(e){}
-  saved=null; apply(factory); say('保存した初期値を消して、最初の状態に戻しました。');
-});
-
-function layoutFrom(x, seg, set){
-  const o = {};
-  o.pos = ['left','right','none'].includes(x.pos) ? x.pos : ((seg && seg.pos) || st.pos);
-  o.photoSize = Number.isFinite(+x.photoSize) && x.photoSize!=null ? +x.photoSize : +$('photoSize').value;
-  o.photoTilt = Number.isFinite(+x.photoTilt) && x.photoTilt!=null ? +x.photoTilt : +$('photoTilt').value;
-  const hex = v => typeof v==='string' && /^#[0-9a-fA-F]{6}$/.test(v);
-  o.color = hex(x.color) ? x.color : (hex(set&&set.color) ? set.color : $('color').value);
-  o.strokeColor = hex(x.strokeColor) ? x.strokeColor : (hex(set&&set.strokeColor) ? set.strokeColor : $('strokeColor').value);
-  return o;
+function applyToCurrent(d){
+  const c = curCard();
+  for(const [k,v] of Object.entries(d.values)){ if(indiv.has(k)) c.ov[k]=v; else shared[k]=v; }
+  loadFields(); sharedChanged(); saveDraftSoon();
 }
+function startFresh(){
+  const d = saved || factory;
+  shared = {bgImage:null, overlayImage:null, ...d.values};
+  indiv = new Set(d.indiv);
+  const c = newCard(); c.msg = factoryMsg;
+  cards = [c]; curIdx = 0;
+  refreshPills(); loadFields(); buildStrip(); sharedChanged(); saveDraftSoon();
+}
+$('defSave').addEventListener('click',()=>{
+  const d = collectDefaults();
+  try{ localStorage.setItem(KEY, JSON.stringify(d)); saved=d; say('今のカードの設定と、共通・個別の状態を初期値として保存しました。'); }
+  catch(e){ saved=d; say('このブラウザでは保存できないため、ページを開いている間だけ初期値として使います。'); }
+});
+$('defApply').addEventListener('click',()=>{ applyToCurrent(saved||factory); say(saved?'このカードを保存した初期値に戻しました(共通の設定は全カードに反映されます)。':'まだ初期値を保存していないので、最初の状態に戻しました。'); });
+$('defClear').addEventListener('click',()=>{ try{ localStorage.removeItem(KEY); localStorage.removeItem(OLD_KEY); }catch(e){} saved=null; say('保存した初期値を消しました。次に「新しく始める」と最初の状態から始まります。'); });
+
 /* ---------- ファイルに書き出す・読み込む ---------- */
 const blobToDataURL = b => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
 function dataURLToBlob(u){
   const [head, body] = u.split(','); const mime = (head.match(/data:([^;]+)/)||[])[1] || 'application/octet-stream';
-  const bin = atob(body); const a = new Uint8Array(bin.length);
-  for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i);
+  const bin = atob(body); const a = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i);
   return new Blob([a], {type:mime});
 }
-function imageFromBlob(b){
-  return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>{ im._blob=b; res(im); }; im.onerror=rej; im.src=URL.createObjectURL(b); });
-}
+function imageFromBlob(b){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>{ im._blob=b; res(im); }; im.onerror=rej; im.src=URL.createObjectURL(b); }); }
 function ioMsg(t){ $('ioMsg').textContent=t; }
 $('ioExport').addEventListener('click', async () => {
   const withImages = $('ioImages').checked;
@@ -983,13 +986,10 @@ $('ioExport').addEventListener('click', async () => {
       if(!ids.has(img._blob)){ const id='i'+(++n); ids.set(img._blob,id); images[id]=await blobToDataURL(img._blob); }
       return ids.get(img._blob);
     };
-    const out = {app:'messagecard', version:2, settings:collect(),
-      bg: await ref(bgImg), overlay: await ref(overlayImg), images, fonts:[],
-      current: curIdx,
-      cards: []};
-    for(const c of cards) out.cards.push({msg:c.msg, sign:c.sign, photoX:c.photoX, photoY:c.photoY, photoZoom:c.photoZoom,
-      pos:c.pos, photoSize:c.photoSize, photoTilt:c.photoTilt, color:c.color, strokeColor:c.strokeColor,
-      photoName:c.photoName, photo: await ref(c.photo)});
+    const imgRefs = async o => { const r={}; for(const k of Object.keys(IMG_KEYS)) if(k in o) r[k] = await ref(o[k]); return r; };
+    const out = {app:'messagecard', version:3, shared:noImg(shared), sharedImages: await imgRefs(shared), indiv:[...indiv],
+      current:curIdx, images, fonts:[], cards:[]};
+    for(const c of cards) out.cards.push({msg:c.msg, photoName:c.photoName, photo: await ref(c.photo), ov:noImg(c.ov), ovImages: await imgRefs(c.ov)});
     if(withImages) for(const f of FONTS) if(f.blob) out.fonts.push({name:f.name, fam:f.fam, data: await blobToDataURL(f.blob)});
     const r = await saveFile(`messagecard_設定_${cards.length}枚_${stamp()}.json`, JSON.stringify(out));
     ioMsg(r==='saved' ? `${cards.length}枚分の設定をファイルに書き出しました。` + (withImages?'画像とフォントも含まれています。':'画像は含まれていません。')
@@ -1009,42 +1009,64 @@ $('ioImport').addEventListener('change', async e => {
       try{
         const blob = dataURLToBlob(ft.data); const fam = 'UserFont' + (++userFontN);
         const face = new FontFace(fam, await blob.arrayBuffer()); await face.load(); document.fonts.add(face);
-        const entry = {name: ft.name, fam, w:400, blob}; FONTS.push(entry); addFontOption(entry);
-        famMap[ft.fam] = fam;
+        const entry = {name: ft.name, fam, w:400, blob}; FONTS.push(entry); addFontOption(entry); famMap[ft.fam] = fam;
       }catch(err){}
     }
-    const s = {...(d.settings||{})}; if(s.fontName && famMap[s.fontName]) s.fontName = famMap[s.fontName];
-    bgImg = (d.bg && imgs[d.bg]) || sampleBg();
-    overlayImg = (d.overlay && imgs[d.overlay]) || null; $('overlayOpts').hidden = !overlayImg;
-    cards = d.cards.map(x => Object.assign(newCard(), {msg:String(x.msg??''), sign:String(x.sign??''),
-      photoX:+x.photoX||50, photoY:+x.photoY||50, photoZoom:+x.photoZoom||0,
-      photo:(x.photo && imgs[x.photo]) || null, photoName:(x.photo && imgs[x.photo]) ? String(x.photoName||'') : ''}, layoutFrom(x, (d.settings||{})._seg, d.settings||{})));
+    const fixFont = o => { if(o && o.font && famMap[o.font]) o.font = famMap[o.font]; return o; };
+    const pick = id => (id && imgs[id]) || null;
+    if((d.version|0) >= 3){
+      shared = {...factory.values, ...fixFont({...(d.shared||{})}), bgImage: pick(d.sharedImages?.bgImage), overlayImage: pick(d.sharedImages?.overlayImage)};
+      indiv = new Set((d.indiv||[]).filter(k => KEYS.includes(k)));
+      cards = d.cards.map(x => { const c = newCard(); c.msg = String(x.msg??''); c.photo = pick(x.photo); c.photoName = c.photo ? String(x.photoName||'') : '';
+        c.ov = fixFont({...(x.ov||{})}); for(const [k,id] of Object.entries(x.ovImages||{})) c.ov[k] = pick(id); return c; });
+    } else {
+      const v = fixFont(valuesFromOld(d.settings||{}));
+      shared = {...factory.values, ...v, bgImage: pick(d.bg), overlayImage: pick(d.overlay)};
+      indiv = new Set(OLD_CARD_KEYS);
+      cards = d.cards.map(x => { const c = newCard(); c.msg = String(x.msg??''); c.photo = pick(x.photo); c.photoName = c.photo ? String(x.photoName||'') : '';
+        c.ov = ovFromOldCard(x, true); return c; });
+    }
     if(!cards.length) cards=[newCard()];
     curIdx = Math.min(cards.length-1, Math.max(0, d.current|0));
-    apply(s, false); loadFields(); buildStrip(); sharedChanged(); saveDraftSoon();
+    refreshPills(); loadFields(); buildStrip(); sharedChanged(); saveDraftSoon();
     ioMsg(`「${f.name}」を読み込みました(${cards.length}枚)。`);
   }catch(err){ ioMsg('読み込めませんでした。このツールで書き出したファイル(.json)を選んでください。'); }
 });
 
 /* ---------- 起動 ---------- */
-if(saved) apply(saved, false);
-const first = newCard();
-first.msg = $('msg').value; first.sign = $('sign').value;
-first.photoX = +$('photoX').value; first.photoY = +$('photoY').value; first.photoZoom = +$('photoZoom').value;
-first.pos = st.pos; first.photoSize = +$('photoSize').value; first.photoTilt = +$('photoTilt').value;
-first.color = $('color').value; first.strokeColor = $('strokeColor').value;
-cards = [first];
+for(const k of KEYS) shared[k] = IMG_KEYS[k] ? null : readControl(k);
+const factoryMsg = $('msg').value;
+cards = [newCard()]; cards[0].msg = factoryMsg;
+const factory = collectDefaults();
+let saved = null;
+try{
+  const raw = localStorage.getItem(KEY);
+  if(raw) saved = JSON.parse(raw);
+  else { const old = localStorage.getItem(OLD_KEY); if(old){ const o = JSON.parse(old); saved = {v:3, values:{...factory.values, ...valuesFromOld(o)}, indiv:[...DEFAULT_INDIV]}; } }
+  if(saved && (!saved.values || !Array.isArray(saved.indiv))) saved = null;
+}catch(e){ saved=null; }
+buildPills();
+if(saved){ shared = {bgImage:null, overlayImage:null, ...factory.values, ...saved.values}; indiv = new Set(saved.indiv.filter(k=>KEYS.includes(k))); }
 let restored = false;
 try{
   const d = JSON.parse(localStorage.getItem(DRAFT) || 'null');
   if(d && Array.isArray(d.cards) && d.cards.length){
-    cards = d.cards.map(x => Object.assign(newCard(), {msg:String(x.msg??''), sign:String(x.sign??''), photoX:+x.photoX||50, photoY:+x.photoY||50, photoZoom: d.v===2 ? (+x.photoZoom||0) : oldZoom(x.photoZoom)}, layoutFrom(x)));
+    if(d.v===3){
+      shared = {...shared, ...(d.shared||{})};
+      if(!FONTS.some(f=>f.fam===shared.font)) shared.font = FONTS[0].fam;
+      indiv = new Set((d.indiv||[]).filter(k=>KEYS.includes(k)));
+      cards = d.cards.map(x => { const c = newCard(); c.msg = String(x.msg??''); c.ov = {...(x.ov||{})}; if(c.ov.font && !FONTS.some(f=>f.fam===c.ov.font)) delete c.ov.font; return c; });
+    } else {
+      indiv = new Set([...indiv, ...OLD_CARD_KEYS]);
+      cards = d.cards.map(x => { const c = newCard(); c.msg = String(x.msg??''); c.ov = ovFromOldCard(x, d.v===2); return c; });
+    }
     curIdx = Math.min(cards.length-1, Math.max(0, d.cur|0));
-    restored = cards.length>1 || cards[0].msg !== first.msg;
+    restored = cards.length>1 || cards[0].msg !== factoryMsg;
   }
 }catch(e){}
-loadFields(); buildStrip(); sharedChanged();
-if(restored) hint(`前回のメッセージ(${cards.length}枚)を復元しました。写真は保存されないので、もう一度選んでください。`);
+refreshPills(); loadFields(); buildStrip(); sharedChanged();
+hint(restored ? `前回の作業(${cards.length}枚)を復元しました。写真と画像は保存されないので、もう一度選んでください。` : DEFAULT_HINT);
+document.fonts && document.fonts.ready.then(sharedChanged);
 })();
 </script>
 
