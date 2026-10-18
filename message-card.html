@@ -85,6 +85,8 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
 .toplink:hover{text-decoration:underline}
 .lab{align-items:flex-start}
 .lab .nm{flex:1;min-width:0}
+label.off input[type=range]{opacity:.35}
+label.off .nm::after{content:'(自動)';margin-left:4px;color:var(--accent)}
 .lab output{white-space:nowrap}
 .scope{font:inherit;font-size:.66rem;line-height:1.3;padding:1px 8px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);cursor:pointer;white-space:nowrap;flex:0 0 auto;align-self:flex-start;font-weight:500;letter-spacing:.02em}
 .scope:hover{border-color:var(--accent);color:var(--accent)}
@@ -104,7 +106,7 @@ legend.is-indiv{box-shadow:none;padding-left:0}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>メッセージカードメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.2 ・ 2026-10-18 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.3 ・ 2026-10-18 更新</a>
     <p>背景・写真・メッセージ・フォントを選んで、Twitter向けの画像を作ります。複数枚まとめて作ることもできます</p>
   </header>
 
@@ -271,14 +273,24 @@ legend.is-indiv{box-shadow:none;padding-left:0}
         <label>フォント<select id="font"></select></label>
         <label>フォントファイルを追加(.ttf / .otf / .woff)<input type="file" id="fontFile" accept=".ttf,.otf,.woff,.woff2"></label>
         <label>PCに入っているフォント名で指定<input type="text" id="localFont" placeholder="例:けいふぉんと"></label>
-        <label>文字の大きさ<input type="range" id="size" min="28" max="120" value="62"></label>
+        <label>文字の大きさの決め方<select id="textFit">
+          <option value="fill">メッセージ欄いっぱいに合わせる(自動)</option>
+          <option value="fixed">指定した大きさ(収まらないときだけ小さく)</option>
+        </select></label>
+        <label id="sizeLabelBox">文字の大きさ<input type="range" id="size" min="28" max="160" value="62"></label>
         <label>差出人の大きさ(本文に対する%)<input type="range" id="signSize" min="30" max="150" value="62"></label>
         <label>縁取りの太さ<input type="range" id="stroke" min="0" max="30" value="10"></label>
       </fieldset>
 
       <fieldset>
-        <legend>文字の下地</legend>
+        <legend>メッセージ欄と下地</legend>
+        <label>メッセージ欄の余白(小さいほど欄が広くなります)<input type="range" id="textMargin" min="10" max="140" value="60"></label>
+        <label>下地の内側の余白<input type="range" id="innerPad" min="8" max="90" value="36"></label>
         <label class="check"><input type="checkbox" id="panelOn" checked> 半透明の下地を敷く</label>
+        <label>下地の大きさ<select id="panelFit">
+          <option value="full">メッセージ欄いっぱい</option>
+          <option value="text">文字に合わせる</option>
+        </select></label>
         <div class="row">
           <label>下地の色<input type="color" id="panelColor" value="#ffffff"></label>
           <label>下地の濃さ<input type="range" id="panelAlpha" min="10" max="100" value="62"></label>
@@ -341,8 +353,8 @@ const SEG_KEYS = {ratio:'ratioSeg', bgMode:'bgModeSeg', pos:'posSeg', frame:'fra
 const IMG_KEYS = {bgImage:'bgFile', overlayImage:'overlayFile'};
 const INPUT_KEYS = ['tileSize','tileGap','tileRot','tileBg','tileShift','bgDim','bgLight','bgBlur',
   'photoSize','photoTilt','photoZoom','photoX','photoY','photoAspect','aspectFree','frameColor','photoShadow',
-  'ovSize','ovX','ovY','ovRot','sign','color','strokeColor','balance','wrapMode','font','localFont','size','signSize','stroke',
-  'panelOn','panelColor','panelAlpha'];
+  'ovSize','ovX','ovY','ovRot','sign','color','strokeColor','balance','wrapMode','font','localFont','textFit','size','signSize','stroke',
+  'textMargin','innerPad','panelOn','panelFit','panelColor','panelAlpha'];
 const KEYS = [...Object.keys(SEG_KEYS), ...Object.keys(IMG_KEYS), ...INPUT_KEYS];
 const DEFAULT_INDIV = ['pos','photoSize','photoTilt','photoZoom','photoX','photoY','sign','color','strokeColor','size'];
 // v2.1 で「文字の大きさ」を最初から個別にした。以前に保存された状態にも一度だけ追加する
@@ -432,6 +444,9 @@ function refreshVis(){
   $('tileOpts').hidden = val(c,'bgMode')!=='tile';
   $('aspectFreeBox').hidden = val(c,'photoAspect')!=='free';
   $('overlayOpts').hidden = !val(c,'overlayImage');
+  const auto = val(c,'textFit')==='fill';
+  $('size').disabled = auto; $('sizeLabelBox').classList.toggle('off', auto);
+  $('sizeLabelBox').title = auto ? '「メッセージ欄いっぱいに合わせる」のときは自動で決まります' : '';
 }
 
 /* ---------- 共通/個別の切り替えボタン ---------- */
@@ -695,7 +710,8 @@ async function renderCard(c, card){
 
   // レイアウト
   const pad = 70*S, stacked = W/H < 1.3;
-  let tb = {x:pad,y:pad,w:W-pad*2,h:H-pad*2};
+  const tm = V('textMargin')*S, tg = Math.max(20*S, tm*.85);   // メッセージ欄の余白と、写真とのすき間
+  let tb = {x:tm,y:tm,w:W-tm*2,h:H-tm*2};
   const photo = card.photo || SAMPLE_PHOTO;
   const pos = V('pos');
   if(pos!=='none'){
@@ -703,34 +719,45 @@ async function renderCard(c, card){
     const maxW = stacked ? W*.8*k : W*.44*k, maxH = stacked ? H*.46*k : H*.76*k;
     const [pw, ph] = photoOuter(A, Math.min(maxW, W-pad*2), Math.min(maxH, H-pad*2), S);
     let px, py;
-    if(stacked){ px=(W-pw)/2 + (pos==='left'?-1:pos==='right'?1:0)*Math.max(0,(W-pad*2-pw)/2)*.6; py=pad*.9; tb={x:pad,y:py+ph+pad*.6,w:W-pad*2,h:H-(py+ph+pad*.6)-pad}; }
+    if(stacked){ px=(W-pw)/2 + (pos==='left'?-1:pos==='right'?1:0)*Math.max(0,(W-pad*2-pw)/2)*.6; py=pad*.9; tb={x:tm,y:py+ph+tg,w:W-tm*2,h:H-(py+ph+tg)-tm}; }
     else{
       py=(H-ph)/2; px = pos==='left' ? pad+20*S : W-pad-20*S-pw;
-      const gap=60*S;
-      tb = pos==='left' ? {x:px+pw+gap,y:pad,w:W-(px+pw+gap)-pad,h:H-pad*2} : {x:pad,y:pad,w:px-gap-pad,h:H-pad*2};
+      tb = pos==='left' ? {x:px+pw+tg,y:tm,w:W-(px+pw+tg)-tm,h:H-tm*2} : {x:tm,y:tm,w:px-tg-tm,h:H-tm*2};
     }
     drawPhoto(px,py,pw,ph,S,photo);
   }
   tb.w = Math.max(tb.w, 120*S); tb.h = Math.max(tb.h, 80*S);
 
   // 文字
-  let size = V('size')*S;
-  const lh = 1.55, innerPad = 44*S, maxTW = tb.w - innerPad*2;
+  const lh = 1.55, innerPad = V('innerPad')*S, maxTW = Math.max(40*S, tb.w - innerPad*2), maxTH = Math.max(40*S, tb.h - innerPad*2);
   let lines, signSize, blockH;
-  for(let tries=0; tries<40; tries++){
-    ctx.font = `${f.w} ${size}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
-    lines = wrap(msg, maxTW);
-    signSize = size*(V('signSize')/100);
-    blockH = lines.length*size*lh + (sign? signSize*1.9 : 0);
-    if(blockH <= tb.h - innerPad*2 || size < 14*S) break;
-    size *= .94;
+  const tryFit = sz => {
+    ctx.font = `${f.w} ${sz}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
+    const ls = wrap(msg, maxTW);
+    const ss = sz*(V('signSize')/100);
+    let wd = Math.max(1,...ls.map(l=>ctx.measureText(l).width));
+    if(sign){ ctx.font = `${f.w} ${ss}px "${f.fam}", "Zen Maru Gothic", sans-serif`; wd = Math.max(wd, ctx.measureText(sign).width); }
+    const bh = ls.length*sz*lh + (sign? ss*1.9 : 0);
+    return {ls, ss, bh, ok: bh <= maxTH && wd <= maxTW*1.01};
+  };
+  let size;
+  if(V('textFit')==='fill'){
+    // 欄に収まるいちばん大きい文字の大きさを探す(改行の位置も大きさに合わせて変わる)
+    let lo = 12*S, hi = 260*S;
+    for(let i=0;i<18 && hi-lo>0.5*S;i++){ const mid=(lo+hi)/2; if(tryFit(mid).ok) lo=mid; else hi=mid; }
+    size = lo;
+  } else {
+    size = V('size')*S;
+    for(let tries=0; tries<40; tries++){ if(tryFit(size).ok || size < 14*S) break; size *= .94; }
   }
+  ({ls:lines, ss:signSize, bh:blockH} = tryFit(size));
   ctx.font = `${f.w} ${size}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
   let widest = Math.max(1,...lines.map(l=>ctx.measureText(l).width));
   if(sign){ ctx.font = `${f.w} ${signSize}px "${f.fam}", "Zen Maru Gothic", sans-serif`; widest=Math.max(widest, ctx.measureText(sign).width); }
 
   if(V('panelOn') && (msg.trim() || sign)){
-    const pw2 = Math.min(tb.w, widest + innerPad*2), ph2 = Math.min(tb.h, blockH + innerPad*2);
+    const full = V('panelFit')==='full';
+    const pw2 = full ? tb.w : Math.min(tb.w, widest + innerPad*2), ph2 = full ? tb.h : Math.min(tb.h, blockH + innerPad*2);
     const px2 = tb.x + (tb.w-pw2)/2, py2 = tb.y + (tb.h-ph2)/2;
     ctx.save(); ctx.shadowColor='rgba(0,0,0,.12)'; ctx.shadowBlur=30*S; ctx.shadowOffsetY=8*S;
     ctx.fillStyle = hexA(V('panelColor'), V('panelAlpha')/100); rr(px2,py2,pw2,ph2,36*S); ctx.fill(); ctx.restore();
