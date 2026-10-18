@@ -104,7 +104,7 @@ legend.is-indiv{box-shadow:none;padding-left:0}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>メッセージカードメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.0 ・ 2026-10-18 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.1 ・ 2026-10-18 更新</a>
     <p>背景・写真・メッセージ・フォントを選んで、Twitter向けの画像を作ります。複数枚まとめて作ることもできます</p>
   </header>
 
@@ -339,7 +339,9 @@ const INPUT_KEYS = ['tileSize','tileGap','tileRot','tileBg','tileShift','bgDim',
   'ovSize','ovX','ovY','ovRot','sign','color','strokeColor','balance','font','localFont','size','signSize','stroke',
   'panelOn','panelColor','panelAlpha'];
 const KEYS = [...Object.keys(SEG_KEYS), ...Object.keys(IMG_KEYS), ...INPUT_KEYS];
-const DEFAULT_INDIV = ['pos','photoSize','photoTilt','photoZoom','photoX','photoY','sign','color','strokeColor'];
+const DEFAULT_INDIV = ['pos','photoSize','photoTilt','photoZoom','photoX','photoY','sign','color','strokeColor','size'];
+// v2.1 で「文字の大きさ」を最初から個別にした。以前に保存された状態にも一度だけ追加する
+const ADDED_INDIV_V4 = ['size'];
 const NAMES = {ratio:'サイズ', bgImage:'背景画像', overlayImage:'重ねる画像'};
 
 function readControl(k){
@@ -916,7 +918,7 @@ let draftTimer=null;
 function saveDraftSoon(){
   clearTimeout(draftTimer);
   draftTimer=setTimeout(()=>{
-    try{ localStorage.setItem(DRAFT, JSON.stringify({v:3, cur:curIdx, shared:noImg(shared), indiv:[...indiv],
+    try{ localStorage.setItem(DRAFT, JSON.stringify({v:4, cur:curIdx, shared:noImg(shared), indiv:[...indiv],
       cards:cards.map(c=>({msg:c.msg, ov:noImg(c.ov)}))})); }catch(e){}
   },500);
 }
@@ -943,7 +945,7 @@ const KEY='messagecard-defaults-v2', OLD_KEY='messagecard-defaults-v1';
 function collectDefaults(){
   const c = curCard(), values = {};
   for(const k of KEYS) if(!IMG_KEYS[k]) values[k] = c ? val(c,k) : readControl(k);
-  return {v:3, values, indiv:[...indiv]};
+  return {v:4, values, indiv:[...indiv]};
 }
 function say(t){ $('defMsg').textContent=t; }
 function applyToCurrent(d){
@@ -1044,6 +1046,7 @@ try{
   if(raw) saved = JSON.parse(raw);
   else { const old = localStorage.getItem(OLD_KEY); if(old){ const o = JSON.parse(old); saved = {v:3, values:{...factory.values, ...valuesFromOld(o)}, indiv:[...DEFAULT_INDIV]}; } }
   if(saved && (!saved.values || !Array.isArray(saved.indiv))) saved = null;
+  if(saved && saved.v===3){ saved = {...saved, v:4, indiv:[...new Set([...saved.indiv, ...ADDED_INDIV_V4])]}; try{ localStorage.setItem(KEY, JSON.stringify(saved)); }catch(e){} }
 }catch(e){ saved=null; }
 buildPills();
 if(saved){ shared = {bgImage:null, overlayImage:null, ...factory.values, ...saved.values}; indiv = new Set(saved.indiv.filter(k=>KEYS.includes(k))); }
@@ -1051,10 +1054,11 @@ let restored = false;
 try{
   const d = JSON.parse(localStorage.getItem(DRAFT) || 'null');
   if(d && Array.isArray(d.cards) && d.cards.length){
-    if(d.v===3){
+    if(d.v===3 || d.v===4){
       shared = {...shared, ...(d.shared||{})};
       if(!FONTS.some(f=>f.fam===shared.font)) shared.font = FONTS[0].fam;
       indiv = new Set((d.indiv||[]).filter(k=>KEYS.includes(k)));
+      if(d.v===3) ADDED_INDIV_V4.forEach(k => indiv.add(k));
       cards = d.cards.map(x => { const c = newCard(); c.msg = String(x.msg??''); c.ov = {...(x.ov||{})}; if(c.ov.font && !FONTS.some(f=>f.fam===c.ov.font)) delete c.ov.font; return c; });
     } else {
       indiv = new Set([...indiv, ...OLD_CARD_KEYS]);
