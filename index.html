@@ -60,7 +60,7 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
   <div class="tools">
     <a class="tool card" href="message-card.html">
       <div class="thumb" aria-hidden="true"><i style="width:70px;height:80px;transform:rotate(-4deg)"></i><i style="width:110px;height:44px;opacity:.8"></i></div>
-      <span class="ratio">16:9 / 1:1 ・ Twitter向け ・ v2.1</span>
+      <span class="ratio">16:9 / 1:1 ・ Twitter向け ・ v2.2</span>
       <h2>メッセージカードメーカー</h2>
       <p>背景・写真・メッセージ・フォントを選んで、カード画像を作ります。たくさんのカードをまとめて作ってZIPで保存することもできます。</p>
       <span class="go">使ってみる →</span>
@@ -144,6 +144,7 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
   <section id="changelog">
     <h2>更新履歴</h2>
     <h3>メッセージカードメーカー</h3>
+    <div class="log"><b>v2.2(2026-10-18)</b><ul><li>改行の仕方を選べるようにした:文ごとに改行(長い文は文節の切れ目で区切る・初期設定)/文節の切れ目で改行/文字単位で改行(以前の方式)</li><li>文節の判定に BudouX(Google、Apache License 2.0)を使用</li></ul></div>
     <div class="log"><b>v2.1(2026-10-18)</b><ul><li>「文字の大きさ」を最初から個別にした(自動保存されていた作業と保存した初期値にも反映)</li></ul></div>
     <div class="log"><b>v2.0(2026-10-18)</b><ul><li>すべての設定に「共通/個別」の切り替えを追加。個別にした設定は、ほかのカードを調整しても変わらない</li><li>個別を共通に戻すと、表示中のカードの値が全カード共通になる</li><li>背景画像・重ねる画像・サイズ・フォントなども、カードごとに変えられるようにした</li><li>作業中の状態(全カードの設定と共通/個別)を自動で保存し、次に開いたときに復元するようにした</li><li>「新しく始める」ボタンを追加(全カードを消して初期値から始める)</li><li>初期値に、どの設定を共通・個別にするかも保存するようにした</li><li>以前のバージョンで書き出したファイルも読み込める</li></ul></div>
     <div class="log"><b>v1.7(2026-10-18)</b><ul><li>文字色・縁取り色をカードごとに設定できるようにした</li><li>文字色・縁取り色を全カードにそろえるボタンを追加</li><li>メッセージ欄を「このカードだけの設定」と「全カード共通の設定」に分けた</li></ul></div>
@@ -158,7 +159,7 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
     <div class="log"><b>v1.0(2026-10-16)</b><ul><li>公開</li><li>テンプレート(写真・画像・ロゴ・文字の枠、背景、装飾フレーム)の作成と自動保存、ファイルへの書き出し・読み込み</li><li>枠のドラッグ操作と実際のピクセルサイズの表示</li><li>レイアウト・枠を初期値に戻す機能</li><li>メンバーの写真をまとめて選んでポスターを一括作成(ZIP保存)</li></ul></div>
   </section>
 
-  <footer>フォントは Google Fonts(SIL Open Font License)を使用しています。</footer>
+  <footer>フォントは Google Fonts(SIL Open Font License)、日本語の文節の判定は <a href="https://github.com/google/budoux" style="color:inherit">BudouX</a>(Apache License 2.0)を使用しています。</footer>
 </div>
 </body>
 </html>

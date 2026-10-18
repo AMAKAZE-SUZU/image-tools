@@ -22,3 +22,4 @@
 
 - フォント:Google Fonts(SIL Open Font License)
 - ZIP作成:JSZip(MITライセンス、cdnjsから読み込み)
+- 日本語の文節の判定:BudouX(Google、Apache License 2.0。日本語モデルを message-card.html に組み込み)
