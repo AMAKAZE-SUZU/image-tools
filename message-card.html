@@ -91,7 +91,7 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>メッセージカードメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.6 ・ 2026-10-18 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.7 ・ 2026-10-18 更新</a>
     <p>背景・写真・メッセージ・フォントを選んで、Twitter向けの画像を作ります。複数枚まとめて作ることもできます</p>
   </header>
 
@@ -113,7 +113,7 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
         <button id="dlAll" class="btn ghost" type="button">全部まとめてZIPで保存</button>
         <span id="sizeLabel" class="tag"></span>
       </div>
-      <p class="hint status" id="stageHint" role="status">背景・フォント・フレームなどの設定は全カード共通です。メッセージ・差出人・写真とその配置・大きさ・傾き・切り抜きはカードごとに変えられます。</p>
+      <p class="hint status" id="stageHint" role="status">背景・フォント・フレームなどの設定は全カード共通です。メッセージ・差出人・文字の色・写真とその配置・大きさ・傾き・切り抜きはカードごとに変えられます。</p>
     </div>
 
     <form class="panel" id="form" onsubmit="return false">
@@ -230,12 +230,19 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
       </fieldset>
 
       <fieldset>
-        <legend>メッセージ(このカード)</legend>
-        <label class="check"><input type="checkbox" id="balance" checked> 行の長さをそろえる(1文字だけの行ができないようにする)</label>
+        <legend>メッセージ</legend>
+        <p class="hint"><b>このカードだけの設定</b></p>
         <label>本文<textarea id="msg">いつも応援ありがとう！
 みんなのおかげで今日もがんばれました。
 これからもよろしくね</textarea></label>
         <label>差出人(空欄なら表示しません)<input type="text" id="sign" value="シフォンより"></label>
+        <div class="row">
+          <label>文字色<input type="color" id="color" value="#5a2a48"></label>
+          <label>縁取り色<input type="color" id="strokeColor" value="#ffffff"></label>
+        </div>
+        <div class="btns"><button type="button" class="mini" id="colorToAll">この文字色・縁取り色を全カードに使う</button></div>
+        <p class="hint" style="margin-top:6px"><b>全カード共通の設定</b></p>
+        <label class="check"><input type="checkbox" id="balance" checked> 行の長さをそろえる(1文字だけの行ができないようにする)</label>
         <label>文字の揃え</label>
         <div class="seg" id="alignSeg">
           <button type="button" data-v="left" aria-pressed="false">左</button>
@@ -250,10 +257,6 @@ details.bulk>div{display:flex;flex-direction:column;gap:10px}
         <label>PCに入っているフォント名で指定<input type="text" id="localFont" placeholder="例:けいふぉんと"></label>
         <label>文字の大きさ<input type="range" id="size" min="28" max="120" value="62"></label>
         <label>差出人の大きさ(本文に対する%)<input type="range" id="signSize" min="30" max="150" value="62"></label>
-        <div class="row">
-          <label>文字色<input type="color" id="color" value="#5a2a48"></label>
-          <label>縁取り色<input type="color" id="strokeColor" value="#ffffff"></label>
-        </div>
         <label>縁取りの太さ<input type="range" id="stroke" min="0" max="30" value="10"></label>
       </fieldset>
 
@@ -374,14 +377,15 @@ const SAMPLE_PHOTO = samplePhoto();
 let overlayImg = null;
 
 /* ---------- カード ---------- */
-const PER_CARD = ['msg','sign','photoX','photoY','photoZoom','photoSize','photoTilt'];
+const PER_CARD = ['msg','sign','photoX','photoY','photoZoom','photoSize','photoTilt','color','strokeColor'];
 const LAYOUT_KEYS = ['pos','photoSize','photoTilt','photoX','photoY','photoZoom'];
 let uidN = 0;
 function newCard(from){
   const c = {id: ++uidN, msg:'', sign:'', photo:null, photoName:'', photoX:50, photoY:50, photoZoom:0,
-    pos:st.pos, photoSize:+$('photoSize').value, photoTilt:+$('photoTilt').value, thumbV:-1};
+    pos:st.pos, photoSize:+$('photoSize').value, photoTilt:+$('photoTilt').value,
+    color:$('color').value, strokeColor:$('strokeColor').value, thumbV:-1};
   if(from) Object.assign(c, {msg:from.msg, sign:from.sign, photo:from.photo, photoName:from.photoName,
-    photoX:from.photoX, photoY:from.photoY, photoZoom:from.photoZoom, pos:from.pos, photoSize:from.photoSize, photoTilt:from.photoTilt});
+    photoX:from.photoX, photoY:from.photoY, photoZoom:from.photoZoom, pos:from.pos, photoSize:from.photoSize, photoTilt:from.photoTilt, color:from.color, strokeColor:from.strokeColor});
   return c;
 }
 let cards = [], curIdx = 0;
@@ -392,6 +396,7 @@ function loadFields(){
   $('msg').value = c.msg; $('sign').value = c.sign;
   for(const k of ['photoX','photoY','photoZoom','photoSize','photoTilt']){ $(k).value = c[k]; $(k)._upd && $(k)._upd(); }
   setSeg('pos', c.pos);
+  $('color').value = c.color; $('strokeColor').value = c.strokeColor;
   $('photoFile').value = '';
   $('photoName').textContent = c.photo ? `使用中:${c.photoName || '写真'}` : '使用中:サンプル写真(写真を選ぶと差し替わります)';
 }
@@ -425,6 +430,11 @@ $('layoutToAll').addEventListener('click', () => {
   const c = curCard();
   cards.forEach(x => { for(const k of LAYOUT_KEYS) x[k] = c[k]; });
   sharedChanged(); saveDraftSoon(); hint(`この写真の配置・大きさ・傾き・切り抜きを${cards.length}枚すべてのカードに使いました。`);
+});
+$('colorToAll').addEventListener('click', () => {
+  const c = curCard();
+  cards.forEach(x => { x.color = c.color; x.strokeColor = c.strokeColor; });
+  sharedChanged(); saveDraftSoon(); hint(`この文字色・縁取り色を${cards.length}枚すべてのカードに使いました。`);
 });
 $('overlayFile').addEventListener('change', async e => {
   const f = e.target.files[0]; if(!f) return;
@@ -591,7 +601,7 @@ async function renderCard(c, card){
   }
 
   const strokeW = +$('stroke').value*S*(size/(62*S));
-  const color=$('color').value, sc=$('strokeColor').value;
+  const color=card.color, sc=card.strokeColor;
   ctx.textBaseline='middle'; ctx.lineJoin='round'; ctx.miterLimit=2;
   const blockX = tb.x + (tb.w - widest)/2;
   let y = tb.y + (tb.h-blockH)/2 + size*lh/2;
@@ -867,7 +877,7 @@ let draftTimer=null;
 function saveDraftSoon(){
   clearTimeout(draftTimer);
   draftTimer=setTimeout(()=>{
-    try{ localStorage.setItem(DRAFT, JSON.stringify({v:2, cur:curIdx, cards:cards.map(c=>({msg:c.msg,sign:c.sign,photoX:c.photoX,photoY:c.photoY,photoZoom:c.photoZoom,pos:c.pos,photoSize:c.photoSize,photoTilt:c.photoTilt}))})); }catch(e){}
+    try{ localStorage.setItem(DRAFT, JSON.stringify({v:2, cur:curIdx, cards:cards.map(c=>({msg:c.msg,sign:c.sign,photoX:c.photoX,photoY:c.photoY,photoZoom:c.photoZoom,pos:c.pos,photoSize:c.photoSize,photoTilt:c.photoTilt,color:c.color,strokeColor:c.strokeColor}))})); }catch(e){}
   },500);
 }
 
@@ -920,7 +930,7 @@ function apply(o, toCard=true){
   $('aspectFreeBox').hidden = $('photoAspect').value!=='free';
   if(toCard && cards.length){
     const c=curCard();
-    for(const k of ['sign','photoX','photoY','photoZoom','photoSize','photoTilt']) if(k in o) c[k] = k==='sign' ? o[k] : +o[k];
+    for(const k of ['sign','photoX','photoY','photoZoom','photoSize','photoTilt','color','strokeColor']) if(k in o) c[k] = ['sign','color','strokeColor'].includes(k) ? o[k] : +o[k];
     if(o._seg && o._seg.pos) c.pos = o._seg.pos;
     saveDraftSoon();
   }
@@ -941,11 +951,14 @@ $('defClear').addEventListener('click',()=>{
   saved=null; apply(factory); say('保存した初期値を消して、最初の状態に戻しました。');
 });
 
-function layoutFrom(x, seg){
+function layoutFrom(x, seg, set){
   const o = {};
   o.pos = ['left','right','none'].includes(x.pos) ? x.pos : ((seg && seg.pos) || st.pos);
   o.photoSize = Number.isFinite(+x.photoSize) && x.photoSize!=null ? +x.photoSize : +$('photoSize').value;
   o.photoTilt = Number.isFinite(+x.photoTilt) && x.photoTilt!=null ? +x.photoTilt : +$('photoTilt').value;
+  const hex = v => typeof v==='string' && /^#[0-9a-fA-F]{6}$/.test(v);
+  o.color = hex(x.color) ? x.color : (hex(set&&set.color) ? set.color : $('color').value);
+  o.strokeColor = hex(x.strokeColor) ? x.strokeColor : (hex(set&&set.strokeColor) ? set.strokeColor : $('strokeColor').value);
   return o;
 }
 /* ---------- ファイルに書き出す・読み込む ---------- */
@@ -975,7 +988,7 @@ $('ioExport').addEventListener('click', async () => {
       current: curIdx,
       cards: []};
     for(const c of cards) out.cards.push({msg:c.msg, sign:c.sign, photoX:c.photoX, photoY:c.photoY, photoZoom:c.photoZoom,
-      pos:c.pos, photoSize:c.photoSize, photoTilt:c.photoTilt,
+      pos:c.pos, photoSize:c.photoSize, photoTilt:c.photoTilt, color:c.color, strokeColor:c.strokeColor,
       photoName:c.photoName, photo: await ref(c.photo)});
     if(withImages) for(const f of FONTS) if(f.blob) out.fonts.push({name:f.name, fam:f.fam, data: await blobToDataURL(f.blob)});
     const r = await saveFile(`messagecard_設定_${cards.length}枚_${stamp()}.json`, JSON.stringify(out));
@@ -1005,7 +1018,7 @@ $('ioImport').addEventListener('change', async e => {
     overlayImg = (d.overlay && imgs[d.overlay]) || null; $('overlayOpts').hidden = !overlayImg;
     cards = d.cards.map(x => Object.assign(newCard(), {msg:String(x.msg??''), sign:String(x.sign??''),
       photoX:+x.photoX||50, photoY:+x.photoY||50, photoZoom:+x.photoZoom||0,
-      photo:(x.photo && imgs[x.photo]) || null, photoName:(x.photo && imgs[x.photo]) ? String(x.photoName||'') : ''}, layoutFrom(x, (d.settings||{})._seg)));
+      photo:(x.photo && imgs[x.photo]) || null, photoName:(x.photo && imgs[x.photo]) ? String(x.photoName||'') : ''}, layoutFrom(x, (d.settings||{})._seg, d.settings||{})));
     if(!cards.length) cards=[newCard()];
     curIdx = Math.min(cards.length-1, Math.max(0, d.current|0));
     apply(s, false); loadFields(); buildStrip(); sharedChanged(); saveDraftSoon();
@@ -1019,6 +1032,7 @@ const first = newCard();
 first.msg = $('msg').value; first.sign = $('sign').value;
 first.photoX = +$('photoX').value; first.photoY = +$('photoY').value; first.photoZoom = +$('photoZoom').value;
 first.pos = st.pos; first.photoSize = +$('photoSize').value; first.photoTilt = +$('photoTilt').value;
+first.color = $('color').value; first.strokeColor = $('strokeColor').value;
 cards = [first];
 let restored = false;
 try{
