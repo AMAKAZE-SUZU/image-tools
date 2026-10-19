@@ -403,6 +403,17 @@ function motionOf(L, t, P){
     if(a.loop==='spin') m.rot += 360*c*t/D;
     if(a.loop==='blink') m.alpha *= 1 - amt*.8*(.5-.5*Math.cos(ph));
   }
+  // 途中・最後に透明になる/消える動き:始める時間から、かける時間で、最後の透明度まで変わる
+  if(a.out && a.out!=='none'){
+    const q = clamp((t - (a.outStart ?? D-1)) / Math.max(.05, a.outDur ?? .6), 0, 1);
+    const e2 = q*q*(3-2*q), to = (a.outTo ?? 100)/100;
+    m.alpha *= 1 - e2*to;
+    if(a.out==='shrink') m.scale *= 1 - e2*.45*to;
+    if(a.out==='grow') m.scale *= 1 + e2*.35*to;
+    if(a.out==='up') m.dy -= e2*.08*to;
+    if(a.out==='down') m.dy += e2*.08*to;
+    if(a.out==='blur') m.blur = Math.max(m.blur||0, e2*to);
+  }
   if(P.outro && P.duration>1.2){ const o = clamp((D - t)/.6, 0, 1); m.alpha *= o; }
   return m;
 }
@@ -568,13 +579,14 @@ const $ = id => document.getElementById(id);
 const uid = () => Math.random().toString(36).slice(2,10);
 const KIND = {image:'画像', text:'文字'};
 const IN_NAMES = {none:'なし(すぐ表示)', fade:'ふわっと出る', slideUp:'下から上へ', slideDown:'上から下へ', slideLeft:'右から入る', slideRight:'左から入る', zoom:'ズームして出る', pop:'ぽよんと飛び出す', spin:'くるっと回って出る', blur:'ぼかしから出る', type:'1文字ずつ出る(文字だけ)'};
+const OUT_NAMES = {none:'なし', fade:'だんだん透明になる', shrink:'小さくなりながら透明に', grow:'大きくなりながら透明に', up:'上へ動きながら透明に', down:'下へ動きながら透明に', blur:'ぼやけながら透明に'};
 const LOOP_NAMES = {none:'なし', float:'ふわふわ上下', sway:'ゆらゆら傾く', pulse:'どきどき拡大縮小', spin:'くるくる回る', blink:'ちかちか点滅'};
 let userFonts = [];   // 追加したフォント {name, fam, blob}
 let userFontN = 0;
 
 function newLayer(type, extra={}){
   const base = {id:uid(), type, name: type==='text' ? '文字' : '画像', x:.3, y:.35, w:.4, h:.25, rot:0, opacity:100, hidden:false,
-    anim:{in:'fade', start:0, dur:.6, loop:'none', loopAmt:50, loopPeriod:2}};
+    anim:{in:'fade', start:0, dur:.6, loop:'none', loopAmt:50, loopPeriod:2, out:'none', outStart:4, outDur:.8, outTo:100}};
   if(type==='image') Object.assign(base, {img:null, sample:false, shape:'round', fit:'cover', border:0, borderColor:'#ffffff', shadow:true});
   if(type==='text') Object.assign(base, {text:'テキスト', font:FONTS[0].fam, localFont:'', fit:'fill', size:8, wrapMode:'sentence', balance:true, lineHeight:1.3,
     color:'#ffffff', strokeColor:'#6b4fd8', stroke:18, align:'center', glow:false, glowColor:'#ffffff'});
@@ -848,7 +860,7 @@ function buildList(){
     const li=document.createElement('li'); if(L.id===selId) li.className='sel';
     const nm=document.createElement('span'); nm.className='nm'; nm.textContent=L.name + (L.hidden?'(非表示)':'');
     const kd=document.createElement('span'); kd.className='kind'; kd.textContent=KIND[L.type];
-    const wh=document.createElement('span'); wh.className='when'; wh.textContent=`${(L.anim.start||0).toFixed(1)}秒`;
+    const wh=document.createElement('span'); wh.className='when'; wh.textContent=`${(L.anim.start||0).toFixed(1)}秒` + (L.anim.out && L.anim.out!=='none' ? `→${(+L.anim.outStart).toFixed(1)}秒` : '');
     const mk=(t,lab,dis,fn)=>{ const b=document.createElement('button'); b.type='button'; b.className='mini'; b.textContent=t; b.setAttribute('aria-label',lab); b.disabled=dis; b.onclick=e=>{ e.stopPropagation(); fn(); }; return b; };
     const up=mk('↑','奥へ',i===0,()=>{ [P.layers[i-1],P.layers[i]]=[P.layers[i],P.layers[i-1]]; changed(); select(selId); });
     const dn=mk('↓','手前へ',i===P.layers.length-1,()=>{ [P.layers[i+1],P.layers[i]]=[P.layers[i],P.layers[i+1]]; changed(); select(selId); });
@@ -911,6 +923,9 @@ function buildProps(){
   H.push(`<label>登場のあとも続く動き<select id="pa_loop">${opts(LOOP_NAMES, L.anim.loop)}</select></label>`);
   H.push(`<div class="row" id="pa_loopBox">${range('pa_loopAmt','動きの強さ',0,100,1)}${range('pa_loopPeriod','1回の長さ(秒)',.3,8,.1)}</div>`);
   H.push(`<p class="hint">続く動きは、作品の長さの中でちょうど繰り返すように1回の長さを自動でそろえます。</p>`);
+  H.push(`<p class="sub">途中で透明にする・消す</p>`);
+  H.push(`<label>動き<select id="pa_out">${opts(OUT_NAMES, L.anim.out||'none')}</select></label>`);
+  H.push(`<div id="pa_outBox" style="display:flex;flex-direction:column;gap:10px"><div class="row">${range('pa_outStart','始める時間(秒)',0,Math.max(.1,P.duration),.1)}${range('pa_outDur','かける時間(秒)',.1,6,.1)}</div>${range('pa_outTo','最後の透明度(100で完全に消える)',5,100,1)}<div class="btns"><button type="button" class="btn ghost small" id="p_previewOut">▶ 透明になる動きを確認</button><button type="button" class="mini" id="p_outNow">今の再生位置から始める</button></div></div>`);
   H.push(`<div class="btns"><button type="button" class="btn small" id="p_preview">▶ この動きを確認</button><button type="button" class="btn ghost small" id="p_hide">${L.hidden?'表示する':'非表示にする'}</button><button type="button" class="btn ghost small" id="p_dup">複製</button><button type="button" class="btn danger small" id="p_del">削除</button></div>`);
   box.innerHTML = H.join('');
 
@@ -965,6 +980,11 @@ function buildProps(){
       catch(err){ msg('フォントを読み込めませんでした。ttf / otf / woff ファイルを選んでください。'); } });
   }
   bind('pa_in', ...A('in')); bind('pa_start', ...A('start',true), v=>(+v).toFixed(1)+'秒'); bind('pa_dur', ...A('dur',true), v=>(+v).toFixed(1)+'秒');
+  bind('pa_out', ()=>L.anim.out||'none', v=>{ L.anim.out=v; }); bind('pa_outStart', ()=>L.anim.outStart ?? Math.max(0,P.duration-1), v=>{ L.anim.outStart=+v; }, v=>(+v).toFixed(1)+'秒');
+  bind('pa_outDur', ()=>L.anim.outDur ?? .8, v=>{ L.anim.outDur=+v; }, v=>(+v).toFixed(1)+'秒'); bind('pa_outTo', ()=>L.anim.outTo ?? 100, v=>{ L.anim.outTo=+v; }, v=>v+'%');
+  $('pa_out').addEventListener('change', ()=>buildList()); $('pa_outStart').addEventListener('input', ()=>buildList());
+  $('p_previewOut').onclick = () => { const s=Math.max(0,(L.anim.outStart??0)-.5); play(s, Math.min(P.duration, (L.anim.outStart??0)+(L.anim.outDur??.8)+.8)); };
+  $('p_outNow').onclick = () => { L.anim.outStart = Math.round(T*10)/10; setCtl($('pa_outStart'), L.anim.outStart); $('pa_outStart_o').textContent = L.anim.outStart.toFixed(1)+'秒'; buildList(); changed(true); };
   bind('pa_loop', ...A('loop')); bind('pa_loopAmt', ...A('loopAmt',true)); bind('pa_loopPeriod', ...A('loopPeriod',true), v=>(+v).toFixed(1)+'秒');
   $('pa_start').addEventListener('input', ()=>buildList());
   $('p_preview').onclick = () => { const s=Math.max(0,(L.anim.start||0)-.3); play(s, Math.min(P.duration, (L.anim.start||0)+(L.anim.dur||.6)+1.2)); };
@@ -978,6 +998,7 @@ function buildProps(){
 function refreshVis(){
   const L=P.layers.find(l=>l.id===selId); if(!L) return;
   const lb=$('pa_loopBox'); if(lb) lb.hidden = L.anim.loop==='none';
+  const ob=$('pa_outBox'); if(ob) ob.hidden = !L.anim.out || L.anim.out==='none';
   const sb=$('p_sizeBox'); if(sb) sb.hidden = L.fit==='fill';
   const per=$('pa_loopPeriod_o'); if(per && L.anim.loop && L.anim.loop!=='none'){ const c=loopCycles(P.duration, L.anim.loopPeriod||2); per.textContent=`${(+L.anim.loopPeriod).toFixed(1)}秒 → ${(P.duration/c).toFixed(2)}秒`; }
 }
