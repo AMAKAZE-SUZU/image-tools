@@ -45,6 +45,15 @@ a.ver:hover{color:var(--accent);border-color:var(--accent)}
 .box .tagl{position:absolute;left:0;top:0;font-size:11px;line-height:1;padding:3px 5px;background:rgba(20,10,50,.7);color:#fff;border-bottom-right-radius:4px;pointer-events:none;white-space:nowrap}
 .box.sel .tagl{background:var(--sel)}
 .playing .box .tagl{display:none}
+.guide{position:absolute;pointer-events:none;z-index:5}
+.guide.v{top:0;bottom:0;width:0;border-left:1.5px solid #00e5ff;box-shadow:0 0 4px #00e5ff}
+.guide.h{left:0;right:0;height:0;border-top:1.5px solid #00e5ff;box-shadow:0 0 4px #00e5ff}
+.guide.c{border-color:rgba(255,255,255,.55);border-style:dashed;box-shadow:none}
+.bgmode .overlay{cursor:grab}
+.bgmode .box{pointer-events:none;opacity:.35}
+.align{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.align button{font:inherit;font-size:.74rem;padding:5px 2px;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:6px;cursor:pointer}
+.align button:hover{border-color:var(--accent);color:var(--accent)}
 .box .h{position:absolute;right:-8px;bottom:-8px;width:18px;height:18px;border-radius:50%;background:var(--sel);border:2px solid #fff;cursor:nwse-resize;touch-action:none;display:none}
 .box.sel .h{display:block}
 .transport{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
@@ -137,12 +146,31 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
           <option value="1080x1080">1080×1080(正方形)</option>
           <option value="1080x1350">1080×1350(4:5 縦長)</option>
           <option value="1080x1920">1080×1920(9:16 縦長)</option>
+          <option value="custom">自由に指定</option>
         </select></label>
+        <div class="row" id="customBox" hidden>
+          <label>幅(px)<input type="number" id="customW" min="64" max="4096" step="2" value="1200"></label>
+          <label>高さ(px)<input type="number" id="customH" min="64" max="4096" step="2" value="1600"></label>
+        </div>
         <label class="check"><input type="checkbox" id="autoRelayout" checked> 縦向き・横向きを切り替えたら、レイヤーを自動で並べ直す</label>
         <div class="btns"><button type="button" class="mini" id="relayoutNow">今の向きに合わせて並べ直す</button><button type="button" class="mini" id="relayoutUndo" hidden>並べ直す前に戻す</button></div>
         <label>長さ(秒)<input type="range" id="duration" min="2" max="30" step="0.5" value="6"></label>
         <label>背景画像<input type="file" id="bgFile" accept="image/*"></label>
         <div class="btns"><button type="button" class="mini" id="bgClear">背景をサンプルに戻す</button></div>
+        <div class="row">
+          <label>背景の入れ方<select id="bgFit"><option value="cover">画面いっぱい(はみ出しは切る)</option><option value="contain">全体を収める</option><option value="stretch">引き伸ばす</option></select></label>
+          <label>すき間の色<input type="color" id="bgColor" value="#1a1424"></label>
+        </div>
+        <div class="row">
+          <label>背景の大きさ<input type="range" id="bgScale" min="20" max="400" value="100"></label>
+          <label>背景の回転<input type="range" id="bgRot" min="-180" max="180" value="0"></label>
+        </div>
+        <div class="row">
+          <label>背景の位置 横<input type="range" id="bgX" min="-100" max="100" step="0.5" value="0"></label>
+          <label>背景の位置 縦<input type="range" id="bgY" min="-100" max="100" step="0.5" value="0"></label>
+        </div>
+        <label class="check"><input type="checkbox" id="bgDrag"> プレビューで背景をドラッグして動かす(ホイールで拡大・縮小)</label>
+        <div class="btns"><button type="button" class="mini" id="bgReset">背景の大きさ・位置・回転を元に戻す</button></div>
         <div class="row">
           <label>背景の動き<select id="bgMotion">
             <option value="none">動かさない</option>
@@ -177,6 +205,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
       <fieldset>
         <legend>レイヤー</legend>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="snapOn" checked> ドラッグ中に中心や端にぴったり合わせる</label>
+          <label class="check"><input type="checkbox" id="centerLines"> 中心線を表示</label>
+        </div>
+        <p class="hint">選んだレイヤーは矢印キーで1pxずつ(Shiftを押しながらで10pxずつ)動かせます。右下の丸をShiftを押しながらドラッグすると、縦横比を保ったまま大きさを変えられます。Altを押しながらドラッグすると、ぴったり合わせずに動かせます。</p>
         <p class="hint">下にあるものほど手前に表示されます。右の数字は登場する時間です。</p>
         <ul class="layers" id="layerList"></ul>
         <div class="btns">
@@ -493,7 +526,15 @@ function renderFrame(c, P, W, H, t, sc, editing){
   else if(P.bgMotion==='zoomOut') z = 1.12 - .12*(t/D);
   else if(P.bgMotion==='pan'){ z = 1.15; ox = (t/D - .5) * W * .12; }
   else if(P.bgMotion==='breathe') z = 1.06 + .04*Math.sin(2*Math.PI*t/D);
-  c.save(); c.translate(W/2 + ox, H/2); c.scale(z, z); drawCoverImg(c, bg, -W/2, -H/2, W, H); c.restore();
+  c.fillStyle = P.bgColor || '#1a1424'; c.fillRect(0,0,W,H);
+  {
+    const iw=bg.naturalWidth||bg.width, ih=bg.naturalHeight||bg.height, fit=P.bgFit||'cover';
+    let sx, sy;
+    if(fit==='stretch'){ sx=W/iw; sy=H/ih; } else { sx = sy = fit==='contain' ? Math.min(W/iw,H/ih) : Math.max(W/iw,H/ih); }
+    const k = (P.bgScale ?? 100)/100;
+    c.save(); c.translate(W/2 + ox + (P.bgX||0)/100*W, H/2 + (P.bgY||0)/100*H); c.scale(z*k, z*k); c.rotate((P.bgRot||0)*Math.PI/180);
+    c.drawImage(bg, -iw*sx/2, -ih*sy/2, iw*sx, ih*sy); c.restore();
+  }
   if(P.bgDim){ c.fillStyle=`rgba(0,0,0,${P.bgDim/100})`; c.fillRect(0,0,W,H); }
   if(P.fxBehind) drawEffects(c, P, W, H, t, sc);
   // レイヤー
@@ -536,7 +577,7 @@ function newLayer(type, extra={}){
   return Object.assign(base, extra);
 }
 function sampleProject(){
-  return {v:1, sizeMode:'bg', duration:6, bg:null, bgMotion:'zoomIn', bgDim:0, frame:null, outro:false, fxBehind:false,
+  return {v:1, sizeMode:'bg', customW:1200, customH:1600, duration:6, bg:null, bgMotion:'zoomIn', bgDim:0, bgFit:'cover', bgColor:'#1a1424', bgScale:100, bgRot:0, bgX:0, bgY:0, frame:null, outro:false, fxBehind:false,
     fx:{sparkle:{on:true, amount:45, size:1, color:'#fff6c8'}, confetti:{on:false, amount:70, size:1}, hearts:{on:false, amount:18, size:1, color:'#ff6fa3'}},
     layers:[
       newLayer('image', {name:'写真', sample:true, x:.06, y:.1, w:.34, h:.8, border:14, borderColor:'#ffffff', anim:{in:'slideRight', start:.2, dur:.8, loop:'float', loopAmt:35, loopPeriod:3}}),
@@ -551,6 +592,7 @@ let selId = null;
 
 /* ---- 大きさ ---- */
 function artDims(){
+  if(P.sizeMode==='custom'){ const f=v=>Math.round(clamp(+v||1080, 64, 4096)/2)*2; return [f(P.customW), f(P.customH)]; }
   if(P.sizeMode && P.sizeMode!=='bg'){ const [w,h]=P.sizeMode.split('x').map(Number); return [w,h]; }
   const bg = P.bg || SAMPLE_BG; let w = bg.naturalWidth||bg.width, h = bg.naturalHeight||bg.height;
   const k = Math.min(1, 4096/Math.max(w,h)); return [Math.round(w*k), Math.round(h*k)];
@@ -596,12 +638,14 @@ document.fonts && document.fonts.addEventListener && document.fonts.addEventList
 
 /* ---- 作品全体の設定 ---- */
 const G = [
-  ['sizeMode', v=>v], ['duration', Number], ['bgMotion', v=>v], ['bgDim', Number], ['outro', v=>v], ['fxBehind', v=>v],
+  ['sizeMode', v=>v], ['customW', Number], ['customH', Number], ['duration', Number], ['bgMotion', v=>v], ['bgDim', Number], ['outro', v=>v], ['fxBehind', v=>v],
+  ['bgFit', v=>v], ['bgColor', v=>v], ['bgScale', Number], ['bgRot', Number], ['bgX', Number], ['bgY', Number],
 ];
 const FXF = [['sparkle',['on','amount','size','color']], ['confetti',['on','amount','size']], ['hearts',['on','amount','size','color']]];
 function setCtl(el, v){ if(el.type==='checkbox') el.checked=!!v; else el.value=v; el._upd && el._upd(); }
 function loadGlobal(){
   for(const [k] of G) setCtl($(k), P[k]);
+  $('customBox').hidden = P.sizeMode!=='custom';
   for(const [n,ks] of FXF) for(const k of ks){ const v = P.fx[n][k]; setCtl($(`fx_${n}_${k}`), k==='size' ? Math.round(v*100) : v); }
 }
 for(const [k,conv] of G){
@@ -609,7 +653,7 @@ for(const [k,conv] of G){
   el.addEventListener('input', () => {
     P[k] = el.type==='checkbox' ? el.checked : conv(el.value);
     if(k==='duration'){ T = Math.min(T, P.duration); for(const L of P.layers) L.anim.start = Math.min(L.anim.start, Math.max(0,P.duration-.1)); buildProps(); buildList(); }
-    if(k==='sizeMode'){ dimsChanged(); }
+    if(k==='sizeMode'||k==='customW'||k==='customH'){ $('customBox').hidden = P.sizeMode!=='custom'; dimsChanged(); }
     if(k==='outro' && !playing) T = restT();
     changed();
   });
@@ -626,6 +670,9 @@ $('bgClear').onclick = () => { P.bg=null; dimsChanged(); changed(); };
 $('frameFile').addEventListener('change', async e => { const f=e.target.files[0]; e.target.value=''; if(!f) return;
   try{ P.frame = await loadImageFile(f); changed(); }catch(err){ msg('フレームを読み込めませんでした。透明PNGを選んでください。'); } });
 $('frameClear').onclick = () => { P.frame=null; changed(); };
+function setBg(k, v){ P[k]=v; setCtl($(k), v); changed(true); }
+$('bgReset').onclick = () => { for(const [k,v] of [['bgScale',100],['bgRot',0],['bgX',0],['bgY',0]]) setBg(k,v); msg('背景の大きさ・位置・回転を元に戻しました。'); };
+$('bgDrag').addEventListener('change', e => { $('board').classList.toggle('bgmode', e.target.checked); if(e.target.checked) msg('プレビューをドラッグすると背景が動きます。ホイールで拡大・縮小できます。終わったらチェックを外してください。'); });
 $('relayoutNow').onclick = () => { const d = artDims(); relayout(d, d); buildOverlay(); buildProps(); changed(); msg(`${isWide(d)?'横向き':'縦向き'}の並べ方でレイヤーを並べ直しました。気に入らなければ「並べ直す前に戻す」で元に戻せます。`); };
 $('relayoutUndo').onclick = undoRelayout;
 
@@ -702,7 +749,7 @@ function placeBox(b, L){
   const tg=b.querySelector('.tagl'); if(tg) tg.textContent = tagText(L);
 }
 function buildOverlay(){
-  overlay.innerHTML='';
+  overlay.innerHTML=''; setTimeout(drawCenterLines,0);
   P.layers.forEach(L => {
     const b=document.createElement('div'); b.className='box'+(L.id===selId?' sel':''); b.dataset.id=L.id;
     const tg=document.createElement('span'); tg.className='tagl';
@@ -711,23 +758,83 @@ function buildOverlay(){
     drag(b,L,'move'); drag(h,L,'resize');
   });
 }
+function clearGuides(){ overlay.querySelectorAll('.guide:not(.c)').forEach(g=>g.remove()); }
+function showGuide(dir, pos){ const g=document.createElement('div'); g.className='guide '+dir; g.style[dir==='v'?'left':'top']=(pos*100)+'%'; overlay.appendChild(g); }
+function drawCenterLines(){
+  overlay.querySelectorAll('.guide.c').forEach(g=>g.remove());
+  if(!$('centerLines').checked) return;
+  for(const [d,p] of [['v',.5],['h',.5]]){ const g=document.createElement('div'); g.className='guide c '+d; g.style[d==='v'?'left':'top']='50%'; overlay.appendChild(g); }
+}
+$('centerLines').addEventListener('change', drawCenterLines);
+// ぴったり合わせる先:作品の端と中心、ほかのレイヤーの端と中心
+function snapTargets(L){
+  const xs=[0,.5,1], ys=[0,.5,1];
+  for(const o of P.layers){ if(o===L || o.hidden) continue; xs.push(o.x, o.x+o.w/2, o.x+o.w); ys.push(o.y, o.y+o.h/2, o.y+o.h); }
+  return {xs, ys};
+}
+function nearest(vals, targets, thr){
+  let best=null;
+  for(const v of vals) for(const t of targets){ const d=t-v; if(Math.abs(d)<=thr && (!best || Math.abs(d)<Math.abs(best.d))) best={d, t}; }
+  return best;
+}
 function drag(el, L, kind){
   el.addEventListener('pointerdown', e => {
     e.stopPropagation(); e.preventDefault();
     if(selId!==L.id) select(L.id);
     const r=overlay.getBoundingClientRect(), sx=e.clientX, sy=e.clientY, o={x:L.x,y:L.y,w:L.w,h:L.h};
+    const [W,H]=artDims(); const ratio=(o.h*H)/(o.w*W);
+    const tg=snapTargets(L);
     try{ el.setPointerCapture(e.pointerId); }catch(_){}
     const mv = ev => {
       const dx=(ev.clientX-sx)/r.width, dy=(ev.clientY-sy)/r.height;
-      if(kind==='move'){ L.x=o.x+dx; L.y=o.y+dy; } else { L.w=Math.max(.02,o.w+dx); L.h=Math.max(.02,o.h+dy); }
+      const snap = $('snapOn').checked && !ev.altKey, tx=7/r.width, ty=7/r.height;
+      clearGuides();
+      if(kind==='move'){
+        L.x=o.x+dx; L.y=o.y+dy;
+        if(snap){
+          const bx=nearest([L.x, L.x+L.w/2, L.x+L.w], tg.xs, tx); if(bx){ L.x+=bx.d; showGuide('v', bx.t); }
+          const by=nearest([L.y, L.y+L.h/2, L.y+L.h], tg.ys, ty); if(by){ L.y+=by.d; showGuide('h', by.t); }
+        }
+      } else {
+        L.w=Math.max(.02,o.w+dx); L.h=Math.max(.02,o.h+dy);
+        if(ev.shiftKey){ L.h = Math.max(.02, L.w*W*ratio/H); }
+        else if(snap){
+          const bx=nearest([L.x+L.w], tg.xs, tx); if(bx){ L.w+=bx.d; showGuide('v', bx.t); }
+          const by=nearest([L.y+L.h], tg.ys, ty); if(by){ L.h+=by.d; showGuide('h', by.t); }
+        }
+      }
       const box=overlay.querySelector(`[data-id="${L.id}"]`); if(box) placeBox(box,L);
       syncGeom(); redraw();
     };
-    const up = () => { el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up); changed(); };
+    const up = () => { clearGuides(); el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up); changed(); };
     el.addEventListener('pointermove',mv); el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
   });
 }
-overlay.addEventListener('pointerdown', e => { if(e.target===overlay) select(null); });
+overlay.addEventListener('pointerdown', e => {
+  if($('bgDrag').checked){
+    e.preventDefault(); const r=overlay.getBoundingClientRect(), sx=e.clientX, sy=e.clientY, ox=P.bgX||0, oy=P.bgY||0;
+    try{ overlay.setPointerCapture(e.pointerId); }catch(_){}
+    const mv = ev => { P.bgX = clamp(ox + (ev.clientX-sx)/r.width*100, -100, 100); P.bgY = clamp(oy + (ev.clientY-sy)/r.height*100, -100, 100); setCtl($('bgX'), +P.bgX.toFixed(1)); setCtl($('bgY'), +P.bgY.toFixed(1)); redraw(); };
+    const up = () => { overlay.removeEventListener('pointermove',mv); overlay.removeEventListener('pointerup',up); overlay.removeEventListener('pointercancel',up); changed(true); };
+    overlay.addEventListener('pointermove',mv); overlay.addEventListener('pointerup',up); overlay.addEventListener('pointercancel',up);
+    return;
+  }
+  if(e.target===overlay) select(null);
+});
+overlay.addEventListener('wheel', e => {
+  if(!$('bgDrag').checked) return;
+  e.preventDefault(); setBg('bgScale', Math.round(clamp((P.bgScale||100) * (1 - e.deltaY*.0012), 20, 400)));
+}, {passive:false});
+// 矢印キーで1px(Shiftで10px)ずつ動かす
+document.addEventListener('keydown', e => {
+  if(!selId || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)) return;
+  const tag = (e.target.tagName||'').toLowerCase(); if(['input','textarea','select'].includes(tag) && e.target.type!=='range' && e.target.type!=='checkbox') return;
+  if(e.target.type==='range') return;
+  const L=P.layers.find(l=>l.id===selId); if(!L) return;
+  e.preventDefault(); const [W,H]=artDims(); const st=e.shiftKey?10:1;
+  if(e.key==='ArrowLeft') L.x-=st/W; if(e.key==='ArrowRight') L.x+=st/W; if(e.key==='ArrowUp') L.y-=st/H; if(e.key==='ArrowDown') L.y+=st/H;
+  const b=overlay.querySelector(`[data-id="${L.id}"]`); if(b) placeBox(b,L); syncGeom(); changed(true);
+});
 
 /* ---- レイヤー一覧 ---- */
 function select(id){ selId=id; buildOverlay(); buildList(); buildProps(); }
@@ -754,8 +861,10 @@ document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click',
 const pct = v => Math.round(v*1000)/10;
 function syncGeom(){
   const L=P.layers.find(l=>l.id===selId); if(!L) return;
-  for(const k of ['x','y','w','h']){ const el=$('p_'+k); if(el && document.activeElement!==el) el.value=pct(L[k]); }
-  const [W,H]=artDims(); const px=$('p_px'); if(px) px.textContent=`実際の大きさ:幅 ${Math.round(L.w*W)} × 高さ ${Math.round(L.h*H)} px(左 ${Math.round(L.x*W)} / 上 ${Math.round(L.y*H)})`;
+  const [W,H]=artDims();
+  const vals={p_cx:(L.x+L.w/2)*W, p_cy:(L.y+L.h/2)*H, p_pw:L.w*W, p_ph:L.h*H};
+  for(const [id,v] of Object.entries(vals)){ const el=$(id); if(el && document.activeElement!==el) el.value=Math.round(v); }
+  const px=$('p_px'); if(px) px.textContent=`作品は ${W}×${H}px、中心は ${Math.round(W/2)}, ${Math.round(H/2)} です(左上 ${Math.round(L.x*W)}, ${Math.round(L.y*H)})`;
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function opts(map, cur){ return Object.entries(map).map(([v,t])=>`<option value="${v}"${v===cur?' selected':''}>${esc(t)}</option>`).join(''); }
@@ -765,7 +874,9 @@ function buildProps(){
   if(!L){ box.innerHTML='<p class="hint">プレビューか一覧でレイヤーを選ぶと、ここで位置や動きを調整できます。</p>'; return; }
   const H=[];
   H.push(`<label>名前<input type="text" id="p_name"></label>`);
-  H.push(`<div class="row"><label>左 (%)<input type="number" step="0.5" id="p_x"></label><label>上 (%)<input type="number" step="0.5" id="p_y"></label><label>幅 (%)<input type="number" step="0.5" id="p_w"></label><label>高さ (%)<input type="number" step="0.5" id="p_h"></label></div>`);
+  H.push(`<div class="row"><label>中心 横(px)<input type="number" step="1" id="p_cx"></label><label>中心 縦(px)<input type="number" step="1" id="p_cy"></label><label>幅(px)<input type="number" step="1" min="4" id="p_pw"></label><label>高さ(px)<input type="number" step="1" min="4" id="p_ph"></label></div>`);
+  H.push(`<label class="check"><input type="checkbox" id="p_lock"> 幅と高さの比率を保つ</label>`);
+  H.push(`<div class="align" role="group" aria-label="作品に対して位置をそろえる"><button type="button" data-al="l">左にそろえる</button><button type="button" data-al="cx">左右の中央</button><button type="button" data-al="r">右にそろえる</button><button type="button" data-al="c">ど真ん中</button><button type="button" data-al="t">上にそろえる</button><button type="button" data-al="cy">上下の中央</button><button type="button" data-al="b">下にそろえる</button><button type="button" data-al="fit">全体に広げる</button></div>`);
   H.push(`<p class="hint" id="p_px"></p>`);
   H.push(`<div class="row">${range('p_rot','回転',-180,180,1,'°')}${range('p_opacity','不透明度',5,100,1,'%')}</div>`);
   if(L.type==='image'){
@@ -808,7 +919,25 @@ function buildProps(){
   const N = k => [()=>L[k], v=>{ L[k]=+v; }];
   const A = (k,num) => [()=>L.anim[k], v=>{ L.anim[k]= num?+v:v; }];
   bind('p_name', ...S('name')); $('p_name').addEventListener('input', ()=>{ buildList(); const b=overlay.querySelector(`[data-id="${L.id}"]`); if(b) placeBox(b,L); });
-  for(const k of ['x','y','w','h']){ const el=$('p_'+k); el.value=pct(L[k]); el.addEventListener('input',()=>{ const v=parseFloat(el.value); if(isNaN(v)) return; L[k]=Math.max(k==='w'||k==='h'?.01:-1, v/100); const b=overlay.querySelector(`[data-id="${L.id}"]`); if(b) placeBox(b,L); syncGeom(); changed(true); }); }
+  const refreshBox = () => { const b=overlay.querySelector(`[data-id="${L.id}"]`); if(b) placeBox(b,L); syncGeom(); changed(true); };
+  for(const id of ['p_cx','p_cy','p_pw','p_ph']){
+    $(id).addEventListener('input', () => {
+      const v=parseFloat($(id).value); if(isNaN(v)) return; const [W,H]=artDims();
+      const cx=L.x+L.w/2, cy=L.y+L.h/2, keep=$('p_lock').checked, rt=(L.h*H)/(L.w*W);
+      if(id==='p_cx') L.x = v/W - L.w/2;
+      if(id==='p_cy') L.y = v/H - L.h/2;
+      if(id==='p_pw'){ L.w = Math.max(4,v)/W; if(keep) L.h = L.w*W*rt/H; L.x = cx-L.w/2; L.y = cy-L.h/2; }
+      if(id==='p_ph'){ L.h = Math.max(4,v)/H; if(keep) L.w = L.h*H/rt/W; L.x = cx-L.w/2; L.y = cy-L.h/2; }
+      refreshBox();
+    });
+  }
+  box.querySelectorAll('[data-al]').forEach(b => b.onclick = () => {
+    const a=b.dataset.al;
+    if(a==='l') L.x=0; if(a==='r') L.x=1-L.w; if(a==='cx'||a==='c') L.x=.5-L.w/2;
+    if(a==='t') L.y=0; if(a==='b') L.y=1-L.h; if(a==='cy'||a==='c') L.y=.5-L.h/2;
+    if(a==='fit'){ L.x=0; L.y=0; L.w=1; L.h=1; }
+    refreshBox();
+  });
   bind('p_rot', ...N('rot'), v=>v+'°'); $('p_rot').addEventListener('input',()=>{ const b=overlay.querySelector(`[data-id="${L.id}"]`); if(b) placeBox(b,L); });
   bind('p_opacity', ...N('opacity'), v=>v+'%');
   if(L.type==='image'){
@@ -934,7 +1063,7 @@ document.querySelectorAll('.panel input[type=range]').forEach(inp => {
   const lab=inp.closest('label'); const t=[...lab.childNodes].find(n=>n.nodeType===3 && n.textContent.trim());
   const head=document.createElement('span'); head.className='lab'; const nm=document.createElement('span'); nm.textContent=t?t.textContent.trim():'';
   const out=document.createElement('output'); head.append(nm,out); if(t) lab.replaceChild(head,t); else lab.prepend(head);
-  const unit = inp.id==='duration' ? '秒' : inp.id.endsWith('_size') ? '%' : '';
+  const unit = inp.id==='duration' ? '秒' : (inp.id.endsWith('_size')||['bgScale','bgX','bgY'].includes(inp.id)) ? '%' : inp.id==='bgRot' ? '°' : '';
   const upd=()=>{ out.textContent = (inp.id==='duration' ? (+inp.value).toFixed(1) : inp.value) + unit; };
   inp.addEventListener('input',upd); inp._upd=upd; upd();
 });
