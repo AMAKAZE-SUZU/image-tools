@@ -35,7 +35,7 @@ a.ver:hover{color:var(--accent);border-color:var(--accent)}
 @media (max-width:940px){.grid{grid-template-columns:minmax(0,1fr)}}
 .stage{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:10px;min-width:0}
 @media (max-width:940px){.stage{position:static}}
-.board{position:relative;margin:0 auto;max-width:100%;box-shadow:0 8px 28px rgba(20,10,60,.25);border-radius:6px;overflow:hidden;background:#000}
+.board{position:relative;margin:0 auto;max-height:80vh;max-width:100%;box-shadow:0 8px 28px rgba(20,10,60,.25);border-radius:6px;overflow:hidden;background:#000}
 .board canvas{display:block;width:100%;height:100%}
 .overlay{position:absolute;inset:0}
 .box{position:absolute;border:1.5px dashed rgba(255,255,255,.75);outline:1.5px dashed rgba(20,10,50,.45);outline-offset:-3px;cursor:move;touch-action:none}
@@ -99,7 +99,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>アニメポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.0 ・ 2026-10-19 公開</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.1 ・ 2026-10-19 更新</a>
     <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪を重ねて、動くポスターをMP4かGIFで保存できます。最初はサンプルが入っています。</p>
   </header>
 
@@ -138,6 +138,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
           <option value="1080x1350">1080×1350(4:5 縦長)</option>
           <option value="1080x1920">1080×1920(9:16 縦長)</option>
         </select></label>
+        <label class="check"><input type="checkbox" id="autoRelayout" checked> 縦向き・横向きを切り替えたら、レイヤーを自動で並べ直す</label>
+        <div class="btns"><button type="button" class="mini" id="relayoutNow">今の向きに合わせて並べ直す</button><button type="button" class="mini" id="relayoutUndo" hidden>並べ直す前に戻す</button></div>
         <label>長さ(秒)<input type="range" id="duration" min="2" max="30" step="0.5" value="6"></label>
         <label>背景画像<input type="file" id="bgFile" accept="image/*"></label>
         <div class="btns"><button type="button" class="mini" id="bgClear">背景をサンプルに戻す</button></div>
@@ -567,7 +569,7 @@ function sizeBoard(){
   const ps = Math.min(1, 1200/Math.max(W,H)) * Math.min(2, window.devicePixelRatio||1);
   const cw = Math.round(W*ps), ch = Math.round(H*ps);
   if(cv.width!==cw || cv.height!==ch){ cv.width=cw; cv.height=ch; }
-  const b = $('board'); b.style.aspectRatio = `${W} / ${H}`; b.style.width = `min(100%, calc(70vh * ${W/H}))`;
+  const b = $('board'); b.style.aspectRatio = `${W} / ${H}`; b.style.width = `min(100%, calc(${W>=H?70:80}vh * ${W/H}))`;
   const [mw,mh] = mp4Dims();
   $('sizeLabel').textContent = `作品 ${W}×${H}px ・ MP4 ${mw}×${mh}px`;
 }
@@ -607,7 +609,7 @@ for(const [k,conv] of G){
   el.addEventListener('input', () => {
     P[k] = el.type==='checkbox' ? el.checked : conv(el.value);
     if(k==='duration'){ T = Math.min(T, P.duration); for(const L of P.layers) L.anim.start = Math.min(L.anim.start, Math.max(0,P.duration-.1)); buildProps(); buildList(); }
-    if(k==='sizeMode'){ sizeBoard(); buildOverlay(); }
+    if(k==='sizeMode'){ dimsChanged(); }
     if(k==='outro' && !playing) T = restT();
     changed();
   });
@@ -619,11 +621,74 @@ for(const [n,ks] of FXF) for(const k of ks){
 function loadImageFile(file){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>{ im._blob=file; res(im); }; im.onerror=rej; im.src=URL.createObjectURL(file); }); }
 function msg(t){ $('msg').textContent = t; }
 $('bgFile').addEventListener('change', async e => { const f=e.target.files[0]; e.target.value=''; if(!f) return;
-  try{ P.bg = await loadImageFile(f); sizeBoard(); buildOverlay(); changed(); }catch(err){ msg('背景画像を読み込めませんでした。PNGかJPEGを選んでください。'); } });
-$('bgClear').onclick = () => { P.bg=null; sizeBoard(); buildOverlay(); changed(); };
+  try{ P.bg = await loadImageFile(f); dimsChanged(); changed(); }catch(err){ msg('背景画像を読み込めませんでした。PNGかJPEGを選んでください。'); } });
+$('bgClear').onclick = () => { P.bg=null; dimsChanged(); changed(); };
 $('frameFile').addEventListener('change', async e => { const f=e.target.files[0]; e.target.value=''; if(!f) return;
   try{ P.frame = await loadImageFile(f); changed(); }catch(err){ msg('フレームを読み込めませんでした。透明PNGを選んでください。'); } });
 $('frameClear').onclick = () => { P.frame=null; changed(); };
+$('relayoutNow').onclick = () => { const d = artDims(); relayout(d, d); buildOverlay(); buildProps(); changed(); msg(`${isWide(d)?'横向き':'縦向き'}の並べ方でレイヤーを並べ直しました。気に入らなければ「並べ直す前に戻す」で元に戻せます。`); };
+$('relayoutUndo').onclick = undoRelayout;
+
+/* ---- 向きが変わったときにレイヤーを並べ直す ---- */
+let lastDims = null, undoGeom = null;
+const isWide = ([w,h]) => w/h > 1.2;
+function hideUndo(){ undoGeom = null; $('relayoutUndo').hidden = true; }
+function dimsChanged(){
+  const nd = artDims(), od = lastDims || nd; lastDims = nd;
+  if($('autoRelayout').checked && isWide(od) !== isWide(nd)){ relayout(od, nd); msg(`${isWide(nd)?'横向き':'縦向き'}に合わせてレイヤーを並べ直しました。気に入らなければ「並べ直す前に戻す」で元に戻せます。`); }
+  else if($('autoRelayout').checked && (od[0]/od[1]).toFixed(3) !== (nd[0]/nd[1]).toFixed(3)) keepShapes(od, nd);
+  sizeBoard(); buildOverlay(); buildProps();
+}
+function relayout(od, nd){
+  const [oW,oH] = od, [nW,nH] = nd;
+  undoGeom = {dims: od, geom: P.layers.map(L => ({id:L.id, x:L.x, y:L.y, w:L.w, h:L.h}))}; $('relayoutUndo').hidden = false;
+  const items = P.layers.filter(L => !L.hidden).map(L => ({L, pw:L.w*oW, ph:L.h*oH, cx:(L.x+L.w/2), cy:(L.y+L.h/2)}));
+  if(!items.length) return;
+  const place = (list, x0, colW, y0, colH) => {        // list を縦に積む(大きさの比率はそのまま、列の幅と高さに収める)
+    if(!list.length) return;
+    let k = Math.min(...list.map(it => colW/it.pw));
+    const gapR = .035*nH;
+    const sumH = list.reduce((s,it)=>s+it.ph,0);
+    const room = colH - gapR*(list.length-1);
+    if(sumH*k > room) k = room/sumH;
+    const used = sumH*k + gapR*(list.length-1);
+    let y = y0 + (colH-used)/2;
+    for(const it of list){
+      const w = it.pw*k, h = it.ph*k;
+      it.L.w = w/nW; it.L.h = h/nH; it.L.x = (x0 + (colW-w)/2)/nW; it.L.y = y/nH;
+      y += h + gapR;
+    }
+  };
+  if(!isWide(nd)){
+    // 縦向き:左の列 → 右の列の順に、上から積む
+    const col = it => it.L.w > .6 ? (it.cy < .5 ? -1 : 2) : (it.cx < .5 ? 0 : 1);
+    items.sort((a,b) => col(a)-col(b) || a.cy-b.cy);
+    place(items, nW*.07, nW*.86, nH*.05, nH*.9);
+  } else {
+    // 横向き:いちばん大きい写真・画像を左の列に、残りを右の列に積む
+    const imgs = items.filter(it => it.L.type==='image' && (it.L.img || it.L.sample));
+    const main = imgs.sort((a,b)=>b.pw*b.ph-a.pw*a.ph)[0];
+    const rest = items.filter(it => it!==main).sort((a,b)=>a.cy-b.cy);
+    if(main){ place([main], nW*.05, nW*.36, nH*.08, nH*.84); place(rest, nW*.45, nW*.5, nH*.08, nH*.84); }
+    else place(rest, nW*.1, nW*.8, nH*.08, nH*.84);
+  }
+  layoutCache.clear();
+}
+// 同じ向きのまま縦横比が変わったときは、枠の中心をそのままに、枠の形(縦横比)が崩れないよう大きさを合わせる
+function keepShapes(od, nd){
+  const [oW,oH]=od, [nW,nH]=nd, f=Math.min(nW/oW, nH/oH);
+  undoGeom = {dims: od, geom: P.layers.map(L => ({id:L.id, x:L.x, y:L.y, w:L.w, h:L.h}))}; $('relayoutUndo').hidden = false;
+  for(const L of P.layers){
+    const cx=L.x+L.w/2, cy=L.y+L.h/2;
+    L.w = L.w*oW*f/nW; L.h = L.h*oH*f/nH; L.x = cx-L.w/2; L.y = cy-L.h/2;
+  }
+  layoutCache.clear();
+}
+function undoRelayout(){
+  if(!undoGeom) return;
+  for(const g of undoGeom.geom){ const L = P.layers.find(l=>l.id===g.id); if(L) Object.assign(L, {x:g.x, y:g.y, w:g.w, h:g.h}); }
+  hideUndo(); layoutCache.clear(); buildOverlay(); buildProps(); changed(); msg('並べ直す前の配置に戻しました。');
+}
 
 /* ---- 枠のドラッグ ---- */
 const overlay = $('overlay');
@@ -861,7 +926,7 @@ $('newProj').onclick = () => {
   if(!newArmed){ newArmed=true; $('newProj').textContent='もう一度押すとやり直します'; setTimeout(()=>{ newArmed=false; $('newProj').textContent='サンプルからやり直す'; },3000); return; }
   newArmed=false; $('newProj').textContent='サンプルからやり直す'; P = sampleProject(); afterLoad(); changed(); ioMsg('サンプルの状態に戻しました。');
 };
-function afterLoad(){ selId=null; stop(); T = restT(); loadGlobal(); sizeBoard(); buildOverlay(); buildList(); buildProps(); loadFontsFor(); redraw(); }
+function afterLoad(){ selId=null; stop(); T = restT(); loadGlobal(); lastDims = artDims(); hideUndo(); sizeBoard(); buildOverlay(); buildList(); buildProps(); loadFontsFor(); redraw(); }
 
 /* ---- 数値の表示 ---- */
 document.querySelectorAll('.panel input[type=range]').forEach(inp => {

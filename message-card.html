@@ -74,6 +74,8 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .thumb{flex:0 0 auto;position:relative;padding:0;border:2px solid transparent;border-radius:8px;background:var(--field);cursor:pointer;scroll-snap-align:start;line-height:0}
 .thumb canvas{display:block;width:112px;height:auto;border-radius:6px}
 .thumb.square canvas{width:72px}
+.thumb.tall canvas{width:52px}
+#ratioSeg button{font-size:.74rem;padding:6px 2px}
 .thumb[aria-current=true]{border-color:var(--accent)}
 .thumb span{position:absolute;left:4px;top:4px;line-height:1;font-size:.68rem;font-weight:700;padding:2px 5px;border-radius:4px;background:rgba(30,20,35,.72);color:#fff;font-variant-numeric:tabular-nums}
 .btn:disabled{opacity:.5;cursor:default}
@@ -106,7 +108,7 @@ legend.is-indiv{box-shadow:none;padding-left:0}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>メッセージカードメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.3 ・ 2026-10-18 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.4 ・ 2026-10-19 更新</a>
     <p>背景・写真・メッセージ・フォントを選んで、Twitter向けの画像を作ります。複数枚まとめて作ることもできます</p>
   </header>
 
@@ -143,6 +145,8 @@ legend.is-indiv{box-shadow:none;padding-left:0}
         <div class="seg" id="ratioSeg" data-key="ratio">
           <button type="button" data-v="16:9" aria-pressed="true">16:9 横長</button>
           <button type="button" data-v="1:1" aria-pressed="false">1:1 正方形</button>
+          <button type="button" data-v="4:5" aria-pressed="false">4:5 縦長</button>
+          <button type="button" data-v="9:16" aria-pressed="false">9:16 縦長</button>
         </div>
       </fieldset>
 
@@ -688,7 +692,7 @@ function photoOuter(A, maxW, maxH, S){
 
 async function renderCard(c, card){
   RC = card;
-  const [W,H] = V('ratio')==='1:1' ? [1200,1200] : [1600,900];
+  const [W,H] = ({'1:1':[1200,1200], '4:5':[1080,1350], '9:16':[1080,1920]})[V('ratio')] || [1600,900];
   c.width=W; c.height=H;
   const S = Math.min(W/1600, H/900);
   const f = currentFont();
@@ -857,7 +861,7 @@ function cardChanged(){ curCard().thumbV = -1; schedule(); }
 function paintThumb(card, src){
   const btn = document.querySelector(`.thumb[data-id="${card.id}"]`); if(!btn) return;
   const el = btn.querySelector('canvas');
-  btn.classList.toggle('square', src.width===src.height);
+  btn.classList.toggle('square', src.width===src.height); btn.classList.toggle('tall', src.height>src.width);
   el.width = Math.round(src.width/6); el.height = Math.round(src.height/6);
   el.getContext('2d').drawImage(src,0,0,el.width,el.height);
 }
@@ -878,8 +882,8 @@ function buildStrip(){
     const b = document.createElement('button'); b.type='button'; b.className='thumb'; b.dataset.id=c.id; b.setAttribute('role','listitem');
     b.setAttribute('aria-label', `${i+1}枚目のカード`);
     if(i===curIdx) b.setAttribute('aria-current','true');
-    if(val(c,'ratio')==='1:1') b.classList.add('square');
-    const cv = document.createElement('canvas'); cv.width=160; cv.height=val(c,'ratio')==='1:1'?160:90;
+    const rt = val(c,'ratio'); if(rt==='1:1') b.classList.add('square'); if(rt==='4:5'||rt==='9:16') b.classList.add('tall');
+    const cv = document.createElement('canvas'); cv.width=160; cv.height=({'1:1':160,'4:5':200,'9:16':284})[rt]||90;
     const n = document.createElement('span'); n.textContent = i+1;
     b.append(cv, n); b.onclick = () => selectCard(i);
     strip.appendChild(b); c.thumbV = -1;
