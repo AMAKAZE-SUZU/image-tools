@@ -180,9 +180,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
             <option value="breathe">ふわっと拡大縮小(ループ向け)</option>
           </select></label>
           <label>背景の暗さ<input type="range" id="bgDim" min="0" max="70" value="0"></label>
+          <label>背景画像の透明度<input type="range" id="bgTrans" min="0" max="100" value="0"></label>
         </div>
         <label>装飾フレーム(全体に重ねる透明PNG)<input type="file" id="frameFile" accept="image/png,image/webp,image/gif"></label>
         <div class="btns"><button type="button" class="mini" id="frameClear">フレームを外す</button></div>
+        <label>フレームの透明度<input type="range" id="frameTrans" min="0" max="100" value="0"></label>
         <label class="check"><input type="checkbox" id="outro"> 終わりに全体をフェードアウトする(ループ再生がなめらかになります)</label>
       </fieldset>
 
@@ -259,6 +261,7 @@ const fontOf = L => { const loc=(L.localFont||'').trim(); if(loc) return {fam:lo
 const fontStr = (f, px) => `${f.w} ${px}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
 
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+function hexA(hex, a){ const n=parseInt(String(hex||'#ffffff').slice(1),16); return `rgba(${n>>16},${(n>>8)&255},${n&255},${clamp(a,0,1)})`; }
 const easeOut = p => 1 - Math.pow(1-p, 3);
 const easeOutBack = p => { const c1=1.70158, c3=c1+1; return 1 + c3*Math.pow(p-1,3) + c1*Math.pow(p-1,2); };
 function rnd(i, k){ const x = Math.sin(i*127.1 + k*311.7) * 43758.5453; return x - Math.floor(x); }  // 決まった乱数(毎回同じ動きになる)
@@ -451,8 +454,8 @@ function drawTextLayer(c, L, w, h, W, H, reveal, sc){
       // 1文字ずつ出すときは、行が全部出たときの位置に合わせて左から描く(文字が横にずれないように)
       let x = ax; const al = c.textAlign;
       if(!full){ const lw = c.measureText(l).width; x = L.align==='left' ? 0 : L.align==='right' ? w-lw : (w-lw)/2; c.textAlign='left'; }
-      if(sw>0){ c.lineWidth=sw; c.strokeStyle=L.strokeColor; c.strokeText(show, x, y); }
-      c.fillStyle=L.color; c.fillText(show, x, y);
+      if(sw>0 && (L.strokeTrans||0)<100){ c.lineWidth=sw; c.strokeStyle=hexA(L.strokeColor, 1-(L.strokeTrans||0)/100); c.strokeText(show, x, y); }
+      if((L.fillTrans||0)<100){ c.fillStyle=hexA(L.color, 1-(L.fillTrans||0)/100); c.fillText(show, x, y); }
       c.textAlign = al;
     }
     y += size*lh;
@@ -533,7 +536,8 @@ function renderFrame(c, P, W, H, t, sc, editing){
     if(fit==='stretch'){ sx=W/iw; sy=H/ih; } else { sx = sy = fit==='contain' ? Math.min(W/iw,H/ih) : Math.max(W/iw,H/ih); }
     const k = (P.bgScale ?? 100)/100;
     c.save(); c.translate(W/2 + ox + (P.bgX||0)/100*W, H/2 + (P.bgY||0)/100*H); c.scale(z*k, z*k); c.rotate((P.bgRot||0)*Math.PI/180);
-    c.drawImage(bg, -iw*sx/2, -ih*sy/2, iw*sx, ih*sy); c.restore();
+    c.globalAlpha = 1 - (P.bgTrans||0)/100;
+    c.drawImage(bg, -iw*sx/2, -ih*sy/2, iw*sx, ih*sy); c.restore(); c.globalAlpha = 1;
   }
   if(P.bgDim){ c.fillStyle=`rgba(0,0,0,${P.bgDim/100})`; c.fillRect(0,0,W,H); }
   if(P.fxBehind) drawEffects(c, P, W, H, t, sc);
@@ -555,7 +559,7 @@ function renderFrame(c, P, W, H, t, sc, editing){
     c.restore();
   }
   if(!P.fxBehind) drawEffects(c, P, W, H, t, sc);
-  if(P.frame) c.drawImage(P.frame, 0, 0, W, H);
+  if(P.frame){ c.globalAlpha = 1 - (P.frameTrans||0)/100; c.drawImage(P.frame, 0, 0, W, H); c.globalAlpha = 1; }
   c.setTransform(1,0,0,1,0,0);
 }
 
@@ -577,7 +581,7 @@ function newLayer(type, extra={}){
   return Object.assign(base, extra);
 }
 function sampleProject(){
-  return {v:1, sizeMode:'bg', customW:1200, customH:1600, duration:6, bg:null, bgMotion:'zoomIn', bgDim:0, bgFit:'cover', bgColor:'#1a1424', bgScale:100, bgRot:0, bgX:0, bgY:0, frame:null, outro:false, fxBehind:false,
+  return {v:1, sizeMode:'bg', customW:1200, customH:1600, duration:6, bg:null, bgMotion:'zoomIn', bgDim:0, bgFit:'cover', bgColor:'#1a1424', bgScale:100, bgRot:0, bgX:0, bgY:0, bgTrans:0, frame:null, frameTrans:0, outro:false, fxBehind:false,
     fx:{sparkle:{on:true, amount:45, size:1, color:'#fff6c8'}, confetti:{on:false, amount:70, size:1}, hearts:{on:false, amount:18, size:1, color:'#ff6fa3'}},
     layers:[
       newLayer('image', {name:'写真', sample:true, x:.06, y:.1, w:.34, h:.8, border:14, borderColor:'#ffffff', anim:{in:'slideRight', start:.2, dur:.8, loop:'float', loopAmt:35, loopPeriod:3}}),
@@ -639,7 +643,7 @@ document.fonts && document.fonts.addEventListener && document.fonts.addEventList
 /* ---- 作品全体の設定 ---- */
 const G = [
   ['sizeMode', v=>v], ['customW', Number], ['customH', Number], ['duration', Number], ['bgMotion', v=>v], ['bgDim', Number], ['outro', v=>v], ['fxBehind', v=>v],
-  ['bgFit', v=>v], ['bgColor', v=>v], ['bgScale', Number], ['bgRot', Number], ['bgX', Number], ['bgY', Number],
+  ['bgFit', v=>v], ['bgColor', v=>v], ['bgScale', Number], ['bgRot', Number], ['bgX', Number], ['bgY', Number], ['bgTrans', Number], ['frameTrans', Number],
 ];
 const FXF = [['sparkle',['on','amount','size','color']], ['confetti',['on','amount','size']], ['hearts',['on','amount','size','color']]];
 function setCtl(el, v){ if(el.type==='checkbox') el.checked=!!v; else el.value=v; el._upd && el._upd(); }
@@ -874,11 +878,12 @@ function buildProps(){
   if(!L){ box.innerHTML='<p class="hint">プレビューか一覧でレイヤーを選ぶと、ここで位置や動きを調整できます。</p>'; return; }
   const H=[];
   H.push(`<label>名前<input type="text" id="p_name"></label>`);
+  H.push(range('p_trans', L.type==='text' ? '透明度(文字全体。0で透けない)' : '透明度(0で透けない)', 0, 100, 1));
   H.push(`<div class="row"><label>中心 横(px)<input type="number" step="1" id="p_cx"></label><label>中心 縦(px)<input type="number" step="1" id="p_cy"></label><label>幅(px)<input type="number" step="1" min="4" id="p_pw"></label><label>高さ(px)<input type="number" step="1" min="4" id="p_ph"></label></div>`);
   H.push(`<label class="check"><input type="checkbox" id="p_lock"> 幅と高さの比率を保つ</label>`);
   H.push(`<div class="align" role="group" aria-label="作品に対して位置をそろえる"><button type="button" data-al="l">左にそろえる</button><button type="button" data-al="cx">左右の中央</button><button type="button" data-al="r">右にそろえる</button><button type="button" data-al="c">ど真ん中</button><button type="button" data-al="t">上にそろえる</button><button type="button" data-al="cy">上下の中央</button><button type="button" data-al="b">下にそろえる</button><button type="button" data-al="fit">全体に広げる</button></div>`);
   H.push(`<p class="hint" id="p_px"></p>`);
-  H.push(`<div class="row">${range('p_rot','回転',-180,180,1,'°')}${range('p_opacity','不透明度',5,100,1,'%')}</div>`);
+  H.push(range('p_rot','回転',-180,180,1,'°'));
   if(L.type==='image'){
     H.push(`<label>画像<input type="file" id="p_img" accept="image/*"></label><div class="btns"><span class="hint" id="p_imgname"></span><button type="button" class="mini" id="p_imgclear">画像を外す</button></div>`);
     H.push(`<div class="row"><label>形<select id="p_shape">${opts({rect:'四角',round:'角丸',circle:'丸'},L.shape)}</select></label><label>入れ方<select id="p_fit">${opts({cover:'枠いっぱい(はみ出しは切る)',contain:'全体を収める(ロゴ向け)'},L.fit)}</select></label></div>`);
@@ -895,6 +900,7 @@ function buildProps(){
     H.push(`<label class="check"><input type="checkbox" id="p_balance"> 行の長さをそろえる</label>`);
     H.push(range('p_lineHeight','行間',1,2.2,.05));
     H.push(`<div class="row"><label>文字色<input type="color" id="p_color"></label><label>縁取り色<input type="color" id="p_strokeColor"></label></div>`);
+    H.push(`<div class="row">${range('p_fillTrans','文字色の透明度',0,100,1)}${range('p_strokeTrans','縁取りの透明度',0,100,1)}</div>`);
     H.push(range('p_stroke','縁取りの太さ',0,50,1));
     H.push(`<div class="row"><label class="check"><input type="checkbox" id="p_glow"> 光らせる</label><label>光の色<input type="color" id="p_glowColor"></label></div>`);
   }
@@ -939,7 +945,7 @@ function buildProps(){
     refreshBox();
   });
   bind('p_rot', ...N('rot'), v=>v+'°'); $('p_rot').addEventListener('input',()=>{ const b=overlay.querySelector(`[data-id="${L.id}"]`); if(b) placeBox(b,L); });
-  bind('p_opacity', ...N('opacity'), v=>v+'%');
+  bind('p_trans', ()=>100-(L.opacity ?? 100), v=>{ L.opacity = 100-(+v); }, v=>v+'%');
   if(L.type==='image'){
     $('p_imgname').textContent = L.img ? '画像を使用中' : L.sample ? 'サンプル写真を使用中' : 'まだ画像がありません';
     $('p_img').addEventListener('change', async e => { const f=e.target.files[0]; if(!f) return; try{ L.img=await loadImageFile(f); L.sample=false; $('p_imgname').textContent='画像を使用中'; changed(true); }catch(err){ msg('画像を読み込めませんでした。PNGかJPEGを選んでください。'); } });
@@ -949,7 +955,8 @@ function buildProps(){
     bind('p_text', ...S('text')); bind('p_font', ...S('font')); bind('p_localFont', ...S('localFont'));
     bind('p_fit', ...S('fit')); bind('p_size', ...N('size'), v=>(+v).toFixed(1)+'%'); bind('p_wrapMode', ...S('wrapMode')); bind('p_align', ...S('align'));
     bind('p_balance', ...S('balance')); bind('p_lineHeight', ...N('lineHeight'), v=>(+v).toFixed(2)); bind('p_color', ...S('color')); bind('p_strokeColor', ...S('strokeColor'));
-    bind('p_stroke', ...N('stroke')); bind('p_glow', ...S('glow')); bind('p_glowColor', ...S('glowColor'));
+    bind('p_stroke', ...N('stroke'));
+    bind('p_fillTrans', ()=>L.fillTrans||0, v=>{ L.fillTrans=+v; }, v=>v+'%'); bind('p_strokeTrans', ()=>L.strokeTrans||0, v=>{ L.strokeTrans=+v; }, v=>v+'%'); bind('p_glow', ...S('glow')); bind('p_glowColor', ...S('glowColor'));
     $('p_font').addEventListener('change', ()=>loadFontsFor());
     $('p_fontFile').addEventListener('change', async e => { const f=e.target.files[0]; if(!f) return;
       try{ const fam='UserFont'+(++userFontN); const ff=new FontFace(fam, await f.arrayBuffer()); await ff.load(); document.fonts.add(ff);
@@ -1063,7 +1070,7 @@ document.querySelectorAll('.panel input[type=range]').forEach(inp => {
   const lab=inp.closest('label'); const t=[...lab.childNodes].find(n=>n.nodeType===3 && n.textContent.trim());
   const head=document.createElement('span'); head.className='lab'; const nm=document.createElement('span'); nm.textContent=t?t.textContent.trim():'';
   const out=document.createElement('output'); head.append(nm,out); if(t) lab.replaceChild(head,t); else lab.prepend(head);
-  const unit = inp.id==='duration' ? '秒' : (inp.id.endsWith('_size')||['bgScale','bgX','bgY'].includes(inp.id)) ? '%' : inp.id==='bgRot' ? '°' : '';
+  const unit = inp.id==='duration' ? '秒' : (inp.id.endsWith('_size')||['bgScale','bgX','bgY','bgTrans','frameTrans'].includes(inp.id)) ? '%' : inp.id==='bgRot' ? '°' : '';
   const upd=()=>{ out.textContent = (inp.id==='duration' ? (+inp.value).toFixed(1) : inp.value) + unit; };
   inp.addEventListener('input',upd); inp._upd=upd; upd();
 });
