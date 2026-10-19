@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>アニメポスターメーカー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700&family=M+PLUS+Rounded+1c:wght@500;800&family=Kiwi+Maru:wght@500&family=Yusei+Magic&family=Klee+One:wght@600&family=Hachi+Maru+Pop&family=Dela+Gothic+One&family=RocknRoll+One&family=Mochiy+Pop+One&family=Noto+Serif+JP:wght@600&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.1/build/mp4-muxer.js"></script>
+<style>
+/* Layout: 左に再生できる大きなプレビューと時間のつまみ、右に作品・エフェクト・レイヤーの操作パネル */
+:root{
+  --bg:#f4f2f9; --surface:#ffffff; --fg:#241f33; --muted:#686179;
+  --line:#e0dcec; --accent:#6b4fd8; --accent-fg:#ffffff; --field:#f9f8fc; --sel:#ff4f8b;
+  --font-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#17151e; --surface:#211e2a; --fg:#eeebf6; --muted:#a59fb6; --line:#363143; --accent:#a48dff; --accent-fg:#17151e; --field:#2a2634; --sel:#ff7aa8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#17151e; --surface:#211e2a; --fg:#eeebf6; --muted:#a59fb6; --line:#363143; --accent:#a48dff; --accent-fg:#17151e; --field:#2a2634; --sel:#ff7aa8; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.6}
+.wrap{max-width:1360px;margin:0 auto;padding-block:20px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;margin-bottom:16px}
+h1{font-family:var(--font-display);font-weight:700;font-size:1.5rem;margin:0;text-wrap:balance}
+header p{margin:0;color:var(--muted);font-size:.85rem;flex-basis:100%}
+.toplink{font-size:.8rem;color:var(--muted);text-decoration:none;flex-basis:100%}
+.toplink:hover{text-decoration:underline}
+.ver{font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 9px;text-decoration:none;white-space:nowrap;align-self:center}
+a.ver:hover{color:var(--accent);border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:20px;align-items:start}
+@media (max-width:940px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stage{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:10px;min-width:0}
+@media (max-width:940px){.stage{position:static}}
+.board{position:relative;margin:0 auto;max-width:100%;box-shadow:0 8px 28px rgba(20,10,60,.25);border-radius:6px;overflow:hidden;background:#000}
+.board canvas{display:block;width:100%;height:100%}
+.overlay{position:absolute;inset:0}
+.box{position:absolute;border:1.5px dashed rgba(255,255,255,.75);outline:1.5px dashed rgba(20,10,50,.45);outline-offset:-3px;cursor:move;touch-action:none}
+.box.sel{border:2px solid var(--sel);outline:none}
+.playing .box{border-color:transparent;outline-color:transparent}
+.playing .box.sel{border-color:rgba(255,79,139,.5)}
+.box .tagl{position:absolute;left:0;top:0;font-size:11px;line-height:1;padding:3px 5px;background:rgba(20,10,50,.7);color:#fff;border-bottom-right-radius:4px;pointer-events:none;white-space:nowrap}
+.box.sel .tagl{background:var(--sel)}
+.playing .box .tagl{display:none}
+.box .h{position:absolute;right:-8px;bottom:-8px;width:18px;height:18px;border-radius:50%;background:var(--sel);border:2px solid #fff;cursor:nwse-resize;touch-action:none;display:none}
+.box.sel .h{display:block}
+.transport{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.transport input[type=range]{flex:1;min-width:0}
+.time{font-variant-numeric:tabular-nums;font-size:.85rem;white-space:nowrap;color:var(--muted)}
+.play{font:inherit;font-weight:700;width:84px;border-radius:999px;padding:6px 0;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer}
+.exportbar{display:flex;flex-direction:column;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.exportbar .row{align-items:end}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.hint{color:var(--muted);font-size:.8rem;margin:0}
+.status{min-height:1.3em}
+.progress{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 16px 16px;display:flex;flex-direction:column;min-width:0}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 6px;display:flex;flex-direction:column;gap:10px;min-width:0}
+fieldset:first-child{border-top:0}
+legend{font-family:var(--font-display);font-weight:700;font-size:.95rem;padding:0;margin-bottom:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row>label{flex:1 1 110px}
+input[type=text],input[type=number],textarea,select{font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 9px;width:100%}
+textarea{min-height:64px;resize:vertical;line-height:1.5}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:100%;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--field);padding:2px}
+input[type=file]{font-size:.78rem;color:var(--muted);max-width:100%}
+.check{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
+.lab{display:flex;justify-content:space-between;gap:8px}
+.lab output{color:var(--fg);font-variant-numeric:tabular-nums;font-size:.78rem;white-space:nowrap}
+.btn{font:inherit;font-weight:700;border-radius:999px;padding:8px 16px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{font-size:.76rem;padding:4px 11px}
+.btn.danger{border-color:#d4405f;color:#d4405f;background:transparent}
+.btn:disabled,.play:disabled{opacity:.5;cursor:default}
+.btns{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mini{font:inherit;font-size:.75rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:1px 7px;cursor:pointer}
+.mini:disabled{opacity:.4;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.layers{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.layers li{display:flex;align-items:center;gap:6px;padding:5px 6px 5px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field);cursor:pointer}
+.layers li.sel{border-color:var(--sel);box-shadow:inset 3px 0 0 var(--sel)}
+.layers .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.layers .when{font-size:.7rem;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.kind{font-size:.68rem;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 7px;white-space:nowrap}
+.sub{font-family:var(--font-display);font-weight:700;font-size:.85rem;color:var(--fg);margin:6px 0 0;padding-top:8px;border-top:1px dashed var(--line)}
+.fxrow{display:flex;flex-direction:column;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
+@media (prefers-reduced-motion: reduce){.progress i{transition:none}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <a class="toplink" href="./">← ツール一覧</a>
+    <h1>アニメポスターメーカー</h1>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.0 ・ 2026-10-19 公開</a>
+    <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪を重ねて、動くポスターをMP4かGIFで保存できます。最初はサンプルが入っています。</p>
+  </header>
+
+  <div class="grid">
+    <div class="stage">
+      <div class="board" id="board"><canvas id="cv"></canvas><div class="overlay" id="overlay"></div></div>
+      <div class="transport">
+        <button type="button" class="play" id="play">▶ 再生</button>
+        <input type="range" id="seek" min="0" max="1000" value="1000" aria-label="再生位置">
+        <span class="time" id="time">0.0 / 6.0 秒</span>
+      </div>
+      <div class="exportbar">
+        <div class="row">
+          <label>MP4のなめらかさ<select id="mp4Fps"><option value="30">30コマ/秒(おすすめ)</option><option value="60">60コマ/秒</option><option value="24">24コマ/秒</option></select></label>
+          <label>GIFの大きさ<select id="gifSize"><option value="480">横480px</option><option value="640" selected>横640px</option><option value="800">横800px</option></select></label>
+          <label>GIFのなめらかさ<select id="gifFps"><option value="10">10コマ/秒(軽い)</option><option value="15" selected>15コマ/秒</option><option value="20">20コマ/秒</option></select></label>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn" id="saveMp4">MP4で保存</button>
+          <button type="button" class="btn ghost" id="saveGif">GIFで保存</button>
+          <button type="button" class="btn ghost small" id="savePng">今の場面をPNGで保存</button>
+          <span class="hint" id="sizeLabel"></span>
+        </div>
+        <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+        <p class="hint status" id="msg" role="status">枠をドラッグで移動、右下の丸で大きさを変えられます。時間のつまみを動かすと、その時点の場面を確認できます。</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <fieldset>
+        <legend>作品</legend>
+        <label>大きさ<select id="sizeMode">
+          <option value="bg">背景画像に合わせる</option>
+          <option value="1920x1080">1920×1080(16:9 横長)</option>
+          <option value="1080x1080">1080×1080(正方形)</option>
+          <option value="1080x1350">1080×1350(4:5 縦長)</option>
+          <option value="1080x1920">1080×1920(9:16 縦長)</option>
+        </select></label>
+        <label>長さ(秒)<input type="range" id="duration" min="2" max="30" step="0.5" value="6"></label>
+        <label>背景画像<input type="file" id="bgFile" accept="image/*"></label>
+        <div class="btns"><button type="button" class="mini" id="bgClear">背景をサンプルに戻す</button></div>
+        <div class="row">
+          <label>背景の動き<select id="bgMotion">
+            <option value="none">動かさない</option>
+            <option value="zoomIn">ゆっくりズームイン</option>
+            <option value="zoomOut">ゆっくりズームアウト</option>
+            <option value="pan">左右にゆっくり流れる</option>
+            <option value="breathe">ふわっと拡大縮小(ループ向け)</option>
+          </select></label>
+          <label>背景の暗さ<input type="range" id="bgDim" min="0" max="70" value="0"></label>
+        </div>
+        <label>装飾フレーム(全体に重ねる透明PNG)<input type="file" id="frameFile" accept="image/png,image/webp,image/gif"></label>
+        <div class="btns"><button type="button" class="mini" id="frameClear">フレームを外す</button></div>
+        <label class="check"><input type="checkbox" id="outro"> 終わりに全体をフェードアウトする(ループ再生がなめらかになります)</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>エフェクト</legend>
+        <div class="fxrow">
+          <label class="check"><input type="checkbox" id="fx_sparkle_on"> キラキラ</label>
+          <div class="row"><label>量<input type="range" id="fx_sparkle_amount" min="5" max="200" value="45"></label><label>大きさ<input type="range" id="fx_sparkle_size" min="40" max="250" value="100"></label><label>色<input type="color" id="fx_sparkle_color" value="#fff6c8"></label></div>
+        </div>
+        <div class="fxrow">
+          <label class="check"><input type="checkbox" id="fx_confetti_on"> 紙吹雪</label>
+          <div class="row"><label>量<input type="range" id="fx_confetti_amount" min="5" max="250" value="70"></label><label>大きさ<input type="range" id="fx_confetti_size" min="40" max="250" value="100"></label></div>
+        </div>
+        <div class="fxrow">
+          <label class="check"><input type="checkbox" id="fx_hearts_on"> ハート</label>
+          <div class="row"><label>量<input type="range" id="fx_hearts_amount" min="3" max="80" value="18"></label><label>大きさ<input type="range" id="fx_hearts_size" min="40" max="250" value="100"></label><label>色<input type="color" id="fx_hearts_color" value="#ff6fa3"></label></div>
+        </div>
+        <label class="check"><input type="checkbox" id="fxBehind"> エフェクトを写真や文字の後ろに出す</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>レイヤー</legend>
+        <p class="hint">下にあるものほど手前に表示されます。右の数字は登場する時間です。</p>
+        <ul class="layers" id="layerList"></ul>
+        <div class="btns">
+          <button type="button" class="btn ghost small" data-add="image">+ 写真・画像</button>
+          <button type="button" class="btn ghost small" data-add="text">+ 文字</button>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>選択中のレイヤー</legend>
+        <div id="props" style="display:flex;flex-direction:column;gap:10px"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>保存</legend>
+        <p class="hint">作業中の作品は、画像も含めてこのブラウザに自動で保存されます。別のPCに移すときや残しておきたいときは、ファイルに書き出してください。</p>
+        <div class="btns">
+          <button type="button" class="btn small" id="ioExport">ファイルに書き出す</button>
+          <label class="btn ghost small" style="flex-direction:row;display:inline-flex;color:var(--accent)">ファイルから読み込む<input type="file" id="ioImport" accept=".json,application/json" hidden></label>
+          <button type="button" class="btn danger small" id="newProj">サンプルからやり直す</button>
+        </div>
+        <p class="hint status" id="ioMsg" role="status"></p>
+      </fieldset>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+/* gifenc 1.0.3(MIT License, Copyright (c) 2017 Matt DesLauriers) */
+const GIFENC = (() => { var X={signature:"GIF",version:"89a",trailer:59,extensionIntroducer:33,applicationExtensionLabel:255,graphicControlExtensionLabel:249,imageSeparator:44,signatureSize:3,versionSize:3,globalColorTableFlagMask:128,colorResolutionMask:112,sortFlagMask:8,globalColorTableSizeMask:7,applicationIdentifierSize:8,applicationAuthCodeSize:3,disposalMethodMask:28,userInputFlagMask:2,transparentColorFlagMask:1,localColorTableFlagMask:128,interlaceFlagMask:64,idSortFlagMask:32,localColorTableSizeMask:7};function F(t=256){let e=0,s=new Uint8Array(t);return{get buffer(){return s.buffer},reset(){e=0},bytesView(){return s.subarray(0,e)},bytes(){return s.slice(0,e)},writeByte(r){n(e+1),s[e]=r,e++},writeBytes(r,o=0,i=r.length){n(e+i);for(let c=0;c<i;c++)s[e++]=r[c+o]},writeBytesView(r,o=0,i=r.byteLength){n(e+i),s.set(r.subarray(o,o+i),e),e+=i}};function n(r){var o=s.length;if(o>=r)return;var i=1024*1024;r=Math.max(r,o*(o<i?2:1.125)>>>0),o!=0&&(r=Math.max(r,256));let c=s;s=new Uint8Array(r),e>0&&s.set(c.subarray(0,e),0)}}var O=12,J=5003,lt=[0,1,3,7,15,31,63,127,255,511,1023,2047,4095,8191,16383,32767,65535];function at(t,e,s,n,r=F(512),o=new Uint8Array(256),i=new Int32Array(J),c=new Int32Array(J)){let x=i.length,a=Math.max(2,n);o.fill(0),c.fill(0),i.fill(-1);let l=0,f=0,g=a+1,h=g,b=!1,w=h,_=(1<<w)-1,u=1<<g-1,k=u+1,B=u+2,p=0,A=s[0],z=0;for(let y=x;y<65536;y*=2)++z;z=8-z,r.writeByte(a),I(u);let d=s.length;for(let y=1;y<d;y++){t:{let m=s[y],v=(m<<O)+A,M=m<<z^A;if(i[M]===v){A=c[M];break t}let V=M===0?1:x-M;for(;i[M]>=0;)if(M-=V,M<0&&(M+=x),i[M]===v){A=c[M];break t}I(A),A=m,B<1<<O?(c[M]=B++,i[M]=v):(i.fill(-1),B=u+2,b=!0,I(u))}}return I(A),I(k),r.writeByte(0),r.bytesView();function I(y){for(l&=lt[f],f>0?l|=y<<f:l=y,f+=w;f>=8;)o[p++]=l&255,p>=254&&(r.writeByte(p),r.writeBytesView(o,0,p),p=0),l>>=8,f-=8;if((B>_||b)&&(b?(w=h,_=(1<<w)-1,b=!1):(++w,_=w===O?1<<w:(1<<w)-1)),y==k){for(;f>0;)o[p++]=l&255,p>=254&&(r.writeByte(p),r.writeBytesView(o,0,p),p=0),l>>=8,f-=8;p>0&&(r.writeByte(p),r.writeBytesView(o,0,p),p=0)}}}var $=at;function D(t,e,s){return t<<8&63488|e<<2&992|s>>3}function G(t,e,s,n){return t>>4|e&240|(s&240)<<4|(n&240)<<8}function j(t,e,s){return t>>4<<8|e&240|s>>4}function R(t,e,s){return t<e?e:t>s?s:t}function T(t){return t*t}function tt(t,e,s){var n=0,r=1e100;let o=t[e],i=o.cnt,c=o.ac,x=o.rc,a=o.gc,l=o.bc;for(var f=o.fw;f!=0;f=t[f].fw){let h=t[f],b=h.cnt,w=i*b/(i+b);if(!(w>=r)){var g=0;s&&(g+=w*T(h.ac-c),g>=r)||(g+=w*T(h.rc-x),!(g>=r)&&(g+=w*T(h.gc-a),!(g>=r)&&(g+=w*T(h.bc-l),!(g>=r)&&(r=g,n=f))))}}o.err=r,o.nn=n}function Q(){return{ac:0,rc:0,gc:0,bc:0,cnt:0,nn:0,fw:0,bk:0,tm:0,mtm:0,err:0}}function ut(t,e){let s=e==="rgb444"?4096:65536,n=new Array(s),r=t.length;if(e==="rgba4444")for(let o=0;o<r;++o){let i=t[o],c=i>>24&255,x=i>>16&255,a=i>>8&255,l=i&255,f=G(l,a,x,c),g=f in n?n[f]:n[f]=Q();g.rc+=l,g.gc+=a,g.bc+=x,g.ac+=c,g.cnt++}else if(e==="rgb444")for(let o=0;o<r;++o){let i=t[o],c=i>>16&255,x=i>>8&255,a=i&255,l=j(a,x,c),f=l in n?n[l]:n[l]=Q();f.rc+=a,f.gc+=x,f.bc+=c,f.cnt++}else for(let o=0;o<r;++o){let i=t[o],c=i>>16&255,x=i>>8&255,a=i&255,l=D(a,x,c),f=l in n?n[l]:n[l]=Q();f.rc+=a,f.gc+=x,f.bc+=c,f.cnt++}return n}function H(t,e,s={}){let{format:n="rgb565",clearAlpha:r=!0,clearAlphaColor:o=0,clearAlphaThreshold:i=0,oneBitAlpha:c=!1}=s;if(!t||!t.buffer)throw new Error("quantize() expected RGBA Uint8Array data");if(!(t instanceof Uint8Array)&&!(t instanceof Uint8ClampedArray))throw new Error("quantize() expected RGBA Uint8Array data");let x=new Uint32Array(t.buffer),a=s.useSqrt!==!1,l=n==="rgba4444",f=ut(x,n),g=f.length,h=g-1,b=new Uint32Array(g+1);for(var w=0,u=0;u<g;++u){let C=f[u];if(C!=null){var _=1/C.cnt;l&&(C.ac*=_),C.rc*=_,C.gc*=_,C.bc*=_,f[w++]=C}}T(e)/w<.022&&(a=!1);for(var u=0;u<w-1;++u)f[u].fw=u+1,f[u+1].bk=u,a&&(f[u].cnt=Math.sqrt(f[u].cnt));a&&(f[u].cnt=Math.sqrt(f[u].cnt));var k,B,p;for(u=0;u<w;++u){tt(f,u,!1);var A=f[u].err;for(B=++b[0];B>1&&(p=B>>1,!(f[k=b[p]].err<=A));B=p)b[B]=k;b[B]=u}var z=w-e;for(u=0;u<z;){for(var d;;){var I=b[1];if(d=f[I],d.tm>=d.mtm&&f[d.nn].mtm<=d.tm)break;d.mtm==h?I=b[1]=b[b[0]--]:(tt(f,I,!1),d.tm=u);var A=f[I].err;for(B=1;(p=B+B)<=b[0]&&(p<b[0]&&f[b[p]].err>f[b[p+1]].err&&p++,!(A<=f[k=b[p]].err));B=p)b[B]=k;b[B]=I}var y=f[d.nn],m=d.cnt,v=y.cnt,_=1/(m+v);l&&(d.ac=_*(m*d.ac+v*y.ac)),d.rc=_*(m*d.rc+v*y.rc),d.gc=_*(m*d.gc+v*y.gc),d.bc=_*(m*d.bc+v*y.bc),d.cnt+=y.cnt,d.mtm=++u,f[y.bk].fw=y.fw,f[y.fw].bk=y.bk,y.mtm=h}let M=[];var V=0;for(u=0;;++V){let L=R(Math.round(f[u].rc),0,255),C=R(Math.round(f[u].gc),0,255),Y=R(Math.round(f[u].bc),0,255),E=255;if(l){if(E=R(Math.round(f[u].ac),0,255),c){let st=typeof c=="number"?c:127;E=E<=st?0:255}r&&E<=i&&(L=C=Y=o,E=0)}let K=l?[L,C,Y,E]:[L,C,Y];if(xt(M,K)||M.push(K),(u=f[u].fw)==0)break}return M}function xt(t,e){for(let s=0;s<t.length;s++){let n=t[s],r=n[0]===e[0]&&n[1]===e[1]&&n[2]===e[2],o=n.length>=4&&e.length>=4?n[3]===e[3]:!0;if(r&&o)return!0}return!1}function U(t,e){var s=0,n;for(n=0;n<t.length;n++){let r=t[n]-e[n];s+=r*r}return s}function P(t,e){return e>1?Math.round(t/e)*e:t}function et(t,{roundRGB:e=5,roundAlpha:s=10,oneBitAlpha:n=null}={}){let r=new Uint32Array(t.buffer);for(let o=0;o<r.length;o++){let i=r[o],c=i>>24&255,x=i>>16&255,a=i>>8&255,l=i&255;if(c=P(c,s),n){let f=typeof n=="number"?n:127;c=c<=f?0:255}l=P(l,e),a=P(a,e),x=P(x,e),r[o]=c<<24|x<<16|a<<8|l<<0}}function nt(t,e,s="rgb565"){if(!t||!t.buffer)throw new Error("quantize() expected RGBA Uint8Array data");if(!(t instanceof Uint8Array)&&!(t instanceof Uint8ClampedArray))throw new Error("quantize() expected RGBA Uint8Array data");if(e.length>256)throw new Error("applyPalette() only works with 256 colors or less");let n=new Uint32Array(t.buffer),r=n.length,o=s==="rgb444"?4096:65536,i=new Uint8Array(r),c=new Array(o),x=s==="rgba4444";if(s==="rgba4444")for(let a=0;a<r;a++){let l=n[a],f=l>>24&255,g=l>>16&255,h=l>>8&255,b=l&255,w=G(b,h,g,f),_=w in c?c[w]:c[w]=gt(b,h,g,f,e);i[a]=_}else{let a=s==="rgb444"?j:D;for(let l=0;l<r;l++){let f=n[l],g=f>>16&255,h=f>>8&255,b=f&255,w=a(b,h,g),_=w in c?c[w]:c[w]=bt(b,h,g,e);i[l]=_}}return i}function gt(t,e,s,n,r){let o=0,i=1e100;for(let c=0;c<r.length;c++){let x=r[c],a=x[3],l=q(a-n);if(l>i)continue;let f=x[0];if(l+=q(f-t),l>i)continue;let g=x[1];if(l+=q(g-e),l>i)continue;let h=x[2];l+=q(h-s),!(l>i)&&(i=l,o=c)}return o}function bt(t,e,s,n){let r=0,o=1e100;for(let i=0;i<n.length;i++){let c=n[i],x=c[0],a=q(x-t);if(a>o)continue;let l=c[1];if(a+=q(l-e),a>o)continue;let f=c[2];a+=q(f-s),!(a>o)&&(o=a,r=i)}return r}function rt(t,e,s=5){if(!t.length||!e.length)return;let n=t.map(i=>i.slice(0,3)),r=s*s,o=t[0].length;for(let i=0;i<e.length;i++){let c=e[i];c.length<o?c=[c[0],c[1],c[2],255]:c.length>o?c=c.slice(0,3):c=c.slice();let x=N(n,c.slice(0,3),U),a=x[0],l=x[1];l>0&&l<=r&&(t[a]=c)}}function q(t){return t*t}function W(t,e,s=U){let n=Infinity,r=-1;for(let o=0;o<t.length;o++){let i=t[o],c=s(e,i);c<n&&(n=c,r=o)}return r}function N(t,e,s=U){let n=Infinity,r=-1;for(let o=0;o<t.length;o++){let i=t[o],c=s(e,i);c<n&&(n=c,r=o)}return[r,n]}function ot(t,e,s=U){return t[W(t,e,s)]}function ct(t={}){let{initialCapacity:e=4096,auto:s=!0}=t,n=F(e),r=5003,o=new Uint8Array(256),i=new Int32Array(r),c=new Int32Array(r),x=!1;return{reset(){n.reset(),x=!1},finish(){n.writeByte(X.trailer)},bytes(){return n.bytes()},bytesView(){return n.bytesView()},get buffer(){return n.buffer},get stream(){return n},writeHeader:a,writeFrame(l,f,g,h={}){let{transparent:b=!1,transparentIndex:w=0,delay:_=0,palette:u=null,repeat:k=0,colorDepth:B=8,dispose:p=-1}=h,A=!1;if(s?x||(A=!0,a(),x=!0):A=Boolean(h.first),f=Math.max(0,Math.floor(f)),g=Math.max(0,Math.floor(g)),A){if(!u)throw new Error("First frame must include a { palette } option");pt(n,f,g,u,B),it(n,u),k>=0&&dt(n,k)}let z=Math.round(_/10);wt(n,p,z,b,w);let d=Boolean(u)&&!A;ht(n,f,g,d?u:null),d&&it(n,u),yt(n,l,f,g,B,o,i,c)}};function a(){ft(n,"GIF89a")}}function wt(t,e,s,n,r){t.writeByte(33),t.writeByte(249),t.writeByte(4),r<0&&(r=0,n=!1);var o,i;n?(o=1,i=2):(o=0,i=0),e>=0&&(i=e&7),i<<=2;let c=0;t.writeByte(0|i|c|o),S(t,s),t.writeByte(r||0),t.writeByte(0)}function pt(t,e,s,n,r=8){let o=1,i=0,c=Z(n.length)-1,x=o<<7|r-1<<4|i<<3|c,a=0,l=0;S(t,e),S(t,s),t.writeBytes([x,a,l])}function dt(t,e){t.writeByte(33),t.writeByte(255),t.writeByte(11),ft(t,"NETSCAPE2.0"),t.writeByte(3),t.writeByte(1),S(t,e),t.writeByte(0)}function it(t,e){let s=1<<Z(e.length);for(let n=0;n<s;n++){let r=[0,0,0];n<e.length&&(r=e[n]),t.writeByte(r[0]),t.writeByte(r[1]),t.writeByte(r[2])}}function ht(t,e,s,n){if(t.writeByte(44),S(t,0),S(t,0),S(t,e),S(t,s),n){let r=0,o=0,i=Z(n.length)-1;t.writeByte(128|r|o|0|i)}else t.writeByte(0)}function yt(t,e,s,n,r=8,o,i,c){$(s,n,e,r,t,o,i,c)}function S(t,e){t.writeByte(e&255),t.writeByte(e>>8&255)}function ft(t,e){for(var s=0;s<e.length;s++)t.writeByte(e.charCodeAt(s))}function Z(t){return Math.max(Math.ceil(Math.log2(t)),1)}var Bt=ct;
+return {GIFEncoder:ct, quantize:H, applyPalette:nt}; })();
+/* ===== 描画エンジン:時間 t(秒)の1コマを描く ===== */
+const FONTS = [
+  {name:"Zen Maru Gothic(丸ゴシック)", fam:"Zen Maru Gothic", w:700},
+  {name:"M PLUS Rounded 1c(丸ゴシック太)", fam:"M PLUS Rounded 1c", w:800},
+  {name:"Kiwi Maru(やわらか明朝)", fam:"Kiwi Maru", w:500},
+  {name:"Klee One(手書き風)", fam:"Klee One", w:600},
+  {name:"Yusei Magic(マーカー風)", fam:"Yusei Magic", w:400},
+  {name:"Hachi Maru Pop(まるもじ)", fam:"Hachi Maru Pop", w:400},
+  {name:"Mochiy Pop One(ポップ)", fam:"Mochiy Pop One", w:400},
+  {name:"RocknRoll One(太ゴシック)", fam:"RocknRoll One", w:400},
+  {name:"Dela Gothic One(極太)", fam:"Dela Gothic One", w:400},
+  {name:"Noto Serif JP(明朝)", fam:"Noto Serif JP", w:600},
+];
+const fontOf = L => { const loc=(L.localFont||'').trim(); if(loc) return {fam:loc, w:400}; return FONTS.find(f=>f.fam===L.font) || FONTS[0]; };
+const fontStr = (f, px) => `${f.w} ${px}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
+
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const easeOut = p => 1 - Math.pow(1-p, 3);
+const easeOutBack = p => { const c1=1.70158, c3=c1+1; return 1 + c3*Math.pow(p-1,3) + c1*Math.pow(p-1,2); };
+function rnd(i, k){ const x = Math.sin(i*127.1 + k*311.7) * 43758.5453; return x - Math.floor(x); }  // 決まった乱数(毎回同じ動きになる)
+
+/* ---- サンプル素材 ---- */
+function makeSampleBg(){
+  const c=document.createElement('canvas'); c.width=1920; c.height=1080; const g=c.getContext('2d');
+  const gr=g.createLinearGradient(0,0,1920,1080); gr.addColorStop(0,'#2b1d5c'); gr.addColorStop(.55,'#7a3a8c'); gr.addColorStop(1,'#f08aa8');
+  g.fillStyle=gr; g.fillRect(0,0,1920,1080);
+  for(let i=0;i<70;i++){ g.fillStyle=`rgba(255,255,255,${.04+rnd(i,1)*.1})`; g.beginPath(); g.arc(rnd(i,2)*1920, rnd(i,3)*1080, 30+rnd(i,4)*170, 0, Math.PI*2); g.fill(); }
+  return c;
+}
+function makeSamplePhoto(){
+  const c=document.createElement('canvas'); c.width=800; c.height=1000; const g=c.getContext('2d');
+  const gr=g.createLinearGradient(0,0,0,1000); gr.addColorStop(0,'#ffb4c8'); gr.addColorStop(1,'#ffe3b3');
+  g.fillStyle=gr; g.fillRect(0,0,800,1000);
+  g.fillStyle='rgba(255,255,255,.9)'; g.beginPath(); g.arc(400,380,150,0,Math.PI*2); g.fill();
+  g.fillStyle='#f3a0b8'; g.beginPath(); g.ellipse(400,900,330,260,0,Math.PI,0); g.fill();
+  g.fillStyle='rgba(120,60,90,.55)'; g.font='700 52px "Zen Maru Gothic", sans-serif'; g.textAlign='center'; g.fillText('サンプル写真',400,660);
+  return c;
+}
+const SAMPLE_BG = makeSampleBg(), SAMPLE_PHOTO = makeSamplePhoto();
+
+/* ---- 改行(文ごと・文節ごと)。文節の判定は BudouX(Apache License 2.0, Copyright Google LLC)の日本語モデル ---- */
+const BX_MODEL = {"UW3":{"。":7360,"の":4478,"、":5467,"に":4332,"を":6132,"が":4564,"は":4640,"と":3616,"る":3294,"も":3679,"で":3691,"な":3076,"た":2637,"て":2778,"し":367,"く":2925,"う":2530,"い":2094,"へ":2778,"ら":1678,"こ":101,"や":2601,"っ":-1770,"？":4309,"，":4096,"］":2437,"?":4618,"ぐ":2995,"ば":2501,"り":1280,"！":4013,"か":2214,"ん":1050,"．":2420,"ー":-201,"]":3518,"…":3108,"つ":1382,"・":1060,"ど":1727,"お":-2039,"空":1557,"）":3352,"ッ":-2051,"」":1826,"☆":3579,"ス":-852,"だ":1043,"ン":-561,"笑":3646,"イ":-913,"♪":2798,"「":-1952,"ろ":1352,"方":896,"日":835,"中":1208,"ず":1777,"間":982,"々":2075,"部":555,"京":-1392,"ゃ":1324,"今":1149,"ご":-1299,"★":2969,"フ":-1592,"電":-1418,"プ":-1246,"分":1196,"す":1092,"あ":1173,"人":351,"大":-1213,"上":655,"ぬ":2076,"ぁ":1705,"後":1304,"せ":623,"度":1249,"０":-780,"時":115,"〜":942,"ア":-1081,"感":471,"む":1476,"観":-943,"都":-302,"ト":-111,"１":-1299,"き":487,"ぶ":1278,"え":907,"然":1179,"以":-932,"わ":-211,"新":-874,"”":1254,"超":1585,"さ":-175,"夜":1532,"ラ":-254,"体":903,"カ":-509,"ロ":-730,"変":752,"[":-1016,"択":968,"昔":1717,"ド":-549,"品":131,"シ":-711,"味":546,"『":-819,"ち":586,"光":-303,"［":-723,"ジ":-170,"水":366,"年":345,"秋":1136,"タ":-123,"段":63,"的":403,"ぞ":994,"学":-427,"皆":782,"ぱ":760,"果":343,"ま":-23,"み":213,"じ":541,"　":443,"発":-509,"最":-542,"素":-436,"自":-330,"題":789,"ｏ":-447,"区":905,"用":-431,"ね":706,"料":-380,"：":394,"場":-117,"一":-5,"よ":394,"れ":184,"番":295,"系":608,"色":484,"機":-184,"バ":-222,"技":242,"け":109,"程":512,"意":-156,"デ":-304,"行":-331,"斤":515,"所":259,"開":-195,"子":-227,"】":434,"レ":-162,"入":-184,"ニ":-125,"ク":107,"前":217,"テ":-105,"』":281,"月":126,"週":143,"不":-77,"代":-81,"モ":-107,"台":228,"選":-94,"現":-51,"５":-42,"生":-29,"始":-33,"能":-16,"別":12,"細":12,"作":-4},"UW4":{"の":-4556,"。":-7968,"に":-4649,"、":-8112,"が":-4058,"は":-3839,"て":-3946,"る":-5834,"で":-3124,"を":-5180,"と":-3261,"っ":-4819,"か":-2902,"り":-4637,"う":-2814,"な":-2150,"ま":-1685,"た":-2023,"い":-1577,"し":-1955,"お":899,"ら":-5266,"そ":410,"だ":-2236,"れ":-4479,"す":-1643,"ん":-4505,"ち":-2418,"あ":261,"ー":-2977,"き":-1845,"」":-6469,"も":-2929,"私":2012,"「":2340,"け":-3764,"や":-1388,"見":1090,"く":-3067,"ご":271,"よ":-1353,"み":-921,"大":657,"一":571,"思":1141,"さ":-1761,"？":-5676,"[":3543,"人":503,"め":-2468,"』":-5121,"行":433,"ン":-2261,"ッ":-2346,"！":-5212,"わ":-1741,"，":-4847,"じ":-2495,"・":-1449,"今":1462,"ぐ":-1874,"?":-4410,"京":357,"せ":-1944,"え":-2257,"時":460,"１":1029,"『":981,"（":2706,"使":865,"合":-1649,"言":384,"べ":-3202,"ろ":-3153,"何":744,"デ":611,"日":270,"ル":-1115,"…":-3126,"食":298,"ば":-2639,"．":-3347,"広":604,"空":1245,"場":432,"へ":-1897,"自":700,"笑":-3427,"つ":-1276,"特":1375,"２":814,"リ":-1049,"エ":312,"［":1695,"）":-4253,"煙":2247,"ず":-2063,"帯":-1161,"多":1190,"]":-1408,"ゃ":-2594,"最":981,"当":51,"効":52,"ど":-875,"良":92,"ね":-2455,"び":-1827,"綺":2417,"］":-1498,"ゆ":-835,"携":157,"ぁ":-1594,"間":-688,"来":87,"手":133,"ぶ":-1685,"タ":-314,"ト":-353,"ぎ":-1477,"ょ":-2003,"方":-480,"フ":-490,"ひ":523,"”":-1346,"こ":-540,"ス":-165,"新":376,"０":-429,"♪":-2073,"〜":-1746,"書":612,"イ":-154,"的":-952,"僕":1107,"☆":-1751,"ぼ":-998,"用":-624,"能":-710,"ュ":-782,"ざ":-1078,"無":336,"む":-1295,"公":390,"ぜ":-1511,"カ":214,"不":694,"本":-134,"回":-1178,"制":816,"　":-1386,"小":742,"物":-328,"バ":289,"街":639,"続":-658,"ぞ":-1183,"水":309,"返":-339,"ほ":-348,"二":611,"入":101,"少":281,"美":242,"臭":1205,"ｏ":-612,"機":-120,"取":-519,"誰":1033,"ロ":-237,"げ":-904,"３":429,"足":653,"換":-667,"ド":-295,"づ":-762,"東":761,"祭":563,"夏":517,"話":370,"友":83,"ク":-222,"系":249,"楽":371,"服":813,"代":-215,"込":-584,"気":73,"年":-370,"ニ":-239,"高":102,"コ":56,"表":164,"切":-361,"オ":148,"(":594,"★":-836,"真":-515,"父":496,"他":144,"聞":211,"ラ":-41,"【":531,"買":273,"グ":-136,"有":290,"ビ":-137,"全":101,"４":-171,"ム":-194,"度":-220,"狭":322,"通":-56,"四":277,"品":-182,"Ｓ":-129,"森":-444,"心":71,"海":140,"甘":152,"サ":4,"彼":60,"家":86,"鞍":121,"頑":133,"参":81,"実":46,"例":93,"秋":93,"＾":-101,"ミ":-33,"券":-54,"情":-21,"声":12,"動":-8,"住":4},"UW5":{"。":-2181,"、":-1080,"な":-670,"っ":1246,"う":445,"は":-1046,"に":-770,"で":-961,"き":1106,"と":-893,"そ":-782,"る":464,"す":-704,"い":348,"を":-766,"え":735,"の":-842,"べ":2001,"ま":-102,"じ":754,"し":-340,"ん":981,"れ":463,"動":1426,"か":192,"ラ":506,"・":-978,"あ":-405,"め":519,"帯":337,"つ":1089,"よ":-489,"さ":-314,"京":107,"日":574,"が":-572,"ル":-681,"」":-1106,"能":72,"力":489,"ト":-432,"ら":246,"せ":-426,"ぼ":1423,"供":261,"ず":803,"わ":582,"へ":-999,"く":352,"ン":-244,"年":948,"だ":-492,"り":191,"思":-353,"も":-225,"ち":524,"］":-414,"使":-1240,"器":-238,"ざ":338,"！":-301,"利":788,"上":-434,"て":206,"ス":-285,"イ":193,"体":-1459,"．":-215,"水":-438,"ろ":-34,"ぎ":321,"当":615,"び":599,"こ":67,"む":758,"電":-194,"バ":-53,"大":-252,"的":-257,"[":-400,"ュ":-267,"作":359,"先":-820,"言":-228,"寺":-276,"？":-246,"景":280,"…":-194,"本":187,"所":44,"々":242,"ャ":72,"一":-185,"Ｎ":766,"グ":-100,"丈":320,"葉":122,"顔":-185,"回":184,"ど":-9,"１":-105,"デ":-131,"見":-44,"ば":13,"オ":-74,"２":-107,"ロ":47,"目":-50,"要":25},"UW2":{"。":-1620,"の":-946,"、":-1560,"を":-2541,"し":196,"に":-1152,"か":54,"と":-1195,"も":-954,"っ":115,"が":-823,"な":-413,"れ":-84,"で":-1016,"ま":345,"て":-905,"お":-1189,"以":2487,"そ":-493,"す":437,"だ":363,"う":-614,"全":1251,"一":1233,"さ":695,"く":-712,"少":585,"い":-163,"は":-1040,"手":1430,"ん":242,"け":161,"つ":-625,"見":-308,"め":64,"結":2131,"特":666,"食":260,"あ":-181,"毎":1536,"わ":353,"ゆ":809,"法":1381,"場":220,"ラ":-521,"」":196,"ほ":743,"同":531,"関":1432,"味":551,"良":218,"る":-403,"水":746,"人":84,"選":182,"ひ":-2140,"多":534,"や":-610,"知":-972,"イ":-159,"た":-259,"ぱ":270,"ど":-209,"随":1589,"「":-319,"容":1329,"？":-613,"ご":-480,"ぜ":929,"サ":-584,"ー":210,"グ":-441,"目":-751,"み":-120,"取":-397,"パ":684,"本":588,"０":106,"我":-915,"り":-220,"境":-297,"１":176,"和":759,"能":305,"２":-244,"ね":352,"ぐ":-387,"メ":-40,"デ":-483,"大":151,"ろ":-127,"，":-501,"新":-268,"々":307,"ぶ":84,"き":-126,"世":-382,"ノ":436,"３":-336,"立":-474,"先":380,"シ":-421,"］":-260,"?":-394,"ケ":-521,"安":-95,"４":331,"バ":409,"電":275,"＾":104,"作":-51,"甘":16,"是":537,"ば":-186,"三":496,"級":667,"言":-5,"格":721,"ル":36,"Ｐ":-621,"団":645,"…":248,"下":303,"文":118,"落":-523,"最":236,"素":-401,"]":-188,"許":532,"［":-53,"奇":216,"ジ":-115,"フ":-49,"直":306,"★":-385,"早":191,"如":419,"車":70,"生":97,"Ｈ":-149,"『":-201,"昔":210,"次":-179,"家":56,"残":165,"百":-139,"レ":-86,"案":142,"敗":137,"５":-111,"ら":-17,"空":-21,"間":-12,"用":-29,"ア":-25,"介":71,"鹿":-88,"ド":12},"UW1":{"い":-150,"に":-417,"で":-297,"つ":251,"と":129,"の":65,"は":-185,"が":-211,"り":-114,"う":105,"見":239,"そ":159,"な":-218,"て":137,"す":203,"ん":206,"知":109,"携":-321,"か":-188,"始":721,"バ":395,"へ":-222,"十":-281,"上":-149,"く":145,"し":-70,"水":136,"。":-54,"新":332,"プ":-797,"［":-530,"明":877,"タ":233,"き":-16,"ス":-215,"ッ":387,"０":216,"イ":-408,"リ":340,"ち":246,"大":244,"っ":183,"た":-89,"安":-469,"３":-312,"．":-433,"ど":202,"や":-258,"日":12,"メ":420,"話":-151,"今":134,"効":608,"自":372,"こ":90,"行":-43,"ろ":321,"え":-127,"長":654,"小":240,"れ":100,"機":120,"オ":368,"間":272,"時":-185,"壊":-387,"『":-563,"・":43,"作":104,"２":127,"ャ":271,"！":58,"撮":-145,"個":-233,"」":-142,"京":-102,"何":155,"苦":-493,"認":-185,"ン":35,"る":-35,"取":88,"右":180,"人":-70,"少":-105,"進":138,"ざ":65,"も":8,"内":-158,"積":-94,"を":-12,"議":29,"ケ":-25,"ね":-29,"豊":71,"]":-16,"カ":12},"UW6":{"。":-297,"が":361,"の":157,"で":157,"さ":954,"な":244,"を":158,"う":213,"に":331,"は":216,"し":499,"や":637,"り":538,"っ":488,"ぱ":1089,"か":319,"」":-178,"い":352,"も":111,"こ":220,"お":-407,"せ":-274,"み":690,"め":913,"つ":724,"る":184,"ー":-172,"グ":770,"け":-204,"ど":62,"そ":246,"コ":198,"場":-605,"ん":380,"く":146,"ま":389,"れ":180,"０":699,"ン":-321,"タ":322,"的":371,"と":46,"電":367,"ク":-285,"空":607,"人":-95,"ろ":483,"送":-1595,"気":536,"画":467,"・":-195,"わ":306,"付":41,"見":-186,"パ":-556,"返":1159,"１":112,"水":898,"出":532,"：":616,"思":-166,"ュ":226,"学":-457,"ル":181,"込":460,"供":-392,"地":474,"遊":-296,"ぎ":651,"ば":16,"過":242,"よ":127,"カ":210,"デ":-190,"て":-54,"］":-108,"最":-221,"来":-156,"制":407,"寺":315,"言":-223,"シ":-168,"自":234,"日":37,"ょ":-238,"た":22,"、":9,"じ":112,"亭":376,"だ":-52,"ず":-140,"広":-82,"方":-86,"家":-102,"び":68,"ピ":89},"TW1":{"よいよ":3883,"またま":3804,"をもつ":1739,"もはや":2582,"ありが":-2649,"おって":3035,"という":407,"で見る":-2947,"こんに":-486,"ような":1185,"が良い":774,"・・・":1407,"ていく":1047,"んどん":1410,"ました":-1039,"ふだん":1962,"できる":415,"かなり":1974,"だんど":-1522,"その時":2276,"すきと":-3041,"いとこ":-798,"甘えが":-1204,"やはり":2006,"たちの":273,"ながら":1135,"、それ":747,"ひとつ":1322,"とんど":783,"ない、":-1562,"でかけ":-673,"かなか":740,"なんと":-1109,"ことも":-290,"持って":-1039,"ょうど":826,"十分に":-350,"たまた":-754,"しかし":731,"っかり":731,"に来て":674,"ょっと":-331,"る」と":-982,"困った":668,"として":257,"ていて":260,"もなく":124,"かった":-79,"そして":216,"は一つ":-689,"くらい":114,"は正直":331,"レベル":353,"なって":-85,"くさん":218,"入れる":242,"すごく":290,"。夕方":166,"おけば":143,"ろいろ":113,"んでも":151,"まるで":68,"のうち":131,"にして":-16,"００円":8,"のバス":29,"。ただ":29},"BW2":{"とこ":-1686,"とい":229,"ない":-3463,"せく":6067,"てい":-1517,"とお":-2649,"です":-2965,"たと":696,"であ":-3443,"へよ":3573,"ので":-1967,"いよ":-3016,"のみ":-3049,"てお":-2179,"にも":-1382,"うご":1930,"でき":-2137,"など":-2405,"、と":-1250,"でも":-1913,"たま":-1298,"たい":-2120,"くな":-1741,"るよ":-682,"くだ":-2314,"には":-774,"帯電":-1396,"のが":-1140,"でし":-1765,"のだ":-1080,"うど":-1975,"てき":-2075,"本イ":2074,"のは":-1284,"もし":-906,"の前":-1563,"てみ":-2128,"いま":-986,"はじ":-2128,"いと":-938,"いい":-947,"いた":-1285,"いも":759,"い合":-1590,"徴エ":1530,"らな":-239,"てく":-1200,"こそ":-1318,"やす":-1388,"なく":-947,"らゆ":-1072,"てあ":-2149,"なか":-623,"うや":-1084,"うこ":-178,"て行":-2221,"人い":1482,"び上":1791,"う映":885,"のか":-670,"ると":-559,"もあ":-626,"のも":-915,"した":-723,"ても":-586,"のい":248,"を返":-1650,"とも":-579,"ただ":-1366,"とき":-760,"たち":-561,"こし":414,"どこ":-711,"とか":-1047,"のご":-1168,"はい":-813,"いな":-465,"なあ":-1601,"しい":-383,"かな":-463,"もつ":-688,"でな":-1204,"すご":-942,"にし":-455,"」と":-411,"。笑":-1208,"ども":-655,"の１":-1758,"い日":405,"係な":616,"し…":1779,"くし":-697,"とめ":-360,"では":-586,"とと":-645,"」で":890,"いし":-754,"にな":-67,"そこ":-1027,"なぁ":-613,"はあ":-512,"もな":-21,"が観":-927,"すも":577,"はず":-581,"がっ":-399,"かし":-338,"、な":-261,"グと":736,"・・":-403,"いつ":-148,"にぎ":-358,"とは":-334,"気な":327,"らい":-310,"でい":-188,"］私":-583,"日と":359,"て欲":-444,"がし":91,"日本":-276,"りな":227,"るな":-245,"よう":-230,"うい":-180,"中さ":310,"な場":74,"中だ":191,"の方":108,"たも":109,"たよ":-121,"のサ":112,"たし":-207,"ルや":129,"なこ":-102,"てや":-116,"て来":-197,"るし":-132,"よい":-110,"るの":-46,"もう":-72,"れた":-55,"がの":54,"るが":-67,"たな":-46,"いで":-25,"ぱな":25,"、清":-20,"るか":-8},"BW1":{"しい":1568,"から":1712,"ない":1216,"いう":537,"よう":-1258,"のみ":3231,"んに":-1202,"こそ":2555,"れた":1290,"とか":1793,"もは":-3611,"まま":2257,"その":-1288,"るの":-1346,"こと":-1690,"少し":1862,"」と":307,"ても":793,"んだ":790,"して":-157,"のは":1265,"、真":4949,"うな":508,"つな":-1636,"たら":1220,"でも":871,"より":1691,"かも":-1779,"まも":-3432,"では":-304,"この":-1215,"たい":691,"最近":1883,"った":237,"。・":2844,"には":453,"たの":-1080,"たと":-1177,"とが":-1296,"んな":164,"白い":1283,"くれ":2274,"かし":1606,"とき":1991,"もう":1497,"やく":1326,"が、":1096,"全部":704,"。」":2211,"おで":-3868,"は、":906,"まと":-1910,"もの":-686,"なら":1173,"んで":-470,"にも":604,"とで":1553,"気に":-315,"ただ":1278,"ちが":-639,"い、":-401,"もし":1440,"晶の":2542,"思い":-1517,"なぐ":1196,"あー":1783,"同じ":1129,"のが":886,"で、":414,"まだ":793,"けど":740,"いと":-277,"りゃ":1641,"なぜ":1655,"よく":581,"の間":1512,"た．":1585,"がと":-830,"てい":-491,"かけ":-42,"人気":1243,"神社":910,"だけ":596,"まり":464,"れて":-391,"した":323,"いで":-1020,"青い":406,"、今":791,"りと":642,"くて":695,"きた":490,"の後":962,"２、":-1970,"使い":-1007,"れが":-552,"やら":972,"普段":703,"とう":85,"きの":-936,"敵な":533,"いの":-219,"買い":-766,"と、":302,"るに":-625,"れる":76,"ック":277,"いい":-406,"なく":331,"らな":-725,"ので":211,"など":629,"取り":-453,"との":400,"問い":-418,"、と":346,"か，":-1352,"べき":912,"効果":1256,"ゃあ":633,"０円":367,"ると":86,"ぶん":652,"安に":-717,"いも":-741,"是非":283,"甘味":546,"ここ":131,"寺、":-1115,"パサ":459,"か、":-422,"分け":597,"言い":-576,"かき":514,"世の":-650,"ころ":401,"お店":672,"だし":667,"現在":536,"的な":246,"えば":256,"の上":770,"うか":242,"ろう":-484,"めて":130,"で…":808,"＾＾":383,"とも":-106,"は頭":972,"馬の":-720,"てる":184,"いた":161,"さん":94,"じて":321,"待ち":-455,"ｏｒ":419,"める":-160,"わけ":340,"ねー":320,"絶対":465,"だん":143,"ため":461,"ぱり":297,"こう":-215,"うや":-171,"すい":50,"っと":-13,"うえ":413,"知る":-236,"リー":173,"いし":190,"んて":115,"舞う":250,"とは":-93,"のも":97,"すの":-100,"利な":153,"りは":-253,"すが":-69,"大変":30,"本語":142,"ては":-102,"人、":-193,"使う":90,"とい":-64,"ほぼ":110,"せん":50,"す☆":71,"空き":-50,"多く":-75,"かと":-20,"以上":12,"４日":4,"なー":8,"離宮":4},"BW3":{"こと":1223,"もの":3842,"いう":728,"いい":1168,"その":2339,"ちは":-1039,"この":2255,"まと":1857,"とき":2378,"おで":1012,"して":235,"はじ":2407,"うま":3367,"これ":2311,"ちょ":2243,"でも":1761,"なる":346,"なっ":-590,"ある":-256,"受け":930,"可能":107,"が、":1583,"なん":277,"そう":-1861,"とて":2507,"こそ":-1684,"とい":-711,"おり":-1393,"でき":929,"もら":2724,"かか":1911,"上が":1030,"メー":458,"から":-1102,"当日":2268,"かけ":2181,"たま":1025,"さん":-2131,"ため":1067,"で、":1097,"とも":1317,"しま":-333,"ゆる":-797,"かっ":-1213,"です":-889,"より":-1180,"分か":1490,"もう":2291,"よく":1387,"ない":524,"しい":-1091,"ます":-735,"もん":1025,"すぐ":1558,"すご":1479,"した":893,"いと":-60,"まし":-1029,"機器":-1637,"が観":2232,"とっ":871,"つな":1317,"・・":-1587,"さい":-882,"いて":-426,"ころ":-324,"あと":1221,"がん":1901,"とり":1121,"まぁ":1449,"つぶ":679,"いろ":400,"はま":1076,"うち":631,"しゃ":379,"なら":-450,"いか":673,"だけ":-750,"みた":-1197,"だろ":-1491,"はず":758,"わか":706,"よう":-506,"デザ":544,"なく":444,"はる":767,"いま":567,"と思":-557,"にぎ":647,"つい":580,"さあ":648,"きま":-579,"かも":-607,"もと":1131,"まだ":619,"もつ":1068,"あり":108,"始ま":235,"すか":-408,"何で":499,"おす":372,"日が":427,"きる":-892,"とこ":468,"ぼっ":-1025,"ええ":1054,"以上":-356,"なか":267,"たっ":568,"出来":-587,"どこ":439,"入れ":154,"そこ":183,"ひと":398,"はし":725,"まも":278,"みん":469,"なさ":218,"ルー":302,"一に":-657,"たい":-115,"ごと":-249,"なに":364,"つけ":474,"しか":-181,"入場":429,"いた":-45,"んで":265,"いら":303,"アプ":48,"行く":124,"もっ":318,"し、":-36,"そし":352,"まで":-274,"いる":136,"こん":-107,"最近":163,"ただ":303,"とら":352,"変え":268,"いつ":74,"とつ":-254,"電話":-39,"友人":104,"ぼれ":-408,"通り":-230,"すき":187,"つき":372,"だい":68,"など":-95,"電車":86,"かき":271,"ませ":-98,"色は":115,"書い":89,"みろ":72,"祭り":67,"そく":-97,"使っ":55,"あふ":67,"しく":-63,"こだ":50,"なき":12,"はい":8,"ほど":-4},"TW3":{"のよう":-1412,"という":537,"ている":-2523,"、そし":-3750,"のまま":-534,"ること":-370,"の本は":-1319,"らない":-1558,"すこと":874,"てしま":-1696,"になっ":-453,"ーした":1305,"へよう":8,"とした":-1321,"と言っ":-1462,"である":-886,"のよい":535,"」って":907,"てほし":-945,"ばいい":-1212,"はまっ":-1277,"として":118,"はない":-459,"と同時":-1302,"であっ":-1121,"ていう":555,"ところ":-847,"、また":-835,"ておき":-599,"る方は":-679,"ういう":-584,"といっ":-55,"ととも":-490,"はそれ":-568,"にでも":-600,"てない":-325,"といい":-491,"くして":-261,"たこと":-102,"のこの":-148,"があっ":84,"，それ":-71},"TW2":{"いとこ":-3724,"してお":-1381,"気に入":-3681,"ではな":-1979,"ちがう":-1683,"分にあ":-2585,"そのま":-1377,"んでい":-1872,"うにな":-935,"そもそ":-1862,"どんど":-915,"ではあ":-1747,"とがあ":-1027,"女の子":-1722,"れはそ":-1393,"国人が":960,"っての":1313,"らと言":-1214,"からな":-674,"てもい":-1290,"でもあ":-1380,"んなん":1011,"からし":521,"ともあ":-669,"でもな":-1022,"その後":-576,"れるこ":241,"まるで":-251,"ってこ":-358,"しかな":407,"とにな":-257,"ものす":-791,"それ以":193,"したこ":-254,"っとい":-354,"のに対":-198,"とがで":-161,"るにつ":-63},"TW4":{"ところ":3207,"ありが":2582,"ような":-2297,"もはや":3312,"どのよ":3898,"ある。":-561,"くらい":1880,"ように":-1480,"可能性":2323,"いよい":1673,"ようや":2339,"ことが":-1148,"プログ":1689,"しかし":2007,"ちがう":2340,"が、そ":1280,"とおり":2002,"うどん":2141,"した。":-1525,"かなり":2314,"あるい":-3206,"いっぱ":1964,"ことに":-1226,"ありま":-911,"だって":1343,"しゃべ":1970,"ことで":330,"で、そ":1151,"してお":1228,"できた":1468,"いろい":1037,"ない。":209,"ことも":-915,"わけで":-600,"ちなみ":1897,"おりに":-426,"なんと":1057,"だった":-1415,"やって":174,"とこが":1174,"そうで":-720,"でも、":465,"して人":-1127,"なんて":-506,"こと。":532,"おりま":1588,"いかな":449,"これは":1061,"いって":-305,"いけな":-420,"ってこ":333,"ことを":362,"の京都":402,"なんか":475,"かけら":607,"はじま":329,"そのま":357,"ようで":-694,"すると":217,"ひとつ":73,"勝手に":825,"しない":279,"ことは":-247,"ないと":225,"でもま":657,"いまし":-521,"いえば":426,"どんど":393,"とこ取":-211,"かった":-162,"メール":52,"インテ":204,"いくさ":-190,"はまっ":86,"いくら":137,"います":-106,"なかな":85,"あるも":59,"あたり":-55,"京都に":12}};
+const phraseSplit = (() => {
+  const m = new Map(Object.entries(BX_MODEL).map(([k,v]) => [k, new Map(Object.entries(v))]));
+  const base = -0.5 * [...m.values()].map(g => [...g.values()]).flat().reduce((a,b) => a+b, 0);
+  const F = [['UW1',-3,-2],['UW2',-2,-1],['UW3',-1,0],['UW4',0,1],['UW5',1,2],['UW6',2,3],['BW1',-2,0],['BW2',-1,1],['BW3',0,2],['TW1',-3,0],['TW2',-2,1],['TW3',-1,2],['TW4',0,3]];
+  const word = /[A-Za-z0-9＠@#_.'’:-]/;
+  return s => {
+    if(!s) return [];
+    const out=[]; let st=0;
+    for(let i=1;i<s.length;i++){
+      const c=s.charCodeAt(i);
+      if(c>=0xDC00 && c<=0xDFFF) continue;
+      if(s[i]==='️' || s[i]==='‍' || s[i-1]==='‍') continue;
+      if(word.test(s[i-1]) && word.test(s[i])) continue;
+      let sc=base; for(const [k,a,b] of F){ const g=m.get(k); if(g) sc += g.get(s.substring(i+a,i+b)) || 0; }
+      if(sc>0){ out.push(s.slice(st,i)); st=i; }
+    }
+    out.push(s.slice(st)); return out;
+  };
+})();
+const NO_START = '、。，．,.！？!?）)」』】〉》ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ～〜…‥';
+const SENT_END = '。．！？!?♪♡☆★', SENT_TAIL = '」』）)】〉》"”’〜ー～…‥';
+function splitSentences(p){
+  const out=[]; let cur=''; const ch=[...p];
+  for(let i=0;i<ch.length;i++){ cur+=ch[i];
+    if(SENT_END.includes(ch[i])){ while(i+1<ch.length && (SENT_END.includes(ch[i+1])||SENT_TAIL.includes(ch[i+1]))) cur+=ch[++i]; out.push(cur); cur=''; } }
+  if(cur) out.push(cur);
+  return out.map(x=>x.replace(/^[\s　]+/,'')).filter(Boolean);
+}
+function wrapChars(ctx, para, w){
+  const out=[]; let line='';
+  for(const ch of [...para]){ if(line && ctx.measureText(line+ch).width>w && !NO_START.includes(ch)){ out.push(line); line=ch; } else line+=ch; }
+  out.push(line); return out;
+}
+function greedyUnits(ctx, units, w){
+  const lines=[]; let line='';
+  for(const u of units){
+    if(line && ctx.measureText(line+u).width>w){ lines.push(line); line=''; }
+    if(!line && ctx.measureText(u).width>w){ const p=wrapChars(ctx,u,w); lines.push(...p.slice(0,-1)); line=p[p.length-1]; }
+    else line+=u;
+  }
+  if(line) lines.push(line); return lines;
+}
+function balance(fn, w){
+  const g=fn(w); if(g.length<2) return g;
+  let lo=0, hi=w; for(let i=0;i<14 && hi-lo>.5;i++){ const mid=(lo+hi)/2; if(fn(mid).length>g.length) lo=mid; else hi=mid; }
+  return fn(hi);
+}
+function wrapText(ctx, text, w, mode, bal){
+  const out=[];
+  for(const para of String(text).split('\n')){
+    if(para===''){ out.push(''); continue; }
+    if(mode==='char'){ const fn=x=>wrapChars(ctx,para,x); out.push(...(bal?balance(fn,w):fn(w))); continue; }
+    const sents = mode==='sentence' ? splitSentences(para) : [para];
+    for(const s of sents){
+      const u=[]; for(const r of phraseSplit(s)){ if(u.length && NO_START.includes([...r][0])) u[u.length-1]+=r; else u.push(r); }
+      const fn=x=>greedyUnits(ctx,u,x); out.push(...(bal?balance(fn,w):fn(w)));
+    }
+  }
+  return out;
+}
+
+/* ---- 文字の配置(結果をためておいて毎コマ計算しないようにする) ---- */
+const layoutCache = new Map();
+const measureCtx = document.createElement('canvas').getContext('2d');
+function textLayout(L, W, H){
+  const f = fontOf(L);
+  const key = JSON.stringify([L.text, f.fam, f.w, L.size, L.w, L.h, W, H, L.wrapMode, L.balance, L.lineHeight, L.fit]);
+  if(layoutCache.has(key)) return layoutCache.get(key);
+  const bw = L.w*W, bh = L.h*H, lh = L.lineHeight || 1.3;
+  const ctx = measureCtx;
+  const tryAt = sz => { ctx.font = fontStr(f, sz); const ls = wrapText(ctx, L.text||'', bw, L.wrapMode, L.balance);
+    const wd = Math.max(1, ...ls.map(l => ctx.measureText(l).width)); return {ls, sz, ok: ls.length*sz*lh <= bh*1.001 && wd <= bw*1.01, wd}; };
+  let r;
+  if(L.fit==='fill'){
+    let lo=4, hi=Math.max(8, bh*1.2);
+    for(let i=0;i<18 && hi-lo>.4;i++){ const mid=(lo+hi)/2; if(tryAt(mid).ok) lo=mid; else hi=mid; }
+    r = tryAt(lo);
+  } else {
+    let sz = L.size/100*H;
+    for(let i=0;i<50;i++){ r = tryAt(sz); if(r.ok || sz<5) break; sz *= .94; }
+  }
+  const res = {lines:r.ls, size:r.sz, lh, font:f, total:r.ls.reduce((n,l)=>n+[...l].length,0)};
+  if(layoutCache.size>400) layoutCache.clear();
+  layoutCache.set(key, res); return res;
+}
+
+/* ---- レイヤーの動き ---- */
+function loopCycles(D, period){ return Math.max(1, Math.round(D / Math.max(.2, period))); }   // 長さの中でぴったり繰り返す回数
+function motionOf(L, t, P){
+  const D = P.duration, a = L.anim || {};
+  const st = a.start||0, du = Math.max(.05, a.dur||.6);
+  const p = clamp((t-st)/du, 0, 1), e = easeOut(p);
+  const m = {alpha:1, dx:0, dy:0, scale:1, rot:0, reveal:1, visible: t >= st - 1e-6};
+  switch(a.in){
+    case 'fade': m.alpha = e; break;
+    case 'slideUp': m.dy = (1-e)*.08; m.alpha = e; break;
+    case 'slideDown': m.dy = -(1-e)*.08; m.alpha = e; break;
+    case 'slideLeft': m.dx = (1-e)*.1; m.alpha = e; break;
+    case 'slideRight': m.dx = -(1-e)*.1; m.alpha = e; break;
+    case 'zoom': m.scale = .55 + .45*e; m.alpha = e; break;
+    case 'pop': m.scale = Math.max(0, easeOutBack(p)); m.alpha = clamp(p*3,0,1); break;
+    case 'spin': m.scale = .4 + .6*e; m.rot = -(1-e)*180; m.alpha = e; break;
+    case 'type': m.reveal = p; break;
+    case 'blur': m.alpha = e; m.blur = (1-e); break;
+  }
+  // 登場のあとも続く動き(長さの中でちょうど繰り返すので、ループ再生がつながる)
+  const amt = (a.loopAmt ?? 50)/100;
+  if(a.loop && a.loop!=='none'){
+    const c = loopCycles(D, a.loopPeriod||2), ph = 2*Math.PI*c*t/D;
+    const ramp = a.in==='none' ? 1 : e;
+    if(a.loop==='sway') m.rot += Math.sin(ph)*8*amt*ramp;
+    if(a.loop==='float') m.dy += Math.sin(ph)*.03*amt*ramp;
+    if(a.loop==='pulse') m.scale *= 1 + Math.sin(ph)*.07*amt*ramp;
+    if(a.loop==='spin') m.rot += 360*c*t/D;
+    if(a.loop==='blink') m.alpha *= 1 - amt*.8*(.5-.5*Math.cos(ph));
+  }
+  if(P.outro && P.duration>1.2){ const o = clamp((D - t)/.6, 0, 1); m.alpha *= o; }
+  return m;
+}
+
+/* ---- 描画 ---- */
+function shapePath(c, shape, x, y, w, h){
+  c.beginPath();
+  if(shape==='circle') c.ellipse(x+w/2, y+h/2, Math.max(.5,w/2), Math.max(.5,h/2), 0, 0, Math.PI*2);
+  else c.roundRect(x, y, w, h, shape==='round' ? Math.min(w,h)*.12 : 0);
+}
+function drawCoverImg(c, img, x, y, w, h){
+  const iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height;
+  const s=Math.max(w/iw,h/ih), sw=w/s, sh=h/s;
+  c.drawImage(img,(iw-sw)/2,(ih-sh)/2,sw,sh,x,y,w,h);
+}
+function drawImageLayer(c, L, w, h, sc, editing){
+  const img = L.img || (L.sample ? SAMPLE_PHOTO : null);
+  if(!img){
+    if(editing){ c.fillStyle='rgba(120,100,220,.18)'; shapePath(c,L.shape,0,0,w,h); c.fill();
+      c.setLineDash([12,9]); c.lineWidth=3; c.strokeStyle='rgba(120,100,220,.8)'; c.stroke(); c.setLineDash([]);
+      c.fillStyle='rgba(255,255,255,.85)'; c.textAlign='center'; c.textBaseline='middle'; c.font=`700 ${Math.max(14,Math.min(w,h)*.18)}px "Zen Maru Gothic", sans-serif`;
+      c.fillText(L.name+'(画像を選んでください)', w/2, h/2, w*.92); }
+    return;
+  }
+  const bw = L.border||0;
+  if(L.shadow){ c.shadowColor='rgba(10,0,30,.35)'; c.shadowBlur=30*sc; c.shadowOffsetY=10*sc; }
+  if(L.fit==='contain'){
+    const iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height, k=Math.min(w/iw,h/ih), dw=iw*k, dh=ih*k;
+    c.drawImage(img,(w-dw)/2,(h-dh)/2,dw,dh);
+    return;
+  }
+  if(bw>0){ c.fillStyle=L.borderColor; shapePath(c,L.shape,0,0,w,h); c.fill(); c.shadowColor='transparent'; }
+  c.save(); shapePath(c,L.shape,bw,bw,w-bw*2,h-bw*2); if(bw<=0 && L.shadow){ c.fillStyle='#000'; c.fill(); c.shadowColor='transparent'; } c.clip();
+  drawCoverImg(c, img, bw, bw, w-bw*2, h-bw*2); c.restore();
+}
+function drawTextLayer(c, L, w, h, W, H, reveal, sc){
+  const lay = textLayout(L, W, H);
+  const {lines, size, lh, font} = lay;
+  c.font = fontStr(font, size); c.textBaseline='middle'; c.lineJoin='round'; c.miterLimit=2;
+  const ax = L.align==='left' ? 0 : L.align==='right' ? w : w/2;
+  c.textAlign = L.align||'center';
+  let left = Math.floor(reveal * lay.total + 1e-6);
+  let y = h/2 - (lines.length-1)*size*lh/2;
+  const sw = size*(L.stroke||0)/100;
+  if(L.glow){ c.shadowColor = L.glowColor||'#ffffff'; c.shadowBlur = size*.45*sc; }
+  for(const l of lines){
+    const chars=[...l], full = reveal>=1; const show = full ? l : chars.slice(0, Math.max(0, left)).join(''); left -= chars.length;
+    if(show){
+      // 1文字ずつ出すときは、行が全部出たときの位置に合わせて左から描く(文字が横にずれないように)
+      let x = ax; const al = c.textAlign;
+      if(!full){ const lw = c.measureText(l).width; x = L.align==='left' ? 0 : L.align==='right' ? w-lw : (w-lw)/2; c.textAlign='left'; }
+      if(sw>0){ c.lineWidth=sw; c.strokeStyle=L.strokeColor; c.strokeText(show, x, y); }
+      c.fillStyle=L.color; c.fillText(show, x, y);
+      c.textAlign = al;
+    }
+    y += size*lh;
+  }
+  c.shadowColor='transparent';
+}
+
+/* ---- エフェクト(長さの中でちょうど一周するので、ループ再生がつながる) ---- */
+function star4(c, x, y, r){
+  c.beginPath(); c.moveTo(x, y-r);
+  c.quadraticCurveTo(x, y, x+r, y); c.quadraticCurveTo(x, y, x, y+r); c.quadraticCurveTo(x, y, x-r, y); c.quadraticCurveTo(x, y, x, y-r);
+  c.fill();
+}
+function heart(c, x, y, s){
+  c.beginPath(); c.moveTo(x, y+s*.35);
+  c.bezierCurveTo(x-s*.9, y-s*.25, x-s*.45, y-s*.95, x, y-s*.45);
+  c.bezierCurveTo(x+s*.45, y-s*.95, x+s*.9, y-s*.25, x, y+s*.35); c.fill();
+}
+const CONFETTI = ['#ff5c8a','#ffd166','#06d6a0','#4cc9f0','#b388ff','#ffffff','#ff9f1c'];
+function drawEffects(c, P, W, H, t, sc){
+  const D = P.duration, u = Math.min(W,H)/1000;
+  const fx = P.fx||{};
+  if(fx.sparkle && fx.sparkle.on){
+    const n = fx.sparkle.amount|0; c.fillStyle = fx.sparkle.color||'#ffffff';
+    c.shadowColor = fx.sparkle.color||'#ffffff'; c.shadowBlur = 12*sc;
+    for(let i=0;i<n;i++){
+      const k = 1 + Math.floor(rnd(i,5)*3);
+      const b = Math.pow(Math.max(0, Math.sin(2*Math.PI*(k*t/D + rnd(i,6)))), 3);
+      if(b<.02) continue;
+      c.globalAlpha = b; star4(c, rnd(i,7)*W, rnd(i,8)*H, (6+rnd(i,9)*16)*u*(.6+.4*b)*(fx.sparkle.size||1));
+    }
+    c.globalAlpha=1; c.shadowColor='transparent';
+  }
+  if(fx.confetti && fx.confetti.on){
+    const n = fx.confetti.amount|0;
+    for(let i=0;i<n;i++){
+      const laps = 1 + Math.floor(rnd(i,11)*2), m = 40*u, span = H + m*2;
+      const yy = ((rnd(i,12) + laps*t/D) % 1) * span - m;
+      const sway = Math.sin(2*Math.PI*(Math.round(1+rnd(i,13)*2)*t/D + rnd(i,14))) * 30*u;
+      const xx = rnd(i,15)*W + sway;
+      const rot = 2*Math.PI*(Math.round(1+rnd(i,16)*3)*t/D + rnd(i,17));
+      const flip = Math.cos(2*Math.PI*(Math.round(2+rnd(i,18)*3)*t/D + rnd(i,19)));
+      const s = (8+rnd(i,20)*10)*u*(fx.confetti.size||1);
+      c.save(); c.translate(xx,yy); c.rotate(rot); c.scale(1, flip);
+      c.fillStyle = CONFETTI[i%CONFETTI.length]; c.fillRect(-s/2, -s*.3, s, s*.6); c.restore();
+    }
+  }
+  if(fx.hearts && fx.hearts.on){
+    const n = fx.hearts.amount|0; c.fillStyle = fx.hearts.color||'#ff6fa3';
+    for(let i=0;i<n;i++){
+      const m = 60*u, span = H + m*2;
+      const yy = H + m - ((rnd(i,21) + t/D) % 1) * span;
+      const xx = rnd(i,22)*W + Math.sin(2*Math.PI*(Math.round(1+rnd(i,23)*2)*t/D + rnd(i,24)))*40*u;
+      const s = (18+rnd(i,25)*26)*u*(fx.hearts.size||1);
+      const fade = clamp((yy + m)/(span*.35), 0, 1);
+      c.globalAlpha = .75*fade; heart(c, xx, yy, s);
+    }
+    c.globalAlpha = 1;
+  }
+}
+
+/* ---- 1コマを描く:c は出力先、sc は作品の座標から出力の画素への倍率 ---- */
+function renderFrame(c, P, W, H, t, sc, editing){
+  c.setTransform(sc,0,0,sc,0,0);
+  c.globalAlpha=1; c.shadowColor='transparent'; c.filter='none';
+  const D = P.duration;
+  // 背景
+  const bg = P.bg || SAMPLE_BG;
+  let z = 1, ox = 0;
+  if(P.bgMotion==='zoomIn') z = 1 + .12*(t/D);
+  else if(P.bgMotion==='zoomOut') z = 1.12 - .12*(t/D);
+  else if(P.bgMotion==='pan'){ z = 1.15; ox = (t/D - .5) * W * .12; }
+  else if(P.bgMotion==='breathe') z = 1.06 + .04*Math.sin(2*Math.PI*t/D);
+  c.save(); c.translate(W/2 + ox, H/2); c.scale(z, z); drawCoverImg(c, bg, -W/2, -H/2, W, H); c.restore();
+  if(P.bgDim){ c.fillStyle=`rgba(0,0,0,${P.bgDim/100})`; c.fillRect(0,0,W,H); }
+  if(P.fxBehind) drawEffects(c, P, W, H, t, sc);
+  // レイヤー
+  for(const L of P.layers){
+    if(L.hidden) continue;
+    const m = motionOf(L, t, P);
+    if(!m.visible || m.alpha<=0.001 || m.scale<=0.001) continue;
+    const w = L.w*W, h = L.h*H;
+    c.save();
+    c.globalAlpha = m.alpha * (L.opacity ?? 100)/100;
+    c.translate(L.x*W + w/2 + m.dx*W, L.y*H + h/2 + m.dy*H);
+    c.rotate(((L.rot||0) + m.rot)*Math.PI/180);
+    c.scale(m.scale, m.scale);
+    if(m.blur) c.filter = `blur(${m.blur*12*sc}px)`;
+    c.translate(-w/2, -h/2);
+    if(L.type==='text') drawTextLayer(c, L, w, h, W, H, m.reveal, sc);
+    else drawImageLayer(c, L, w, h, sc, editing);
+    c.restore();
+  }
+  if(!P.fxBehind) drawEffects(c, P, W, H, t, sc);
+  if(P.frame) c.drawImage(P.frame, 0, 0, W, H);
+  c.setTransform(1,0,0,1,0,0);
+}
+
+/* ===== 編集画面 ===== */
+const $ = id => document.getElementById(id);
+const uid = () => Math.random().toString(36).slice(2,10);
+const KIND = {image:'画像', text:'文字'};
+const IN_NAMES = {none:'なし(すぐ表示)', fade:'ふわっと出る', slideUp:'下から上へ', slideDown:'上から下へ', slideLeft:'右から入る', slideRight:'左から入る', zoom:'ズームして出る', pop:'ぽよんと飛び出す', spin:'くるっと回って出る', blur:'ぼかしから出る', type:'1文字ずつ出る(文字だけ)'};
+const LOOP_NAMES = {none:'なし', float:'ふわふわ上下', sway:'ゆらゆら傾く', pulse:'どきどき拡大縮小', spin:'くるくる回る', blink:'ちかちか点滅'};
+let userFonts = [];   // 追加したフォント {name, fam, blob}
+let userFontN = 0;
+
+function newLayer(type, extra={}){
+  const base = {id:uid(), type, name: type==='text' ? '文字' : '画像', x:.3, y:.35, w:.4, h:.25, rot:0, opacity:100, hidden:false,
+    anim:{in:'fade', start:0, dur:.6, loop:'none', loopAmt:50, loopPeriod:2}};
+  if(type==='image') Object.assign(base, {img:null, sample:false, shape:'round', fit:'cover', border:0, borderColor:'#ffffff', shadow:true});
+  if(type==='text') Object.assign(base, {text:'テキスト', font:FONTS[0].fam, localFont:'', fit:'fill', size:8, wrapMode:'sentence', balance:true, lineHeight:1.3,
+    color:'#ffffff', strokeColor:'#6b4fd8', stroke:18, align:'center', glow:false, glowColor:'#ffffff'});
+  return Object.assign(base, extra);
+}
+function sampleProject(){
+  return {v:1, sizeMode:'bg', duration:6, bg:null, bgMotion:'zoomIn', bgDim:0, frame:null, outro:false, fxBehind:false,
+    fx:{sparkle:{on:true, amount:45, size:1, color:'#fff6c8'}, confetti:{on:false, amount:70, size:1}, hearts:{on:false, amount:18, size:1, color:'#ff6fa3'}},
+    layers:[
+      newLayer('image', {name:'写真', sample:true, x:.06, y:.1, w:.34, h:.8, border:14, borderColor:'#ffffff', anim:{in:'slideRight', start:.2, dur:.8, loop:'float', loopAmt:35, loopPeriod:3}}),
+      newLayer('text', {name:'タイトル', text:'ライブ開催決定！', x:.45, y:.14, w:.5, h:.24, color:'#ffffff', strokeColor:'#c2457a', stroke:20, glow:true, glowColor:'#ffd6ea', anim:{in:'pop', start:.9, dur:.6, loop:'pulse', loopAmt:30, loopPeriod:2}}),
+      newLayer('text', {name:'日時', text:'11.3 SUN  21:00〜', font:'RocknRoll One', x:.45, y:.43, w:.5, h:.13, color:'#fff6c8', strokeColor:'#2b1d5c', stroke:16, anim:{in:'slideUp', start:1.5, dur:.6, loop:'none', loopAmt:50, loopPeriod:2}}),
+      newLayer('text', {name:'メッセージ', text:'みんな遊びに来てね♪', x:.45, y:.6, w:.5, h:.14, color:'#ffffff', strokeColor:'#7a3a8c', stroke:16, anim:{in:'type', start:2.1, dur:1.4, loop:'none', loopAmt:50, loopPeriod:2}}),
+      newLayer('image', {name:'ロゴ', shape:'rect', fit:'contain', shadow:false, x:.66, y:.8, w:.28, h:.13, anim:{in:'fade', start:3, dur:.8, loop:'none', loopAmt:50, loopPeriod:2}}),
+    ]};
+}
+let P = sampleProject();
+let selId = null;
+
+/* ---- 大きさ ---- */
+function artDims(){
+  if(P.sizeMode && P.sizeMode!=='bg'){ const [w,h]=P.sizeMode.split('x').map(Number); return [w,h]; }
+  const bg = P.bg || SAMPLE_BG; let w = bg.naturalWidth||bg.width, h = bg.naturalHeight||bg.height;
+  const k = Math.min(1, 4096/Math.max(w,h)); return [Math.round(w*k), Math.round(h*k)];
+}
+function mp4Dims(){                              // Twitter と多くの機器で再生できる大きさ(約200万画素まで、偶数)
+  const [W,H] = artDims(); let k = Math.min(1, 1920/Math.max(W,H), Math.sqrt(2073600/(W*H)));
+  const even = v => Math.max(2, Math.floor(v/2)*2); return [even(W*k), even(H*k)];
+}
+
+/* ---- プレビュー ---- */
+const cv = $('cv'), cx = cv.getContext('2d');
+let T = 0, playing = false, playFrom = 0, playStart = 0, playUntil = null, dirty = true;
+const restT = () => P.outro ? Math.max(0, P.duration-.7) : P.duration;
+function sizeBoard(){
+  const [W,H] = artDims();
+  const ps = Math.min(1, 1200/Math.max(W,H)) * Math.min(2, window.devicePixelRatio||1);
+  const cw = Math.round(W*ps), ch = Math.round(H*ps);
+  if(cv.width!==cw || cv.height!==ch){ cv.width=cw; cv.height=ch; }
+  const b = $('board'); b.style.aspectRatio = `${W} / ${H}`; b.style.width = `min(100%, calc(70vh * ${W/H}))`;
+  const [mw,mh] = mp4Dims();
+  $('sizeLabel').textContent = `作品 ${W}×${H}px ・ MP4 ${mw}×${mh}px`;
+}
+function draw(){
+  const [W,H] = artDims();
+  renderFrame(cx, P, W, H, T, cv.width/W, true);
+  $('time').textContent = `${T.toFixed(1)} / ${P.duration.toFixed(1)} 秒`;
+  $('seek').value = Math.round(T/P.duration*1000);
+}
+function tick(now){
+  if(playing){
+    let t = playFrom + (now - playStart)/1000;
+    if(playUntil!=null && t >= playUntil){ T = playUntil; stop(); draw(); requestAnimationFrame(tick); return; }
+    T = t % P.duration; draw();
+  } else if(dirty){ draw(); dirty=false; }
+  requestAnimationFrame(tick);
+}
+function play(from=0, until=null){ playing=true; playFrom=from; playUntil=until; playStart=performance.now(); $('play').textContent='❚❚ 停止'; $('board').classList.add('playing'); }
+function stop(){ playing=false; playUntil=null; $('play').textContent='▶ 再生'; $('board').classList.remove('playing'); dirty=true; }
+$('play').onclick = () => playing ? stop() : play(T >= P.duration-.05 ? 0 : T);
+$('seek').addEventListener('input', e => { if(playing) stop(); T = +e.target.value/1000*P.duration; dirty=true; });
+function redraw(){ dirty = true; }
+document.fonts && document.fonts.addEventListener && document.fonts.addEventListener('loadingdone', () => { layoutCache.clear(); redraw(); });
+
+/* ---- 作品全体の設定 ---- */
+const G = [
+  ['sizeMode', v=>v], ['duration', Number], ['bgMotion', v=>v], ['bgDim', Number], ['outro', v=>v], ['fxBehind', v=>v],
+];
+const FXF = [['sparkle',['on','amount','size','color']], ['confetti',['on','amount','size']], ['hearts',['on','amount','size','color']]];
+function setCtl(el, v){ if(el.type==='checkbox') el.checked=!!v; else el.value=v; el._upd && el._upd(); }
+function loadGlobal(){
+  for(const [k] of G) setCtl($(k), P[k]);
+  for(const [n,ks] of FXF) for(const k of ks){ const v = P.fx[n][k]; setCtl($(`fx_${n}_${k}`), k==='size' ? Math.round(v*100) : v); }
+}
+for(const [k,conv] of G){
+  const el=$(k);
+  el.addEventListener('input', () => {
+    P[k] = el.type==='checkbox' ? el.checked : conv(el.value);
+    if(k==='duration'){ T = Math.min(T, P.duration); for(const L of P.layers) L.anim.start = Math.min(L.anim.start, Math.max(0,P.duration-.1)); buildProps(); buildList(); }
+    if(k==='sizeMode'){ sizeBoard(); buildOverlay(); }
+    if(k==='outro' && !playing) T = restT();
+    changed();
+  });
+}
+for(const [n,ks] of FXF) for(const k of ks){
+  const el=$(`fx_${n}_${k}`);
+  el.addEventListener('input', () => { P.fx[n][k] = el.type==='checkbox' ? el.checked : k==='color' ? el.value : k==='size' ? +el.value/100 : +el.value; changed(); });
+}
+function loadImageFile(file){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>{ im._blob=file; res(im); }; im.onerror=rej; im.src=URL.createObjectURL(file); }); }
+function msg(t){ $('msg').textContent = t; }
+$('bgFile').addEventListener('change', async e => { const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{ P.bg = await loadImageFile(f); sizeBoard(); buildOverlay(); changed(); }catch(err){ msg('背景画像を読み込めませんでした。PNGかJPEGを選んでください。'); } });
+$('bgClear').onclick = () => { P.bg=null; sizeBoard(); buildOverlay(); changed(); };
+$('frameFile').addEventListener('change', async e => { const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  try{ P.frame = await loadImageFile(f); changed(); }catch(err){ msg('フレームを読み込めませんでした。透明PNGを選んでください。'); } });
+$('frameClear').onclick = () => { P.frame=null; changed(); };
+
+/* ---- 枠のドラッグ ---- */
+const overlay = $('overlay');
+function tagText(L){
+  if(L.id!==selId) return L.name;
+  const [W,H] = artDims(); return `${L.name}  ${Math.round(L.w*W)}×${Math.round(L.h*H)}px`;
+}
+function placeBox(b, L){
+  b.style.left=L.x*100+'%'; b.style.top=L.y*100+'%'; b.style.width=L.w*100+'%'; b.style.height=L.h*100+'%';
+  b.style.transform=`rotate(${L.rot||0}deg)`; b.style.display = L.hidden ? 'none' : '';
+  const tg=b.querySelector('.tagl'); if(tg) tg.textContent = tagText(L);
+}
+function buildOverlay(){
+  overlay.innerHTML='';
+  P.layers.forEach(L => {
+    const b=document.createElement('div'); b.className='box'+(L.id===selId?' sel':''); b.dataset.id=L.id;
+    const tg=document.createElement('span'); tg.className='tagl';
+    const h=document.createElement('div'); h.className='h';
+    b.append(tg,h); overlay.appendChild(b); placeBox(b,L);
+    drag(b,L,'move'); drag(h,L,'resize');
+  });
+}
+function drag(el, L, kind){
+  el.addEventListener('pointerdown', e => {
+    e.stopPropagation(); e.preventDefault();
+    if(selId!==L.id) select(L.id);
+    const r=overlay.getBoundingClientRect(), sx=e.clientX, sy=e.clientY, o={x:L.x,y:L.y,w:L.w,h:L.h};
+    try{ el.setPointerCapture(e.pointerId); }catch(_){}
+    const mv = ev => {
+      const dx=(ev.clientX-sx)/r.width, dy=(ev.clientY-sy)/r.height;
+      if(kind==='move'){ L.x=o.x+dx; L.y=o.y+dy; } else { L.w=Math.max(.02,o.w+dx); L.h=Math.max(.02,o.h+dy); }
+      const box=overlay.querySelector(`[data-id="${L.id}"]`); if(box) placeBox(box,L);
+      syncGeom(); redraw();
+    };
+    const up = () => { el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up); changed(); };
+    el.addEventListener('pointermove',mv); el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
+  });
+}
+overlay.addEventListener('pointerdown', e => { if(e.target===overlay) select(null); });
+
+/* ---- レイヤー一覧 ---- */
+function select(id){ selId=id; buildOverlay(); buildList(); buildProps(); }
+function buildList(){
+  const ul=$('layerList'); ul.innerHTML='';
+  P.layers.forEach((L,i) => {
+    const li=document.createElement('li'); if(L.id===selId) li.className='sel';
+    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=L.name + (L.hidden?'(非表示)':'');
+    const kd=document.createElement('span'); kd.className='kind'; kd.textContent=KIND[L.type];
+    const wh=document.createElement('span'); wh.className='when'; wh.textContent=`${(L.anim.start||0).toFixed(1)}秒`;
+    const mk=(t,lab,dis,fn)=>{ const b=document.createElement('button'); b.type='button'; b.className='mini'; b.textContent=t; b.setAttribute('aria-label',lab); b.disabled=dis; b.onclick=e=>{ e.stopPropagation(); fn(); }; return b; };
+    const up=mk('↑','奥へ',i===0,()=>{ [P.layers[i-1],P.layers[i]]=[P.layers[i],P.layers[i-1]]; changed(); select(selId); });
+    const dn=mk('↓','手前へ',i===P.layers.length-1,()=>{ [P.layers[i+1],P.layers[i]]=[P.layers[i],P.layers[i+1]]; changed(); select(selId); });
+    li.append(nm,kd,wh,up,dn); li.onclick=()=>select(L.id); ul.appendChild(li);
+  });
+}
+document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
+  const type=b.dataset.add; const n=P.layers.filter(l=>l.type===type).length+1;
+  const L=newLayer(type, {name:(type==='text'?'文字':'画像')+n, anim:{in: type==='text'?'pop':'fade', start:Math.min(1, P.duration-.5), dur:.6, loop:'none', loopAmt:50, loopPeriod:2}});
+  P.layers.push(L); changed(); select(L.id);
+}));
+
+/* ---- 選択中のレイヤーの設定 ---- */
+const pct = v => Math.round(v*1000)/10;
+function syncGeom(){
+  const L=P.layers.find(l=>l.id===selId); if(!L) return;
+  for(const k of ['x','y','w','h']){ const el=$('p_'+k); if(el && document.activeElement!==el) el.value=pct(L[k]); }
+  const [W,H]=artDims(); const px=$('p_px'); if(px) px.textContent=`実際の大きさ:幅 ${Math.round(L.w*W)} × 高さ ${Math.round(L.h*H)} px(左 ${Math.round(L.x*W)} / 上 ${Math.round(L.y*H)})`;
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function opts(map, cur){ return Object.entries(map).map(([v,t])=>`<option value="${v}"${v===cur?' selected':''}>${esc(t)}</option>`).join(''); }
+function range(id, label, min, max, step, unit=''){ return `<label><span class="lab"><span>${label}</span><output id="${id}_o"></output></span><input type="range" id="${id}" min="${min}" max="${max}" step="${step}"></label>`; }
+function buildProps(){
+  const box=$('props'); const L=P.layers.find(l=>l.id===selId);
+  if(!L){ box.innerHTML='<p class="hint">プレビューか一覧でレイヤーを選ぶと、ここで位置や動きを調整できます。</p>'; return; }
+  const H=[];
+  H.push(`<label>名前<input type="text" id="p_name"></label>`);
+  H.push(`<div class="row"><label>左 (%)<input type="number" step="0.5" id="p_x"></label><label>上 (%)<input type="number" step="0.5" id="p_y"></label><label>幅 (%)<input type="number" step="0.5" id="p_w"></label><label>高さ (%)<input type="number" step="0.5" id="p_h"></label></div>`);
+  H.push(`<p class="hint" id="p_px"></p>`);
+  H.push(`<div class="row">${range('p_rot','回転',-180,180,1,'°')}${range('p_opacity','不透明度',5,100,1,'%')}</div>`);
+  if(L.type==='image'){
+    H.push(`<label>画像<input type="file" id="p_img" accept="image/*"></label><div class="btns"><span class="hint" id="p_imgname"></span><button type="button" class="mini" id="p_imgclear">画像を外す</button></div>`);
+    H.push(`<div class="row"><label>形<select id="p_shape">${opts({rect:'四角',round:'角丸',circle:'丸'},L.shape)}</select></label><label>入れ方<select id="p_fit">${opts({cover:'枠いっぱい(はみ出しは切る)',contain:'全体を収める(ロゴ向け)'},L.fit)}</select></label></div>`);
+    H.push(`<div class="row">${range('p_border','縁の太さ',0,40,1)}<label>縁の色<input type="color" id="p_borderColor"></label></div>`);
+    H.push(`<label class="check"><input type="checkbox" id="p_shadow"> 影をつける</label>`);
+  } else {
+    H.push(`<label>文字<textarea id="p_text"></textarea></label>`);
+    H.push(`<label>フォント<select id="p_font">${[...FONTS].map(f=>`<option value="${esc(f.fam)}"${f.fam===L.font?' selected':''}>${esc(f.name)}</option>`).join('')}</select></label>`);
+    H.push(`<label>フォントファイルを追加(.ttf / .otf / .woff)<input type="file" id="p_fontFile" accept=".ttf,.otf,.woff,.woff2"></label>`);
+    H.push(`<label>PCに入っているフォント名で指定<input type="text" id="p_localFont" placeholder="例:けいふぉんと"></label>`);
+    H.push(`<label>文字の大きさの決め方<select id="p_fit">${opts({fill:'枠いっぱいに合わせる(自動)',fixed:'指定した大きさ(収まらないときだけ小さく)'},L.fit)}</select></label>`);
+    H.push(`<div id="p_sizeBox">${range('p_size','文字の大きさ(作品の高さに対する%)',1,30,.1)}</div>`);
+    H.push(`<div class="row"><label>改行の仕方<select id="p_wrapMode">${opts({sentence:'文ごと(長い文は文節で)',phrase:'文節の切れ目',char:'文字単位'},L.wrapMode)}</select></label><label>揃え<select id="p_align">${opts({left:'左',center:'中央',right:'右'},L.align)}</select></label></div>`);
+    H.push(`<label class="check"><input type="checkbox" id="p_balance"> 行の長さをそろえる</label>`);
+    H.push(range('p_lineHeight','行間',1,2.2,.05));
+    H.push(`<div class="row"><label>文字色<input type="color" id="p_color"></label><label>縁取り色<input type="color" id="p_strokeColor"></label></div>`);
+    H.push(range('p_stroke','縁取りの太さ',0,50,1));
+    H.push(`<div class="row"><label class="check"><input type="checkbox" id="p_glow"> 光らせる</label><label>光の色<input type="color" id="p_glowColor"></label></div>`);
+  }
+  const inMap = {...IN_NAMES}; if(L.type!=='text') delete inMap.type;
+  H.push(`<p class="sub">アニメーション</p>`);
+  H.push(`<label>登場の動き<select id="pa_in">${opts(inMap, L.anim.in)}</select></label>`);
+  H.push(`<div class="row">${range('pa_start','登場する時間(秒)',0,Math.max(.1,P.duration-.1),.1)}${range('pa_dur','登場にかける時間(秒)',.1,4,.1)}</div>`);
+  H.push(`<label>登場のあとも続く動き<select id="pa_loop">${opts(LOOP_NAMES, L.anim.loop)}</select></label>`);
+  H.push(`<div class="row" id="pa_loopBox">${range('pa_loopAmt','動きの強さ',0,100,1)}${range('pa_loopPeriod','1回の長さ(秒)',.3,8,.1)}</div>`);
+  H.push(`<p class="hint">続く動きは、作品の長さの中でちょうど繰り返すように1回の長さを自動でそろえます。</p>`);
+  H.push(`<div class="btns"><button type="button" class="btn small" id="p_preview">▶ この動きを確認</button><button type="button" class="btn ghost small" id="p_hide">${L.hidden?'表示する':'非表示にする'}</button><button type="button" class="btn ghost small" id="p_dup">複製</button><button type="button" class="btn danger small" id="p_del">削除</button></div>`);
+  box.innerHTML = H.join('');
+
+  const bind = (id, get, set, out) => {
+    const el=$(id); if(!el) return;
+    if(el.type==='checkbox') el.checked=!!get(); else el.value=get();
+    const o=$(id+'_o'); const upd=()=>{ if(o) o.textContent = out ? out(el.value) : el.value; }; upd(); el._upd=upd;
+    const h=()=>{ set(el.type==='checkbox'?el.checked:el.value); upd(); refreshVis(); changed(true); };
+    el.addEventListener('input', h); if(el.type==='checkbox'||el.tagName==='SELECT') el.addEventListener('change', h);
+  };
+  const S = k => [()=>L[k], v=>{ L[k]=v; }];
+  const N = k => [()=>L[k], v=>{ L[k]=+v; }];
+  const A = (k,num) => [()=>L.anim[k], v=>{ L.anim[k]= num?+v:v; }];
+  bind('p_name', ...S('name')); $('p_name').addEventListener('input', ()=>{ buildList(); const b=overlay.querySelector(`[data-id="${L.id}"]`); if(b) placeBox(b,L); });
+  for(const k of ['x','y','w','h']){ const el=$('p_'+k); el.value=pct(L[k]); el.addEventListener('input',()=>{ const v=parseFloat(el.value); if(isNaN(v)) return; L[k]=Math.max(k==='w'||k==='h'?.01:-1, v/100); const b=overlay.querySelector(`[data-id="${L.id}"]`); if(b) placeBox(b,L); syncGeom(); changed(true); }); }
+  bind('p_rot', ...N('rot'), v=>v+'°'); $('p_rot').addEventListener('input',()=>{ const b=overlay.querySelector(`[data-id="${L.id}"]`); if(b) placeBox(b,L); });
+  bind('p_opacity', ...N('opacity'), v=>v+'%');
+  if(L.type==='image'){
+    $('p_imgname').textContent = L.img ? '画像を使用中' : L.sample ? 'サンプル写真を使用中' : 'まだ画像がありません';
+    $('p_img').addEventListener('change', async e => { const f=e.target.files[0]; if(!f) return; try{ L.img=await loadImageFile(f); L.sample=false; $('p_imgname').textContent='画像を使用中'; changed(true); }catch(err){ msg('画像を読み込めませんでした。PNGかJPEGを選んでください。'); } });
+    $('p_imgclear').onclick = () => { L.img=null; L.sample=false; $('p_imgname').textContent='まだ画像がありません'; changed(true); };
+    bind('p_shape', ...S('shape')); bind('p_fit', ...S('fit')); bind('p_border', ...N('border')); bind('p_borderColor', ...S('borderColor')); bind('p_shadow', ...S('shadow'));
+  } else {
+    bind('p_text', ...S('text')); bind('p_font', ...S('font')); bind('p_localFont', ...S('localFont'));
+    bind('p_fit', ...S('fit')); bind('p_size', ...N('size'), v=>(+v).toFixed(1)+'%'); bind('p_wrapMode', ...S('wrapMode')); bind('p_align', ...S('align'));
+    bind('p_balance', ...S('balance')); bind('p_lineHeight', ...N('lineHeight'), v=>(+v).toFixed(2)); bind('p_color', ...S('color')); bind('p_strokeColor', ...S('strokeColor'));
+    bind('p_stroke', ...N('stroke')); bind('p_glow', ...S('glow')); bind('p_glowColor', ...S('glowColor'));
+    $('p_font').addEventListener('change', ()=>loadFontsFor());
+    $('p_fontFile').addEventListener('change', async e => { const f=e.target.files[0]; if(!f) return;
+      try{ const fam='UserFont'+(++userFontN); const ff=new FontFace(fam, await f.arrayBuffer()); await ff.load(); document.fonts.add(ff);
+        const entry={name:f.name.replace(/\.[^.]+$/,'')+'(追加したフォント)', fam, w:400, blob:f}; FONTS.push(entry); userFonts.push(entry);
+        L.font=fam; L.localFont=''; layoutCache.clear(); changed(true); buildProps(); }
+      catch(err){ msg('フォントを読み込めませんでした。ttf / otf / woff ファイルを選んでください。'); } });
+  }
+  bind('pa_in', ...A('in')); bind('pa_start', ...A('start',true), v=>(+v).toFixed(1)+'秒'); bind('pa_dur', ...A('dur',true), v=>(+v).toFixed(1)+'秒');
+  bind('pa_loop', ...A('loop')); bind('pa_loopAmt', ...A('loopAmt',true)); bind('pa_loopPeriod', ...A('loopPeriod',true), v=>(+v).toFixed(1)+'秒');
+  $('pa_start').addEventListener('input', ()=>buildList());
+  $('p_preview').onclick = () => { const s=Math.max(0,(L.anim.start||0)-.3); play(s, Math.min(P.duration, (L.anim.start||0)+(L.anim.dur||.6)+1.2)); };
+  $('p_hide').onclick = () => { L.hidden=!L.hidden; changed(); select(L.id); };
+  $('p_dup').onclick = () => { const c=cloneLayer(L); c.id=uid(); c.name=L.name+'のコピー'; c.x+=.02; c.y+=.02; P.layers.splice(P.layers.indexOf(L)+1,0,c); changed(); select(c.id); };
+  let delArmed=false;
+  $('p_del').onclick = () => { if(!delArmed){ delArmed=true; $('p_del').textContent='もう一度押すと削除'; setTimeout(()=>{ delArmed=false; const b=$('p_del'); if(b) b.textContent='削除'; },3000); return; }
+    P.layers.splice(P.layers.indexOf(L),1); changed(); select(null); };
+  refreshVis(); syncGeom();
+}
+function refreshVis(){
+  const L=P.layers.find(l=>l.id===selId); if(!L) return;
+  const lb=$('pa_loopBox'); if(lb) lb.hidden = L.anim.loop==='none';
+  const sb=$('p_sizeBox'); if(sb) sb.hidden = L.fit==='fill';
+  const per=$('pa_loopPeriod_o'); if(per && L.anim.loop && L.anim.loop!=='none'){ const c=loopCycles(P.duration, L.anim.loopPeriod||2); per.textContent=`${(+L.anim.loopPeriod).toFixed(1)}秒 → ${(P.duration/c).toFixed(2)}秒`; }
+}
+function cloneLayer(L){ const c={...L, anim:{...L.anim}}; return c; }
+function loadFontsFor(){
+  const ps=[]; for(const L of P.layers) if(L.type==='text'){ const f=fontOf(L); ps.push(document.fonts.load(fontStr(f,40), L.text||'あ').catch(()=>{})); }
+  return Promise.all(ps).then(()=>{ layoutCache.clear(); redraw(); });
+}
+
+/* ---- 変更・自動保存 ---- */
+let saveTimer=null;
+function changed(light){
+  if(!playing) redraw();
+  if(!light){ buildList(); }
+  const b = selId && overlay.querySelector(`[data-id="${selId}"]`); const L = P.layers.find(l=>l.id===selId); if(b && L) placeBox(b,L);
+  clearTimeout(saveTimer); saveTimer=setTimeout(autosave, 800);
+}
+const DB = { db:null,
+  open(){ if(this.db) return Promise.resolve(this.db); return new Promise((res,rej)=>{ try{ const r=indexedDB.open('anime-poster',1); r.onupgradeneeded=()=>r.result.createObjectStore('p'); r.onsuccess=()=>{ this.db=r.result; res(r.result); }; r.onerror=()=>rej(r.error); }catch(e){ rej(e); } }); },
+  async get(k){ const db=await this.open(); return new Promise((res,rej)=>{ const q=db.transaction('p').objectStore('p').get(k); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); },
+  async put(k,v){ const db=await this.open(); return new Promise((res,rej)=>{ const t=db.transaction('p','readwrite'); t.objectStore('p').put(v,k); t.oncomplete=()=>res(); t.onerror=()=>rej(t.error); }); },
+};
+const blobOf = img => img && img._blob ? img._blob : null;
+function serialize(){
+  return {...P, bg: blobOf(P.bg), frame: blobOf(P.frame), fx: JSON.parse(JSON.stringify(P.fx)),
+    layers: P.layers.map(L => ({...L, anim:{...L.anim}, img: blobOf(L.img)})),
+    fonts: userFonts.map(f => ({name:f.name, fam:f.fam, blob:f.blob}))};
+}
+async function deserialize(d){
+  const famMap = {};
+  for(const ft of d.fonts||[]){
+    try{ const fam='UserFont'+(++userFontN); const face=new FontFace(fam, await ft.blob.arrayBuffer()); await face.load(); document.fonts.add(face);
+      const e={name:ft.name, fam, w:400, blob:ft.blob}; FONTS.push(e); userFonts.push(e); famMap[ft.fam]=fam; }catch(err){}
+  }
+  const im = async b => { if(!b) return null; try{ return await loadImageFile(b); }catch(e){ return null; } };
+  const base = sampleProject();
+  const p = {...base, ...d, fx:{...base.fx, ...(d.fx||{})}};
+  p.bg = await im(d.bg); p.frame = await im(d.frame);
+  p.layers = [];
+  for(const x of d.layers||[]){ const L = newLayer(x.type==='text'?'text':'image'); Object.assign(L, x, {anim:{...L.anim, ...(x.anim||{})}}); L.img = await im(x.img); if(L.font && famMap[L.font]) L.font=famMap[L.font]; p.layers.push(L); }
+  delete p.fonts;
+  return p;
+}
+async function autosave(){ try{ await DB.put('current', serialize()); }catch(e){} }
+
+/* ---- ファイル保存 ---- */
+let downloadsP=null;
+try{ downloadsP = window.claude?.use ? window.claude.use('downloads') : null; }catch(e){}
+async function saveFile(filename, data){
+  const dl = downloadsP ? await Promise.resolve(downloadsP).catch(()=>null) : null;
+  if(dl){ try{ await dl.save({filename, data}); return 'saved'; } catch(err){ if(err?.code==='declined') return 'declined'; if(err?.code==='rate_limited') return 'busy'; return 'failed'; } }
+  const url=URL.createObjectURL(data instanceof Blob ? data : new Blob([data])); const a=document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),8000); return 'saved';
+}
+const stamp = () => { const d=new Date(), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; };
+const blobToDataURL = b => new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); });
+function dataURLToBlob(u){ const [h,b]=u.split(','); const mime=(h.match(/data:([^;]+)/)||[])[1]||'application/octet-stream'; const bin=atob(b); const a=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) a[i]=bin.charCodeAt(i); return new Blob([a],{type:mime}); }
+function ioMsg(t){ $('ioMsg').textContent=t; }
+$('ioExport').onclick = async () => {
+  ioMsg('書き出しています…');
+  try{
+    const s = serialize(); const conv = async b => b ? await blobToDataURL(b) : null;
+    const out = {...s, app:'anime-poster', bg: await conv(s.bg), frame: await conv(s.frame), layers: [], fonts: []};
+    for(const L of s.layers) out.layers.push({...L, img: await conv(L.img)});
+    for(const f of s.fonts) out.fonts.push({name:f.name, fam:f.fam, blob: await conv(f.blob)});
+    const r = await saveFile(`animeposter_${stamp()}.json`, JSON.stringify(out));
+    ioMsg(r==='saved' ? '作品をファイルに書き出しました(画像とフォントも含まれています)。' : r==='declined' ? '書き出しを取り消しました。' : '書き出せませんでした。少し待ってからもう一度試してください。');
+  }catch(e){ ioMsg('書き出せませんでした。'); }
+};
+$('ioImport').addEventListener('change', async e => {
+  const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  ioMsg('読み込んでいます…');
+  try{
+    const d = JSON.parse(await f.text()); if(d.app!=='anime-poster' || !Array.isArray(d.layers)) throw new Error('format');
+    const toB = u => u ? dataURLToBlob(u) : null;
+    d.bg = toB(d.bg); d.frame = toB(d.frame); d.layers = d.layers.map(L => ({...L, img: toB(L.img)})); d.fonts = (d.fonts||[]).map(ft => ({...ft, blob: toB(ft.blob)})).filter(ft=>ft.blob);
+    P = await deserialize(d); afterLoad(); ioMsg(`「${f.name}」を読み込みました。`);
+  }catch(err){ ioMsg('読み込めませんでした。このツールで書き出したファイル(.json)を選んでください。'); }
+});
+let newArmed=false;
+$('newProj').onclick = () => {
+  if(!newArmed){ newArmed=true; $('newProj').textContent='もう一度押すとやり直します'; setTimeout(()=>{ newArmed=false; $('newProj').textContent='サンプルからやり直す'; },3000); return; }
+  newArmed=false; $('newProj').textContent='サンプルからやり直す'; P = sampleProject(); afterLoad(); changed(); ioMsg('サンプルの状態に戻しました。');
+};
+function afterLoad(){ selId=null; stop(); T = restT(); loadGlobal(); sizeBoard(); buildOverlay(); buildList(); buildProps(); loadFontsFor(); redraw(); }
+
+/* ---- 数値の表示 ---- */
+document.querySelectorAll('.panel input[type=range]').forEach(inp => {
+  if(inp.closest('#props')) return;
+  const lab=inp.closest('label'); const t=[...lab.childNodes].find(n=>n.nodeType===3 && n.textContent.trim());
+  const head=document.createElement('span'); head.className='lab'; const nm=document.createElement('span'); nm.textContent=t?t.textContent.trim():'';
+  const out=document.createElement('output'); head.append(nm,out); if(t) lab.replaceChild(head,t); else lab.prepend(head);
+  const unit = inp.id==='duration' ? '秒' : inp.id.endsWith('_size') ? '%' : '';
+  const upd=()=>{ out.textContent = (inp.id==='duration' ? (+inp.value).toFixed(1) : inp.value) + unit; };
+  inp.addEventListener('input',upd); inp._upd=upd; upd();
+});
+
+/* ===== 書き出し ===== */
+function setBusy(b){ for(const id of ['saveMp4','saveGif','savePng']) $(id).disabled=b; $('play').disabled=b; }
+function bar(p){ $('bar').style.width=(p*100).toFixed(1)+'%'; }
+const nextTick = () => new Promise(r=>setTimeout(r,0));
+
+async function exportMp4(){
+  if(typeof VideoEncoder==='undefined' || typeof VideoFrame==='undefined'){ msg('このブラウザはMP4の書き出しに対応していません。パソコンのChromeかEdgeで開いてください(GIFは保存できます)。'); return; }
+  if(typeof Mp4Muxer==='undefined'){ msg('MP4の作成機能を読み込めませんでした。ネットにつないだ状態でページを開き直してください。'); return; }
+  stop(); setBusy(true); bar(0);
+  try{
+    await loadFontsFor();
+    const [W,H]=artDims(), [w,h]=mp4Dims(), fps=+$('mp4Fps').value;
+    const frames=Math.max(1, Math.round(P.duration*fps));
+    const bitrate=Math.round(clamp(w*h*fps*.15, 2e6, 16e6));
+    // H.264(Twitter で使える形式)を優先。使えないブラウザでは VP9 / AV1 の MP4 にする
+    const CANDS = [...['avc1.640033','avc1.640028','avc1.4d0033','avc1.4d0028','avc1.42e033','avc1.42e01f'].map(c=>[c,'avc']), ['vp09.00.40.08','vp9'], ['av01.0.08M.08','av1']];
+    let cfg=null, mux='avc';
+    for(const [codec, m] of CANDS){
+      const c={codec, width:w, height:h, bitrate, framerate:fps}; if(m==='avc') c.avc={format:'avc'};
+      try{ const s=await VideoEncoder.isConfigSupported(c); if(s && s.supported){ cfg=c; mux=m; break; } }catch(e){}
+    }
+    if(!cfg) throw new Error('nocodec');
+    const muxer=new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(), video:{codec:mux, width:w, height:h, frameRate:fps}, fastStart:'in-memory'});
+    let encErr=null;
+    const enc=new VideoEncoder({output:(chunk,meta)=>muxer.addVideoChunk(chunk,meta), error:e=>{ encErr=e; }});
+    enc.configure(cfg);
+    const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d');
+    for(let i=0;i<frames;i++){
+      if(encErr) throw encErr;
+      renderFrame(g, P, W, H, i/fps, w/W, false);
+      const vf=new VideoFrame(c, {timestamp:Math.round(i*1e6/fps), duration:Math.round(1e6/fps)});
+      enc.encode(vf, {keyFrame: i%(fps*2)===0}); vf.close();
+      while(enc.encodeQueueSize>6) await new Promise(r=>setTimeout(r,4));
+      if(i%5===0){ bar(i/frames*.95); msg(`MP4を作成中… ${i+1} / ${frames} コマ`); await nextTick(); }
+    }
+    await enc.flush(); enc.close(); muxer.finalize();
+    if(encErr) throw encErr;
+    const blob=new Blob([muxer.target.buffer], {type:'video/mp4'});
+    bar(1);
+    const r=await saveFile(`animeposter_${stamp()}.mp4`, blob);
+    const warn = mux==='avc' ? '' : 'このブラウザではH.264が使えないため、別の形式(' + mux.toUpperCase() + ')のMP4で作りました。Twitterに投稿できない場合は、パソコンのChromeかEdgeで作り直してください。';
+    msg(r==='saved' ? `MP4を保存しました(${w}×${h}px・${P.duration}秒・${(blob.size/1048576).toFixed(1)}MB)。${warn}` : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。');
+    return blob;
+  }catch(e){
+    msg(e && e.message==='nocodec' ? 'このブラウザではこの大きさのMP4を作れませんでした。作品の大きさを小さくして試してください。' : 'MP4を作れませんでした。ページを開き直してもう一度試してください。');
+    console.error(e);
+  }finally{ setBusy(false); setTimeout(()=>bar(0),1500); }
+}
+
+async function exportGif(){
+  stop(); setBusy(true); bar(0);
+  try{
+    await loadFontsFor();
+    const [W,H]=artDims(); const gw=Math.min(+$('gifSize').value, W), gh=Math.max(2, Math.round(gw*H/W)), fps=+$('gifFps').value;
+    const frames=Math.max(1, Math.round(P.duration*fps)), delay=Math.round(1000/fps);
+    const gif=GIFENC.GIFEncoder();
+    const c=document.createElement('canvas'); c.width=gw; c.height=gh; const g=c.getContext('2d', {willReadFrequently:true});
+    for(let i=0;i<frames;i++){
+      renderFrame(g, P, W, H, i/fps, gw/W, false);
+      const data=g.getImageData(0,0,gw,gh).data;
+      const pal=GIFENC.quantize(data, 256), idx=GIFENC.applyPalette(data, pal);
+      gif.writeFrame(idx, gw, gh, {palette:pal, delay, repeat:0});
+      if(i%3===0){ bar(i/frames*.95); msg(`GIFを作成中… ${i+1} / ${frames} コマ`); await nextTick(); }
+    }
+    gif.finish();
+    const blob=new Blob([gif.bytes()], {type:'image/gif'});
+    bar(1);
+    const r=await saveFile(`animeposter_${stamp()}.gif`, blob);
+    msg(r==='saved' ? `GIFを保存しました(${gw}×${gh}px・${(blob.size/1048576).toFixed(1)}MB)。重いときは「GIFの大きさ」か「なめらかさ」を下げてください。` : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。');
+    return blob;
+  }catch(e){ msg('GIFを作れませんでした。大きさを小さくしてもう一度試してください。'); console.error(e); }
+  finally{ setBusy(false); setTimeout(()=>bar(0),1500); }
+}
+
+async function exportPng(){
+  await loadFontsFor();
+  const [W,H]=artDims(); const c=document.createElement('canvas'); c.width=W; c.height=H;
+  renderFrame(c.getContext('2d'), P, W, H, T, 1, false);
+  const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+  const r=await saveFile(`animeposter_${T.toFixed(1)}s_${stamp()}.png`, blob);
+  if(r==='saved') msg(`${T.toFixed(1)}秒の場面をPNGで保存しました。`); else if(r!=='declined') msg('保存できませんでした。');
+}
+$('saveMp4').onclick = exportMp4;
+$('saveGif').onclick = exportGif;
+$('savePng').onclick = exportPng;
+window.__animePoster = {exportMp4, exportGif, get P(){ return P; }};   // 動作確認用
+
+/* ===== 起動 ===== */
+(async () => {
+  try{ const d = await DB.get('current'); if(d && Array.isArray(d.layers)) P = await deserialize(d); }catch(e){}
+  afterLoad(); requestAnimationFrame(tick);
+})();
+})();
+</script>
+
+</body>
+</html>

@@ -33,10 +33,13 @@ h1{font-family:var(--font-display);font-size:clamp(1.7rem,4vw,2.3rem);margin:0 0
 .tool h2{font-family:var(--font-display);font-size:1.3rem;margin:0}
 .tool p{margin:0;color:var(--muted);font-size:.9rem}
 .tool .go{margin-top:auto;font-weight:700}
-.card .go{color:var(--pink)} .poster .go{color:var(--blue)}
+.card .go{color:var(--pink)} .poster .go{color:var(--blue)} .anim .go{color:#6b4fd8}
+@media (prefers-color-scheme: dark){.anim .go{color:#a48dff}}
 .thumb{height:92px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:10px}
 .card .thumb{background:linear-gradient(120deg,#ffd6e7,#e9d5ff 60%,#c7e3ff)}
 .poster .thumb{background:linear-gradient(160deg,#c9d2ff,#f3cfee 60%,#ffe1c4)}
+.anim .thumb{background:linear-gradient(120deg,#2b1d5c,#7a3a8c 55%,#f08aa8)}
+.anim .thumb b{color:#fff;font-size:1.6rem;letter-spacing:.2em;text-shadow:0 0 12px #ffd6ea}
 .thumb i{display:block;background:#fff;border-radius:6px;box-shadow:0 3px 10px rgba(0,0,0,.12)}
 section{margin-top:36px}
 section h2{font-family:var(--font-display);font-size:1.25rem;margin:0 0 10px;padding-bottom:6px;border-bottom:2px solid var(--line)}
@@ -72,6 +75,13 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
       <p>レイアウトのテンプレートを作って保存し、画像を差し込むだけでポスターを量産できます。</p>
       <span class="go">使ってみる →</span>
     </a>
+    <a class="tool anim" href="animated-poster.html">
+      <div class="thumb" aria-hidden="true"><b>✦ ▶ ✦</b></div>
+      <span class="ratio">MP4 / GIF ・ 長さは自由 ・ v1.0</span>
+      <h2>アニメポスターメーカー</h2>
+      <p>写真や文字に登場の動きや揺れを付け、キラキラや紙吹雪を重ねて、動くポスターを作れます。</p>
+      <span class="go">使ってみる →</span>
+    </a>
   </div>
 
   <section>
@@ -99,6 +109,23 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
     <h3>作ったものをファイルに保存する</h3>
     <p>「ファイルに保存」の「ファイルに書き出す」を押すと、全カードのメッセージと、背景・フォント・写真などの設定が1つのファイル(.json)に保存されます。「ファイルから読み込む」でそのファイルを選ぶと、書き出したときの状態に戻ります。画像も一緒に保存できるので、別のPCに移すときや、作ったものを残しておきたいときに使えます。</p>
     <p>よく使う設定は、一番下の「今の設定を初期値にする」で保存しておくと、次回からその状態で始まります。スライダーをダブルクリックすると、その項目だけ初期値に戻ります。</p>
+  </section>
+
+  <section>
+    <h2>アニメポスターメーカーの使い方</h2>
+    <ol>
+      <li>「作品」で大きさ(背景画像に合わせる・16:9・正方形・縦長)と長さ(秒)を決め、背景画像と背景の動き(ゆっくりズームなど)を選びます。</li>
+      <li>「レイヤー」で写真・画像や文字を追加し、プレビュー上でドラッグして配置します。右下の丸をつまむと大きさが変わります。</li>
+      <li>レイヤーを選ぶと「アニメーション」で動きを付けられます。登場の動き(ふわっと・スライド・ぽよん・1文字ずつなど)、登場する時間、登場にかける時間、登場のあとも続く動き(ふわふわ・ゆらゆら・どきどき・くるくる・ちかちか)を選びます。「この動きを確認」でその部分だけ再生できます。</li>
+      <li>「エフェクト」でキラキラ・紙吹雪・ハートを重ねられます。</li>
+      <li>「▶ 再生」と時間のつまみで確認し、「MP4で保存」か「GIFで保存」を押して完成です。</li>
+    </ol>
+    <p>続く動きとエフェクトは、作品の長さの中でちょうど繰り返すように作られるので、ループ再生してもつながります。「終わりに全体をフェードアウトする」をオンにすると、繰り返し再生がよりなめらかになります。</p>
+    <div class="note"><ul>
+      <li>MP4の保存は、パソコンの Chrome か Edge がおすすめです。ブラウザによっては H.264 以外の形式になり、Twitter に投稿できないことがあります(そのときはメッセージで知らせます)。</li>
+      <li>GIFは色数が少ないため、写真のグラデーションが粗く見えることがあります。ファイルが重いときは「GIFの大きさ」や「なめらかさ」を下げてください。</li>
+      <li>作業中の作品は画像も含めてブラウザに自動保存されます。別のPCに移すときは「ファイルに書き出す」を使ってください。</li>
+    </ul></div>
   </section>
 
   <section>
@@ -156,11 +183,13 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
     <div class="log"><b>v1.2(2026-10-18)</b><ul><li>写真の切り抜きを、0を基準にした拡大・縮小(−100〜+100)に変更</li></ul></div>
     <div class="log"><b>v1.1(2026-10-18)</b><ul><li>写真の切り抜きの形(縦横比)を選べるようにした(正方形・縦長・横長・元の写真のまま・自由)</li><li>切り抜きの拡大と位置をカードごとに覚えるようにした</li><li>複数枚のカードを1ページで作れるようにした(カード一覧、複製・削除・並べ替え)</li><li>メッセージと写真をまとめて入れてカードを作る機能を追加</li><li>全カードをZIPでまとめて保存できるようにした</li><li>メッセージを自動で保存し、次に開いたときに復元するようにした</li></ul></div>
     <div class="log"><b>v1.0(2026-10-16)</b><ul><li>公開</li><li>背景(全面・タイル、暗さ・白さ・ぼかし)、写真(配置・フレーム・重ねる画像・影)、メッセージ、フォント、文字の下地</li><li>今の設定を初期値として保存する機能</li></ul></div>
+    <h3>アニメポスターメーカー</h3>
+    <div class="log"><b>v1.0(2026-10-19)</b><ul><li>公開</li><li>写真・画像・文字のレイヤーに、登場の動き(ふわっと・スライド・ズーム・ぽよん・くるっと・ぼかし・1文字ずつ)と続く動き(ふわふわ・ゆらゆら・どきどき・くるくる・ちかちか)を設定</li><li>背景の動き、キラキラ・紙吹雪・ハートのエフェクト、装飾フレーム</li><li>長さを自由に設定、MP4(最大1920px)・GIF・PNGで保存</li><li>作品の自動保存(画像を含む)とファイルへの書き出し・読み込み</li></ul></div>
     <h3>ポスターメーカー</h3>
     <div class="log"><b>v1.0(2026-10-16)</b><ul><li>公開</li><li>テンプレート(写真・画像・ロゴ・文字の枠、背景、装飾フレーム)の作成と自動保存、ファイルへの書き出し・読み込み</li><li>枠のドラッグ操作と実際のピクセルサイズの表示</li><li>レイアウト・枠を初期値に戻す機能</li><li>メンバーの写真をまとめて選んでポスターを一括作成(ZIP保存)</li></ul></div>
   </section>
 
-  <footer>フォントは Google Fonts(SIL Open Font License)、日本語の文節の判定は <a href="https://github.com/google/budoux" style="color:inherit">BudouX</a>(Apache License 2.0)を使用しています。</footer>
+  <footer>フォントは Google Fonts(SIL Open Font License)、日本語の文節の判定は <a href="https://github.com/google/budoux" style="color:inherit">BudouX</a>(Apache License 2.0)、MP4の作成は mp4-muxer(MIT License)、GIFの作成は gifenc(MIT License)を使用しています。</footer>
 </div>
 </body>
 </html>
