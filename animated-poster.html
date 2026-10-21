@@ -100,6 +100,27 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .sub{font-family:var(--font-display);font-weight:700;font-size:.85rem;color:var(--fg);margin:6px 0 0;padding-top:8px;border-top:1px dashed var(--line)}
 .fxrow{display:flex;flex-direction:column;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
 details.fxrow{display:block}
+.tl{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 10px 8px;max-height:340px;overflow:auto;position:relative;user-select:none;-webkit-user-select:none}
+.tl-row{display:flex;align-items:center;height:22px;gap:8px}
+.tl-row.head{height:18px;position:sticky;top:-6px;background:var(--surface);z-index:3}
+.tl-lab{flex:0 0 96px;font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.tl-lab.sel{color:var(--sel);font-weight:700}
+.tl-track{position:relative;flex:1;height:100%;min-width:0;cursor:pointer}
+.tl-track::before{content:"";position:absolute;left:0;right:0;top:50%;border-top:1px dashed var(--line)}
+.tl-sec{font-size:.66rem;color:var(--muted);font-weight:700;letter-spacing:.06em;padding:6px 0 2px}
+.tl-blk{position:absolute;top:3px;bottom:3px;border-radius:5px;background:var(--accent);opacity:.85;cursor:grab;min-width:6px;touch-action:none}
+.tl-blk.out{background:#8a8199}
+.tl-blk:hover{opacity:1}
+.tl-blk .rz{position:absolute;right:-3px;top:0;bottom:0;width:9px;cursor:ew-resize}
+.tl-dia{position:absolute;top:50%;width:9px;height:9px;margin:-5px 0 0 -5px;transform:rotate(45deg);background:#ffd24a;border:1px solid #9a7a00;cursor:grab;touch-action:none}
+.tl-tick{position:absolute;top:0;font-size:.62rem;color:var(--muted);transform:translateX(-50%);font-variant-numeric:tabular-nums}
+.tl-head-track::before{display:none}
+.tl-play{position:absolute;top:0;bottom:0;width:0;border-left:2px solid var(--sel);pointer-events:none;z-index:4}
+.cine{border:1px solid var(--line);border-radius:8px;background:var(--field);padding:6px 10px}
+.cine summary{cursor:pointer;display:flex;align-items:center;gap:8px;font-size:.84rem;font-weight:700;color:var(--fg)}
+.cine summary .when{margin-left:auto;font-weight:500;font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.cine .dot{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.cine .body{display:flex;flex-direction:column;gap:8px;margin-top:8px}
 details.fxrow>*+*{margin-top:8px}
 details.fxrow summary{cursor:pointer;font-weight:700;color:var(--fg);font-size:.85rem;display:flex;align-items:center;gap:8px}
 details.fxrow .kind{color:var(--accent);border-color:var(--accent)}
@@ -113,7 +134,7 @@ details.fxrow .row{display:flex}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>アニメポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.0 ・ 2026-10-21 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.1 ・ 2026-10-21 更新</a>
     <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪を重ねて、動くポスターをMP4かGIFで保存できます。最初はサンプルが入っています。</p>
   </header>
 
@@ -125,6 +146,7 @@ details.fxrow .row{display:flex}
         <input type="range" id="seek" min="0" max="1000" value="1000" aria-label="再生位置">
         <span class="time" id="time">0.0 / 6.0 秒</span>
       </div>
+      <div class="tl" id="tl" aria-label="タイムライン"></div>
       <div class="exportbar">
         <div class="row">
           <label>MP4のなめらかさ<select id="mp4Fps"><option value="30">30コマ/秒(おすすめ)</option><option value="60">60コマ/秒</option><option value="24">24コマ/秒</option></select></label>
@@ -212,62 +234,9 @@ details.fxrow .row{display:flex}
 
       <fieldset>
         <legend>映画風の演出</legend>
-        <p class="hint">開くと設定できます。「使う」にチェックを入れると、作品に加わります。</p>
-        <details class="fxrow">
-          <summary>ワープ(星が光の線になって伸びる) <span class="kind" data-fxbadge="warp" hidden></span></summary>
-          <p class="hint">背景の星が中心から伸びて加速し、最後に白く光ります。宇宙っぽいオープニング向けです。</p>
-          <label class="check"><input type="checkbox" id="fx_warp_on"> 使う</label>
-          <div class="row"><label>始める時間<input type="range" id="fx_warp_start" min="0" max="30" step="0.1" value="0"></label><label>加速する長さ<input type="range" id="fx_warp_dur" min="0.3" max="10" step="0.1" value="1.6"></label></div>
-          <div class="row"><label>星の数<input type="range" id="fx_warp_amount" min="50" max="600" step="10" value="260"></label><label>星の色<input type="color" id="fx_warp_color" value="#cfe8ff"></label></div>
-          <label class="check"><input type="checkbox" id="fx_warp_flash" checked> 最後に白く光る</label>
-        </details>
-        <details class="fxrow">
-          <summary>レンズフレア <span class="kind" data-fxbadge="flare" hidden></span></summary>
-          <p class="hint">光の玉と横に伸びる光の筋が、画面を横切ります。</p>
-          <label class="check"><input type="checkbox" id="fx_flare_on"> 使う</label>
-          <div class="row"><label>始める時間<input type="range" id="fx_flare_start" min="0" max="30" step="0.1" value="1"></label><label>横切る長さ<input type="range" id="fx_flare_dur" min="0.3" max="10" step="0.1" value="2.5"></label></div>
-          <div class="row"><label>大きさ<input type="range" id="fx_flare_size" min="40" max="250" step="1" value="100"></label><label>光の色<input type="color" id="fx_flare_color" value="#9fd0ff"></label></div>
-        </details>
-        <details class="fxrow">
-          <summary>集中線 <span class="kind" data-fxbadge="speed" hidden></span></summary>
-          <p class="hint">画面の外側から中心に向かう線が、ぱらぱら動きます。決めの場面に。</p>
-          <label class="check"><input type="checkbox" id="fx_speed_on"> 使う</label>
-          <div class="row"><label>始める時間<input type="range" id="fx_speed_start" min="0" max="30" step="0.1" value="1"></label><label>続ける長さ<input type="range" id="fx_speed_dur" min="0.1" max="10" step="0.1" value="1.2"></label></div>
-          <div class="row"><label>線の数<input type="range" id="fx_speed_amount" min="20" max="200" step="1" value="90"></label><label>線の色<input type="color" id="fx_speed_color" value="#ffffff"></label></div>
-        </details>
-        <details class="fxrow">
-          <summary>画面の揺れ <span class="kind" data-fxbadge="shake" hidden></span></summary>
-          <p class="hint">指定した時間に画面全体が揺れます。「ドン!とスタンプ」の登場では自動でも揺れます。</p>
-          <label class="check"><input type="checkbox" id="fx_shake_on"> 使う</label>
-          <div class="row"><label>揺れる時間<input type="range" id="fx_shake_start" min="0" max="30" step="0.1" value="1"></label><label>揺れる長さ<input type="range" id="fx_shake_dur" min="0.1" max="3" step="0.1" value="0.6"></label></div>
-          <label>強さ<input type="range" id="fx_shake_amount" min="5" max="100" step="1" value="50"></label>
-        </details>
-        <details class="fxrow">
-          <summary>フラッシュ・暗転 <span class="kind" data-fxbadge="flash" hidden></span></summary>
-          <p class="hint">画面が一瞬白く光る、または暗くなって戻ります。場面の切り替えに。</p>
-          <label class="check"><input type="checkbox" id="fx_flash_on"> 使う</label>
-          <label>種類<select id="fx_flash_type"><option value="white">白く光る</option><option value="black">暗転</option></select></label>
-          <div class="row"><label>始める時間<input type="range" id="fx_flash_start" min="0" max="30" step="0.1" value="1"></label><label>長さ<input type="range" id="fx_flash_dur" min="0.1" max="3" step="0.1" value="0.5"></label></div>
-        </details>
-        <details class="fxrow">
-          <summary>映画の黒帯 <span class="kind" data-fxbadge="bars" hidden></span></summary>
-          <p class="hint">画面の上下に黒い帯を入れて、映画のような横長の画面にします。</p>
-          <label class="check"><input type="checkbox" id="fx_bars_on"> 使う</label>
-          <label>帯の太さ(%)<input type="range" id="fx_bars_amount" min="2" max="22" step="0.5" value="10"></label>
-          <label class="check"><input type="checkbox" id="fx_bars_slide" checked> 最初に上下から出てくる</label>
-        </details>
-        <details class="fxrow">
-          <summary>フィルムのざらつき <span class="kind" data-fxbadge="grain" hidden></span></summary>
-          <p class="hint">古い映画のような細かいざらつきを重ねます。</p>
-          <label class="check"><input type="checkbox" id="fx_grain_on"> 使う</label>
-          <label>強さ<input type="range" id="fx_grain_amount" min="5" max="100" step="1" value="40"></label>
-        </details>
-        <details class="fxrow">
-          <summary>周辺を暗くする <span class="kind" data-fxbadge="vig" hidden></span></summary>
-          <p class="hint">画面のふちを暗くして、中心に目が行くようにします。</p>
-          <label class="check"><input type="checkbox" id="fx_vig_on"> 使う</label>
-          <label>強さ<input type="range" id="fx_vig_amount" min="5" max="100" step="1" value="50"></label>
-        </details>
+        <p class="hint">ボタンを押すと、<b>今の再生位置</b>から始まる演出が追加されます。同じ演出を何回でも入れられます。時間はタイムラインの帯をドラッグしても変えられます。</p>
+        <div class="btns" id="cineAdd"></div>
+        <div id="cineList" style="display:flex;flex-direction:column;gap:6px"></div>
       </fieldset>
 
       <fieldset>
@@ -766,17 +735,23 @@ function drawLayer(c, L, w, h, W, H, t, sc, editing, m){
 let noiseCv = null;
 function noise(){ if(noiseCv) return noiseCv; noiseCv=document.createElement('canvas'); noiseCv.width=noiseCv.height=256; const g=noiseCv.getContext('2d'); const d=g.createImageData(256,256);
   for(let i=0;i<d.data.length;i+=4){ const v=Math.random()*255; d.data[i]=d.data[i+1]=d.data[i+2]=v; d.data[i+3]=255; } g.putImageData(d,0,0); return noiseCv; }
-const on = (fx, k) => fx && fx[k] && fx[k].on;
+// 映画風の演出は P.cine(演出の一覧)に入っている。同じ種類をいくつでも、好きな時間に入れられる
+const cineOf = (P, type) => (P.cine||[]).filter(e => e.type===type && !e.off);
+const envOf = (e, t, fi=.3, fo=.3) => { const st=e.start||0, du=Math.max(.05,e.dur||1); if(t<st || t>st+du) return 0; return clamp(Math.min((t-st)/fi, (st+du-t)/fo), 0, 1); };
 function shakeOffset(P, W, H, t){
   let x=0, y=0; const u = Math.min(W,H);
   const ev = (te, d, a) => { const q=(t-te)/d; if(q<0||q>=1) return; const k=Math.pow(1-q,2)*a*u*.035; x += k*Math.sin((t-te)*95); y += k*Math.cos((t-te)*77); };
   for(const L of P.layers) if(!L.hidden && L.anim && L.anim.in==='stamp') ev((L.anim.start||0)+Math.max(.05,L.anim.dur||.6)*.7, .45, (L.anim.shakeAmt ?? 50)/100);
-  if(on(P.fx,'shake')) ev(P.fx.shake.start||0, Math.max(.05,P.fx.shake.dur||.6), (P.fx.shake.amount ?? 50)/100);
+  for(const e of cineOf(P,'shake')) ev(e.start||0, Math.max(.05,e.dur||.6), (e.amount ?? 50)/100);
   return [x, y];
 }
 function warpSpeed(f, t){ const p = clamp((t-(f.start||0))/Math.max(.1,f.dur||2), 0, 1); return t > (f.start||0)+(f.dur||2) ? .05 : .05 + 2.4*Math.pow(p, 2.2); }
-function drawWarp(c, P, W, H, t, sc){
-  const f = P.fx.warp, n = f.amount|0, cx=W/2, cy=H/2, R = Math.hypot(W,H)*.55, u = Math.min(W,H)/1000;
+function drawWarp(c, f, W, H, t, sc){
+  const n = f.amount|0, cx=W/2, cy=H/2, R = Math.hypot(W,H)*.55, u = Math.min(W,H)/1000;
+  // ワープの前後 .6 秒は星を薄く出し、ワープが終わったら .8 秒で消える
+  const st = f.start||0, en = st + (f.dur||2);
+  const vis = t < st ? clamp(1-(st-t)/.6, 0, 1) : t > en ? clamp(1-(t-en)/.8, 0, 1) : 1;
+  if(vis<=0) return;
   let Z = 0; const steps = 48; for(let i=0;i<steps;i++){ const tt=(i+.5)/steps*t; Z += warpSpeed(f, tt)*t/steps; }
   const v = warpSpeed(f, t);
   c.save(); c.lineCap='round'; c.strokeStyle = f.color||'#cfe8ff'; c.shadowColor = f.color||'#cfe8ff'; c.shadowBlur = 6*sc;
@@ -784,13 +759,13 @@ function drawWarp(c, P, W, H, t, sc){
     const a = rnd(i,41)*Math.PI*2, k = .5 + rnd(i,42);
     const r = (rnd(i,43) + Z*k*.35) % 1, rr = r*r*R + R*.02;
     const len = Math.min(rr*.9, rr * v * .45 + 2*u);
-    c.globalAlpha = clamp(r*1.6, 0, 1); c.lineWidth = (1 + r*2.2)*u*1.4;
+    c.globalAlpha = clamp(r*1.6, 0, 1)*vis; c.lineWidth = (1 + r*2.2)*u*1.4;
     c.beginPath(); c.moveTo(cx+Math.cos(a)*(rr-len), cy+Math.sin(a)*(rr-len)); c.lineTo(cx+Math.cos(a)*rr, cy+Math.sin(a)*rr); c.stroke();
   }
   c.restore();
 }
-function drawFlare(c, P, W, H, t){
-  const f = P.fx.flare, q = (t-(f.start||0))/Math.max(.2, f.dur||2.5); if(q<0||q>1) return;
+function drawFlare(c, f, W, H, t){
+  const q = (t-(f.start||0))/Math.max(.2, f.dur||2.5); if(q<0||q>1) return;
   const env = Math.sin(Math.PI*q), col = f.color||'#9fd0ff', s = (f.size||1), u = Math.min(W,H);
   const sx = -.1*W + 1.2*W*q, sy = H*(.22 - .08*q), cx=W/2, cy=H/2;
   c.save(); c.globalCompositeOperation='lighter';
@@ -806,10 +781,9 @@ function drawFlare(c, P, W, H, t){
   }
   c.restore();
 }
-function drawSpeedLines(c, P, W, H, t){
-  const f = P.fx.speed, st=f.start||0, du=Math.max(.1,f.dur||1.5); if(t<st || t>st+du) return;
-  const env = clamp(Math.min((t-st)/.15, (st+du-t)/.25), 0, 1), slot = Math.floor(t*15), n = f.amount|0;
-  const cx=W/2, cy=H/2, R=Math.hypot(W,H)*.6, u=Math.min(W,H)/1000;
+function drawSpeedLines(c, f, W, H, t){
+  const env = envOf(f, t, .15, .25); if(env<=0) return;
+  const slot = Math.floor(t*15), n = f.amount|0, cx=W/2, cy=H/2, R=Math.hypot(W,H)*.6;
   c.save(); c.fillStyle = f.color||'#ffffff';
   for(let i=0;i<n;i++){
     const a = (i/n)*Math.PI*2 + (rnd(i,slot)-.5)*.06, r0 = R*(.42 + .3*rnd(i+500,slot)), wd = .0018 + rnd(i+900,slot)*.0065;
@@ -819,22 +793,24 @@ function drawSpeedLines(c, P, W, H, t){
   c.restore();
 }
 function drawFilm(c, P, W, H, t, sc){
-  const fx = P.fx;
-  if(on(fx,'vig')){ const a=(fx.vig.amount ?? 50)/100; const g=c.createRadialGradient(W/2,H/2,Math.min(W,H)*.25,W/2,H/2,Math.hypot(W,H)*.6); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,`rgba(0,0,0,${.85*a})`); c.fillStyle=g; c.fillRect(0,0,W,H); }
-  if(on(fx,'grain')){
+  for(const e of cineOf(P,'vig')){ const env=envOf(e,t,.5,.5); if(env<=0) continue; const a=(e.amount ?? 50)/100*env; const g=c.createRadialGradient(W/2,H/2,Math.min(W,H)*.25,W/2,H/2,Math.hypot(W,H)*.6); g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(1,`rgba(0,0,0,${.85*a})`); c.fillStyle=g; c.fillRect(0,0,W,H); }
+  for(const e of cineOf(P,'grain')){
+    const env=envOf(e,t,.4,.4); if(env<=0) continue;
     const n = noise(), slot = Math.floor(t*24), ox = rnd(slot,51)*256, oy = rnd(slot,52)*256, k = Math.max(1, Math.round(1.6/sc*1.2));
-    c.save(); c.globalCompositeOperation='overlay'; c.globalAlpha = (fx.grain.amount ?? 40)/100*.55;
+    c.save(); c.globalCompositeOperation='overlay'; c.globalAlpha = (e.amount ?? 40)/100*.55*env;
     const pat = c.createPattern(n,'repeat'); pat.setTransform(new DOMMatrix([k,0,0,k,-ox*k,-oy*k])); c.fillStyle=pat; c.fillRect(0,0,W,H); c.restore();
   }
-  if(on(fx,'bars')){
-    const full = (fx.bars.amount ?? 10)/100*H, q = fx.bars.slide ? smooth(clamp(t/.9,0,1)) : 1, bh = full*q;
-    c.fillStyle='#000'; c.fillRect(0,0,W,bh); c.fillRect(0,H-bh,W,bh);
+  let bh = 0;
+  for(const e of cineOf(P,'bars')){
+    const st=e.start||0, du=Math.max(.05,e.dur||1); if(t<st || t>st+du) continue;
+    const q = e.slide ? smooth(clamp(Math.min((t-st)/.9, (st+du-t)/.9), 0, 1)) : 1;
+    bh = Math.max(bh, (e.amount ?? 10)/100*H*q);
   }
+  if(bh>0){ c.fillStyle='#000'; c.fillRect(0,0,W,bh); c.fillRect(0,H-bh,W,bh); }
 }
 function drawFlashes(c, P, W, H, t){
-  const fx = P.fx;
-  if(on(fx,'warp') && fx.warp.flash){ const te=(fx.warp.start||0)+(fx.warp.dur||2), d=t-te; const a = d<0 ? clamp(1+d/.18,0,1) : clamp(1-d/.55,0,1); if(a>0){ c.fillStyle=`rgba(255,255,255,${a})`; c.fillRect(0,0,W,H); } }
-  if(on(fx,'flash')){ const q=(t-(fx.flash.start||0))/Math.max(.05,fx.flash.dur||.6); if(q>=0&&q<=1){ const a=1-Math.abs(2*q-1); c.fillStyle = fx.flash.type==='black' ? `rgba(0,0,0,${a})` : `rgba(255,255,255,${a})`; c.fillRect(0,0,W,H); } }
+  for(const f of cineOf(P,'warp')) if(f.flash){ const te=(f.start||0)+(f.dur||2), d=t-te; const a = d<0 ? clamp(1+d/.18,0,1) : clamp(1-d/.55,0,1); if(a>0){ c.fillStyle=`rgba(255,255,255,${a})`; c.fillRect(0,0,W,H); } }
+  for(const f of cineOf(P,'flash')){ const q=(t-(f.start||0))/Math.max(.05,f.dur||.6); if(q>=0&&q<=1){ const a=1-Math.abs(2*q-1); c.fillStyle = f.kind==='black' ? `rgba(0,0,0,${a})` : `rgba(255,255,255,${a})`; c.fillRect(0,0,W,H); } }
 }
 
 /* ---- 1コマを描く:c は出力先、sc は作品の座標から出力の画素への倍率 ---- */
@@ -863,8 +839,8 @@ function renderFrame(c, P, W, H, t, sc, editing){
     c.drawImage(bg, -iw*sx/2, -ih*sy/2, iw*sx, ih*sy); c.restore(); c.globalAlpha = 1;
   }
   if(P.bgDim){ c.fillStyle=`rgba(0,0,0,${P.bgDim/100})`; c.fillRect(0,0,W,H); }
-  if(on(fx,'warp')) drawWarp(c, P, W, H, t, sc);
-  if(P.fxBehind){ drawEffects(c, P, W, H, t, sc); if(on(fx,'speed')) drawSpeedLines(c, P, W, H, t); }
+  for(const e of cineOf(P,'warp')) drawWarp(c, e, W, H, t, sc);
+  if(P.fxBehind){ drawEffects(c, P, W, H, t, sc); for(const e of cineOf(P,'speed')) drawSpeedLines(c, e, W, H, t); }
   // レイヤー
   for(const L of P.layers){
     if(L.hidden) continue;
@@ -881,9 +857,9 @@ function renderFrame(c, P, W, H, t, sc, editing){
     drawLayer(c, L, w, h, W, H, t, sc, editing, m);
     c.restore();
   }
-  if(!P.fxBehind){ drawEffects(c, P, W, H, t, sc); if(on(fx,'speed')) drawSpeedLines(c, P, W, H, t); }
+  if(!P.fxBehind){ drawEffects(c, P, W, H, t, sc); for(const e of cineOf(P,'speed')) drawSpeedLines(c, e, W, H, t); }
   if(P.frame){ c.globalAlpha = 1 - (P.frameTrans||0)/100; c.drawImage(P.frame, 0, 0, W, H); c.globalAlpha = 1; }
-  if(on(fx,'flare')) drawFlare(c, P, W, H, t);
+  for(const e of cineOf(P,'flare')) drawFlare(c, e, W, H, t);
   c.setTransform(sc,0,0,sc,0,0);
   drawFilm(c, P, W, H, t, sc);
   drawFlashes(c, P, W, H, t);
@@ -916,10 +892,8 @@ function newLayer(type, extra={}){
 }
 function sampleProject(){
   return {v:1, sizeMode:'bg', customW:1200, customH:1600, duration:6, bg:null, bgMotion:'zoomIn', bgDim:0, bgFit:'cover', bgColor:'#1a1424', bgScale:100, bgRot:0, bgX:0, bgY:0, bgTrans:0, frame:null, frameTrans:0, outro:false, fxBehind:false,
-    fx:{sparkle:{on:true, amount:45, size:1, color:'#fff6c8'}, confetti:{on:false, amount:70, size:1}, hearts:{on:false, amount:18, size:1, color:'#ff6fa3'},
-      warp:{on:false, start:0, dur:1.6, amount:260, color:'#cfe8ff', flash:true}, flare:{on:false, start:1, dur:2.5, size:1, color:'#9fd0ff'},
-      speed:{on:false, start:1, dur:1.2, amount:90, color:'#ffffff'}, shake:{on:false, start:1, dur:.6, amount:50},
-      flash:{on:false, type:'white', start:1, dur:.5}, bars:{on:false, amount:10, slide:true}, grain:{on:false, amount:40}, vig:{on:false, amount:50}},
+    fx:{sparkle:{on:true, amount:45, size:1, color:'#fff6c8'}, confetti:{on:false, amount:70, size:1}, hearts:{on:false, amount:18, size:1, color:'#ff6fa3'}},
+    cine:[],
     layers:[
       newLayer('image', {name:'写真', sample:true, x:.06, y:.1, w:.34, h:.8, border:14, borderColor:'#ffffff', anim:{in:'slideRight', start:.2, dur:.8, loop:'float', loopAmt:35, loopPeriod:3}}),
       newLayer('text', {name:'タイトル', text:'ライブ開催決定！', x:.45, y:.14, w:.5, h:.24, color:'#ffffff', strokeColor:'#c2457a', stroke:20, glow:true, glowColor:'#ffd6ea', anim:{in:'pop', start:.9, dur:.6, loop:'pulse', loopAmt:30, loopPeriod:2}}),
@@ -928,15 +902,47 @@ function sampleProject(){
       newLayer('image', {name:'ロゴ', shape:'rect', fit:'contain', shadow:false, x:.66, y:.8, w:.28, h:.13, anim:{in:'fade', start:3, dur:.8, loop:'none', loopAmt:50, loopPeriod:2}}),
     ]};
 }
+/* ---- 映画風の演出(何回でも・好きな時間に) ---- */
+const CINE = {
+  warp:  {name:'ワープ', color:'#5aa9ff', def:{dur:1.6, amount:260, color:'#cfe8ff', flash:true},
+          params:[['amount','星の数','range',50,600,10], ['color','星の色','color'], ['flash','最後に白く光る','check']]},
+  flare: {name:'レンズフレア', color:'#8fd3ff', def:{dur:2.5, size:1, color:'#9fd0ff'}, params:[['size','大きさ','pct',40,250,1], ['color','光の色','color']]},
+  speed: {name:'集中線', color:'#e0e0e0', def:{dur:1.2, amount:90, color:'#ffffff'}, params:[['amount','線の数','range',20,200,1], ['color','線の色','color']]},
+  shake: {name:'画面の揺れ', color:'#ff9f43', def:{dur:.6, amount:50}, params:[['amount','強さ','range',5,100,1]]},
+  flash: {name:'フラッシュ・暗転', color:'#ffe066', def:{dur:.5, kind:'white'}, params:[['kind','種類','select',{white:'白く光る', black:'暗転'}]]},
+  bars:  {name:'映画の黒帯', color:'#555', def:{dur:null, amount:10, slide:true}, params:[['amount','帯の太さ(%)','range',2,22,.5], ['slide','上下から出入りする','check']]},
+  grain: {name:'フィルムのざらつき', color:'#a68a64', def:{dur:null, amount:40}, params:[['amount','強さ','range',5,100,1]]},
+  vig:   {name:'周辺を暗くする', color:'#6b5b7b', def:{dur:null, amount:50}, params:[['amount','強さ','range',5,100,1]]},
+};
+function newCine(type, extra={}){
+  const d = CINE[type].def;
+  return {id:uid(), type, start:0, ...d, dur: d.dur ?? 6, ...extra};
+}
+// v2.0 までの「映画風の演出」(1種類1回)を、演出の一覧に引き継ぐ
+function migrateCine(p, d){
+  if(Array.isArray(d.cine)) return d.cine.filter(e => CINE[e.type]).map(e => ({...newCine(e.type), ...e}));
+  const out = [], fx = d.fx || {};
+  for(const type of Object.keys(CINE)){
+    const f = fx[type]; if(!f || !f.on) continue;
+    const e = newCine(type, {...f}); delete e.on;
+    if(type==='flash'){ e.kind = f.type || 'white'; }
+    if(['bars','grain','vig'].includes(type)){ e.start = 0; e.dur = p.duration; }
+    e.type = type; out.push(e);
+  }
+  return out;
+}
 function cinemaProject(){
   const p = sampleProject();
   Object.assign(p, {duration:7, bgMotion:'zoomIn', bgDim:45, outro:false});
   p.fx.sparkle.on = false;
-  Object.assign(p.fx.warp, {on:true, start:0, dur:1.6, amount:280, flash:true});
-  Object.assign(p.fx.speed, {on:true, start:1.75, dur:.8, amount:110});
-  Object.assign(p.fx.flare, {on:true, start:2.6, dur:2.6, size:1.1});
-  Object.assign(p.fx.bars, {on:true, amount:9, slide:true});
-  Object.assign(p.fx.grain, {on:true, amount:30}); Object.assign(p.fx.vig, {on:true, amount:55});
+  p.cine = [
+    newCine('warp', {start:0, dur:1.6, amount:280, flash:true}),
+    newCine('bars', {start:0, dur:7, amount:9, slide:true}),
+    newCine('grain', {start:0, dur:7, amount:30}), newCine('vig', {start:0, dur:7, amount:55}),
+    newCine('speed', {start:1.75, dur:.8, amount:110}),
+    newCine('flare', {start:2.6, dur:2.6, size:1.1}),
+    newCine('flash', {start:5.6, dur:.5, kind:'white'}),
+  ];
   p.layers = [
     newLayer('image', {name:'写真', sample:true, x:.06, y:.14, w:.32, h:.72, border:10, borderColor:'#ffffff', anim:{in:'saber', start:1.7, dur:.7, saberColor:'#7fdcff', loop:'float', loopAmt:25, loopPeriod:3.5, shine:'once', shineAt:3.4}}),
     newLayer('text', {name:'タイトル', text:'ライブ開催決定', font:'Dela Gothic One', x:.43, y:.16, w:.53, h:.26, color:'#ffffff', strokeColor:'#b3001b', stroke:14, glow:true, glowColor:'#ff4d6d', anim:{in:'stamp', start:1.8, dur:.55, shakeAmt:70, loop:'none', shine:'repeat', shineAt:2.8, shineEvery:2.2, shineColor:'#fff3c4'}}),
@@ -978,6 +984,7 @@ function draw(){
   renderFrame(cx, P, W, H, T, cv.width/W, true);
   $('time').textContent = `${T.toFixed(1)} / ${P.duration.toFixed(1)} 秒`;
   $('seek').value = Math.round(T/P.duration*1000);
+  placePlayhead();
 }
 function tick(now){
   if(playing){
@@ -999,9 +1006,7 @@ const G = [
   ['sizeMode', v=>v], ['customW', Number], ['customH', Number], ['duration', Number], ['bgMotion', v=>v], ['bgDim', Number], ['outro', v=>v], ['fxBehind', v=>v],
   ['bgFit', v=>v], ['bgColor', v=>v], ['bgScale', Number], ['bgRot', Number], ['bgX', Number], ['bgY', Number], ['bgTrans', Number], ['frameTrans', Number],
 ];
-const FXF = [['sparkle',['on','amount','size','color']], ['confetti',['on','amount','size']], ['hearts',['on','amount','size','color']],
-  ['warp',['on','start','dur','amount','color','flash']], ['flare',['on','start','dur','size','color']], ['speed',['on','start','dur','amount','color']],
-  ['shake',['on','start','dur','amount']], ['flash',['on','type','start','dur']], ['bars',['on','amount','slide']], ['grain',['on','amount']], ['vig',['on','amount']]];
+const FXF = [['sparkle',['on','amount','size','color']], ['confetti',['on','amount','size']], ['hearts',['on','amount','size','color']]];
 function setCtl(el, v){ if(el.type==='checkbox') el.checked=!!v; else el.value=v; el._upd && el._upd(); }
 function loadGlobal(){
   for(const [k] of G) setCtl($(k), P[k]);
@@ -1013,7 +1018,8 @@ for(const [k,conv] of G){
   const el=$(k);
   el.addEventListener('input', () => {
     P[k] = el.type==='checkbox' ? el.checked : conv(el.value);
-    if(k==='duration'){ T = Math.min(T, P.duration); for(const L of P.layers) L.anim.start = Math.min(L.anim.start, Math.max(0,P.duration-.1)); buildProps(); buildList(); }
+    if(k==='duration'){ T = Math.min(T, P.duration); for(const L of P.layers) L.anim.start = Math.min(L.anim.start, Math.max(0,P.duration-.1));
+      for(const e of P.cine||[]){ e.start = Math.min(e.start, Math.max(0,P.duration-.1)); e.dur = Math.min(e.dur, Math.max(.1, P.duration-e.start)); } buildProps(); buildList(); buildCine(); }
     if(k==='sizeMode'||k==='customW'||k==='customH'){ $('customBox').hidden = P.sizeMode!=='custom'; dimsChanged(); }
     if(k==='outro' && !playing) T = restT();
     changed();
@@ -1200,7 +1206,7 @@ document.addEventListener('keydown', e => {
 });
 
 /* ---- レイヤー一覧 ---- */
-function select(id){ selId=id; buildOverlay(); buildList(); buildProps(); }
+function select(id){ selId=id; buildOverlay(); buildList(); buildProps(); buildTimeline(); }
 function buildList(){
   const ul=$('layerList'); ul.innerHTML='';
   P.layers.forEach((L,i) => {
@@ -1393,11 +1399,144 @@ function loadFontsFor(){
   return Promise.all(ps).then(()=>{ layoutCache.clear(); redraw(); });
 }
 
+/* ---- 映画風の演出の一覧 ---- */
+const cineAdd = $('cineAdd');
+for(const [type, def] of Object.entries(CINE)){
+  const b=document.createElement('button'); b.type='button'; b.className='btn ghost small'; b.textContent='+ '+def.name;
+  b.onclick = () => {
+    const st = Math.round(Math.min(T, Math.max(0, P.duration-.2))*10)/10;
+    const e = newCine(type, {start: st}); if(def.def.dur==null) e.dur = Math.max(.5, P.duration - st);
+    e.dur = Math.min(e.dur, Math.max(.1, P.duration - st));
+    P.cine.push(e); openCine = e.id; buildCine(); changed(); msg(`${def.name}を ${st.toFixed(1)}秒 に追加しました。`);
+  };
+  cineAdd.appendChild(b);
+}
+let openCine = null;
+function buildCine(){
+  const box = $('cineList'); box.innerHTML='';
+  const list = [...(P.cine||[])].sort((a,b)=>a.start-b.start);
+  if(!list.length){ box.innerHTML='<p class="hint">まだ演出はありません。時間のつまみで入れたい時間にしてから、上のボタンを押してください。</p>'; return; }
+  for(const e of list){
+    const def = CINE[e.type];
+    const d = document.createElement('details'); d.className='cine'; if(e.id===openCine) d.open=true;
+    d.addEventListener('toggle', () => { if(d.open) openCine=e.id; });
+    const sm = document.createElement('summary');
+    sm.innerHTML = `<span class="dot" style="background:${def.color}"></span><span>${esc(def.name)}${e.off?'(お休み中)':''}</span><span class="when"></span>`;
+    const when = sm.querySelector('.when'); const upW = () => { when.textContent = `${(+e.start).toFixed(1)}〜${(+e.start + +e.dur).toFixed(1)}秒`; }; upW();
+    const body = document.createElement('div'); body.className='body';
+    const ctl = (k, label, kind, a1, a2, a3) => {
+      const L = document.createElement('label');
+      if(kind==='check'){ L.className='check'; L.innerHTML=`<input type="checkbox"> ${esc(label)}`; const i=L.querySelector('input'); i.checked=!!e[k]; i.onchange=()=>{ e[k]=i.checked; changed(true); }; return L; }
+      if(kind==='color'){ L.innerHTML=`${esc(label)}<input type="color">`; const i=L.querySelector('input'); i.value=e[k]; i.oninput=()=>{ e[k]=i.value; changed(true); }; return L; }
+      if(kind==='select'){ L.innerHTML=`${esc(label)}<select>${Object.entries(a1).map(([v,t])=>`<option value="${v}"${v===e[k]?' selected':''}>${esc(t)}</option>`).join('')}</select>`; const i=L.querySelector('select'); i.onchange=()=>{ e[k]=i.value; changed(true); }; return L; }
+      const pct = kind==='pct', sec = kind==='sec';
+      L.innerHTML=`<span class="lab"><span>${esc(label)}</span><output></output></span><input type="range" min="${a1}" max="${a2}" step="${a3}">`;
+      const i=L.querySelector('input'), o=L.querySelector('output');
+      const get = () => pct ? Math.round(e[k]*100) : e[k];
+      const show = () => { o.textContent = sec ? (+i.value).toFixed(1)+'秒' : pct ? i.value+'%' : i.value; };
+      i.value = get(); show(); i._sync = () => { i.value = get(); show(); };
+      i.oninput = () => { e[k] = pct ? +i.value/100 : +i.value; show(); upW(); changed(true); buildTimeline(); };
+      return L;
+    };
+    const row = (...els) => { const r=document.createElement('div'); r.className='row'; r.append(...els); return r; };
+    const stC = ctl('start','始める時間','sec',0,Math.max(.1,P.duration),.1), duC = ctl('dur','長さ','sec',.1,Math.max(.2,P.duration),.1);
+    e._sync = () => { stC.querySelector('input')._sync(); duC.querySelector('input')._sync(); upW(); };
+    body.append(row(stC, duC));
+    const ps = def.params.map(([k,label,kind,a,b2,c2]) => ctl(k,label,kind,a,b2,c2));
+    for(let i=0;i<ps.length;i+=2) body.append(row(...ps.slice(i,i+2)));
+    const bt = document.createElement('div'); bt.className='btns';
+    const mk = (t, cls, fn) => { const x=document.createElement('button'); x.type='button'; x.className=cls; x.textContent=t; x.onclick=fn; bt.appendChild(x); return x; };
+    mk('▶ 確認', 'btn small', () => play(Math.max(0, e.start-.5), Math.min(P.duration, e.start + e.dur + .6)));
+    mk('今の再生位置から始める', 'mini', () => { e.start = Math.round(Math.min(T, P.duration-.1)*10)/10; e._sync(); changed(true); buildTimeline(); });
+    mk(e.off ? 'お休みをやめる' : 'お休みする', 'mini', () => { e.off = !e.off; buildCine(); changed(); });
+    mk('複製', 'mini', () => { const c={...e, id:uid(), start: Math.min(P.duration-.1, e.start + e.dur)}; P.cine.push(c); openCine=c.id; buildCine(); changed(); });
+    let armed=false; const del = mk('削除', 'btn danger small', () => { if(!armed){ armed=true; del.textContent='もう一度押すと削除'; setTimeout(()=>{ armed=false; del.textContent='削除'; },3000); return; } P.cine = P.cine.filter(x=>x!==e); buildCine(); changed(); });
+    body.append(bt);
+    d.append(sm, body); box.appendChild(d);
+  }
+}
+
+/* ---- タイムライン ---- */
+const tl = $('tl');
+const snap = v => Math.round(v*10)/10;
+function tlItems(){
+  const rows = [];
+  rows.push({sec:'レイヤー'});
+  P.layers.forEach(L => {
+    const a = L.anim, blocks = [{kind:'in', start:a.start||0, dur:Math.max(.1,a.dur||.6), set:(s,d)=>{ a.start=s; a.dur=d; }}];
+    if(L.type==='crawl') blocks[0] = {kind:'in', start:a.start||0, dur:Math.max(.1, P.duration-(a.start||0)), set:(s)=>{ a.start=s; }, fixedEnd:true};
+    if(a.out && a.out!=='none') blocks.push({kind:'out', start:a.outStart ?? P.duration-1, dur:Math.max(.1,a.outDur ?? .8), set:(s,d)=>{ a.outStart=s; a.outDur=d; }});
+    const marks = a.shine && a.shine!=='none' ? [{t:a.shineAt ?? 2, set:v=>{ a.shineAt=v; }}] : [];
+    rows.push({label:L.name+(L.hidden?'(非表示)':''), color: null, blocks, marks, onLabel:()=>select(L.id), sel: L.id===selId});
+  });
+  if((P.cine||[]).length){
+    rows.push({sec:'映画風の演出'});
+    [...P.cine].sort((x,y)=>x.start-y.start).forEach(e => rows.push({label:CINE[e.type].name, color:CINE[e.type].color, off:e.off,
+      blocks:[{kind:'cine', start:e.start, dur:e.dur, set:(s,d)=>{ e.start=s; e.dur=d; e._sync && e._sync(); }}], marks:[], onLabel:()=>{ openCine=e.id; buildCine(); }}));
+  }
+  return rows;
+}
+function buildTimeline(){
+  const D = P.duration; tl.innerHTML='';
+  // 目盛り
+  const head = document.createElement('div'); head.className='tl-row head';
+  const hl = document.createElement('span'); hl.className='tl-lab'; hl.textContent='タイムライン';
+  const ht = document.createElement('div'); ht.className='tl-track tl-head-track';
+  const stepT = D>16 ? 2 : 1;
+  for(let s=0; s<=D+1e-6; s+=stepT){ const k=document.createElement('span'); k.className='tl-tick'; k.style.left=(s/D*100)+'%'; k.textContent=s+'s'; ht.appendChild(k); }
+  head.append(hl, ht); tl.appendChild(head);
+  const tracks = [ht];
+  for(const r of tlItems()){
+    if(r.sec){ const s=document.createElement('div'); s.className='tl-sec'; s.textContent=r.sec; tl.appendChild(s); continue; }
+    const row=document.createElement('div'); row.className='tl-row';
+    const lab=document.createElement('span'); lab.className='tl-lab'+(r.sel?' sel':''); lab.textContent=r.label; lab.title=r.label; lab.onclick=r.onLabel;
+    const tr=document.createElement('div'); tr.className='tl-track'; tracks.push(tr);
+    for(const b of r.blocks){
+      const el=document.createElement('div'); el.className='tl-blk'+(b.kind==='out'?' out':'');
+      if(r.color) el.style.background=r.color; if(r.off) el.style.opacity=.3;
+      const place=()=>{ el.style.left=(b.start/D*100)+'%'; el.style.width=(Math.min(b.dur, D-b.start)/D*100)+'%'; el.title=`${b.start.toFixed(1)}〜${(b.start+b.dur).toFixed(1)}秒(ドラッグで移動、右端で長さ)`; };
+      place();
+      if(!b.fixedEnd){ const rz=document.createElement('span'); rz.className='rz'; el.appendChild(rz); }
+      el.addEventListener('pointerdown', ev => {
+        ev.preventDefault(); ev.stopPropagation();
+        const resize = ev.target.classList.contains('rz'), w = tr.getBoundingClientRect().width, x0 = ev.clientX, s0=b.start, d0=b.dur;
+        try{ el.setPointerCapture(ev.pointerId); }catch(_){}
+        const mv = e2 => {
+          const dt = (e2.clientX - x0)/w*D;
+          if(resize) b.dur = clamp(snap(d0+dt), .1, D-b.start);
+          else { b.start = clamp(snap(s0+dt), 0, Math.max(0, D-.1)); if(b.fixedEnd) b.dur = D-b.start; }
+          b.set(b.start, b.dur); place(); T = clamp(b.start, 0, D); redraw(); 
+        };
+        const up = () => { el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up); changed(); if(selId) buildProps(); };
+        el.addEventListener('pointermove',mv); el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
+      });
+      tr.appendChild(el);
+    }
+    for(const mk of r.marks){
+      const el=document.createElement('div'); el.className='tl-dia'; el.style.left=(mk.t/D*100)+'%'; el.title=`キラッ ${mk.t.toFixed(1)}秒`;
+      el.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); const w=tr.getBoundingClientRect().width, x0=ev.clientX, t0=mk.t; try{ el.setPointerCapture(ev.pointerId); }catch(_){}
+        const mv=e2=>{ mk.t=clamp(snap(t0+(e2.clientX-x0)/w*D),0,D); mk.set(mk.t); el.style.left=(mk.t/D*100)+'%'; T=mk.t; redraw(); };
+        const up=()=>{ el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); changed(); if(selId) buildProps(); };
+        el.addEventListener('pointermove',mv); el.addEventListener('pointerup',up); });
+      tr.appendChild(el);
+    }
+    tr.addEventListener('pointerdown', ev => { if(ev.target!==tr) return; const r2=tr.getBoundingClientRect(); if(playing) stop(); T = clamp((ev.clientX-r2.left)/r2.width*D, 0, D); redraw(); });
+    row.append(lab, tr); tl.appendChild(row);
+  }
+  ht.addEventListener('pointerdown', ev => { const r2=ht.getBoundingClientRect(); if(playing) stop(); T = clamp((ev.clientX-r2.left)/r2.width*D, 0, D); redraw(); });
+  tlTracks = tracks; placePlayhead();
+}
+let tlTracks = [];
+function placePlayhead(){
+  for(const tr of tlTracks){ let ph = tr.querySelector('.tl-play'); if(!ph){ ph=document.createElement('div'); ph.className='tl-play'; tr.appendChild(ph); } ph.style.left = (T/P.duration*100)+'%'; }
+}
+
 /* ---- 変更・自動保存 ---- */
 let saveTimer=null;
 function changed(light){
   if(!playing) redraw();
   if(!light){ buildList(); }
+  buildTimeline();
   const b = selId && overlay.querySelector(`[data-id="${selId}"]`); const L = P.layers.find(l=>l.id===selId); if(b && L) placeBox(b,L);
   clearTimeout(saveTimer); saveTimer=setTimeout(autosave, 800);
 }
@@ -1408,7 +1547,7 @@ const DB = { db:null,
 };
 const blobOf = img => img && img._blob ? img._blob : null;
 function serialize(){
-  return {...P, bg: blobOf(P.bg), frame: blobOf(P.frame), fx: JSON.parse(JSON.stringify(P.fx)),
+  return {...P, bg: blobOf(P.bg), frame: blobOf(P.frame), fx: JSON.parse(JSON.stringify(P.fx)), cine: JSON.parse(JSON.stringify(P.cine||[])),
     layers: P.layers.map(L => ({...L, anim:{...L.anim}, img: blobOf(L.img), images: (L.images||[]).map(blobOf).filter(Boolean)})),
     fonts: userFonts.map(f => ({name:f.name, fam:f.fam, blob:f.blob}))};
 }
@@ -1422,6 +1561,7 @@ async function deserialize(d){
   const base = sampleProject();
   const p = {...base, ...d, fx:{}};
   for(const k of Object.keys(base.fx)) p.fx[k] = {...base.fx[k], ...((d.fx||{})[k]||{})};
+  p.cine = migrateCine(p, d);
   p.bg = await im(d.bg); p.frame = await im(d.frame);
   p.layers = [];
   for(const x of d.layers||[]){ const L = newLayer(['text','crawl'].includes(x.type) ? x.type : 'image'); Object.assign(L, x, {anim:{...L.anim, ...(x.anim||{})}}); L.img = await im(x.img);
@@ -1475,7 +1615,7 @@ $('newProj').onclick = () => {
   if(!newArmed){ newArmed=true; $('newProj').textContent='もう一度押すとやり直します'; setTimeout(()=>{ newArmed=false; $('newProj').textContent='サンプルからやり直す'; },3000); return; }
   newArmed=false; $('newProj').textContent='サンプルからやり直す'; P = sampleProject(); afterLoad(); changed(); ioMsg('サンプルの状態に戻しました。');
 };
-function afterLoad(){ selId=null; stop(); T = restT(); loadGlobal(); lastDims = artDims(); hideUndo(); sizeBoard(); buildOverlay(); buildList(); buildProps(); loadFontsFor(); redraw(); }
+function afterLoad(){ selId=null; stop(); T = restT(); loadGlobal(); lastDims = artDims(); hideUndo(); openCine=null; buildCine(); sizeBoard(); buildOverlay(); buildList(); buildProps(); loadFontsFor(); redraw(); }
 
 /* ---- 数値の表示 ---- */
 document.querySelectorAll('.panel input[type=range]').forEach(inp => {
