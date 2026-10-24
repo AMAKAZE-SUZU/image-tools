@@ -134,7 +134,7 @@ details.fxrow .row{display:flex}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>アニメポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.1 ・ 2026-10-21 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.2 ・ 2026-10-24 更新</a>
     <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪を重ねて、動くポスターをMP4かGIFで保存できます。最初はサンプルが入っています。</p>
   </header>
 
@@ -437,8 +437,9 @@ function motionOf(L, t, P){
     case 'wipe': m.wipe = e; break;
     case 'wipeDiag': m.wipeDiag = e; break;
     case 'saber': m.saber = p<1 ? smooth(p) : 1; m.saberGlow = p<1 ? 1 : clamp(1-(t-st-du)/.35, 0, 1); break;
-    case 'drop': m.chars = 'drop'; break;
-    case 'gather': m.chars = 'gather'; break;
+    case 'drop': case 'gather': case 'charFade': case 'charPop': case 'charSpin': case 'charFlip': case 'charRise':
+    case 'charSlide': case 'charZoom': case 'decode': case 'typeCursor': case 'draw': case 'marker':
+      if(L.type==='text') m.chars = a.in; break;
     case 'flip': {
       const n = (L.images||[]).length;
       if(p<1 && n){
@@ -450,7 +451,7 @@ function motionOf(L, t, P){
       break;
     }
   }
-  m.p = p; m.tau = t - st; m.du = du;
+  m.p = p; m.tau = t - st; m.du = du; m.t = t; m.D = D;
   // 登場のあとも続く動き(長さの中でちょうど繰り返すので、ループ再生がつながる)
   const amt = (a.loopAmt ?? 50)/100;
   if(a.loop && a.loop!=='none'){
@@ -462,6 +463,10 @@ function motionOf(L, t, P){
     if(a.loop==='spin') m.rot += 360*c*t/D;
     if(a.loop==='blink') m.alpha *= 1 - amt*.8*(.5-.5*Math.cos(ph));
     if(a.loop==='wave') m.wave = {ph, amt: amt*ramp};
+    if(a.loop==='hop') m.hop = {c, amt};
+    if(a.loop==='rainbow') m.rainbow = {c, amt};
+    if(a.loop==='jitter') m.jitter = amt;
+    if(a.loop==='bounce') m.dy -= Math.abs(Math.sin(ph))*.045*amt*ramp;
     if(a.loop==='flicker'){ const slot = Math.floor(t*12); if(rnd(slot, seedOf(L.id)+3) > 1 - .12*amt*2) m.alpha *= .25; m.neon = true; }
   }
   // キラッと光が走る:一度だけ/くり返し
@@ -476,7 +481,8 @@ function motionOf(L, t, P){
   if(a.out && a.out!=='none'){
     const q = clamp((t - (a.outStart ?? D-1)) / Math.max(.05, a.outDur ?? .6), 0, 1);
     const e2 = q*q*(3-2*q), to = (a.outTo ?? 100)/100;
-    m.alpha *= 1 - e2*to;
+    if(L.type==='text' && ['charOut','scatter','backspace'].includes(a.out)){ if(q>0) m.outChars = {type:a.out, q, to}; }
+    else m.alpha *= 1 - e2*to;
     if(a.out==='shrink') m.scale *= 1 - e2*.45*to;
     if(a.out==='grow') m.scale *= 1 + e2*.35*to;
     if(a.out==='up') m.dy -= e2*.08*to;
@@ -523,7 +529,7 @@ function drawImageLayer(c, L, w, h, sc, editing, m){
 }
 function drawTextLayer(c, L, w, h, W, H, reveal, sc, m){
   const lay = textLayout(L, W, H);
-  if(m && (m.wave || (m.chars && m.tau < m.du*1.05))) return drawTextChars(c, L, w, h, W, H, sc, m, lay);
+  if(m && (m.wave || m.hop || m.rainbow || m.jitter || m.outChars || m.chars==='marker' || (m.chars==='typeCursor' && m.tau < m.du+1.6) || (m.chars && m.tau < m.du*1.05))) return drawTextChars(c, L, w, h, W, H, sc, m, lay);
   const {lines, size, lh, font} = lay;
   c.font = fontStr(font, size); c.textBaseline='middle'; c.lineJoin='round'; c.miterLimit=2;
   const ax = L.align==='left' ? 0 : L.align==='right' ? w : w/2;
@@ -546,36 +552,87 @@ function drawTextLayer(c, L, w, h, W, H, reveal, sc, m){
   }
   c.shadowColor='transparent';
 }
+// 文字を1文字ずつ動かす。出る順番(左から・右から・中央から・ランダム)も選べる
+const DECODE_SET = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン0123456789ABCDEFGHJKLMNPQRSTUVWXYZ#$%&*+';
+function orderRanks(N, mode, seed){
+  const idx = [...Array(N).keys()];
+  if(mode==='rtl') return idx.map(k => N-1-k);
+  if(mode==='center'){ const m=(N-1)/2; const d = idx.map(k => Math.abs(k-m)); const s=[...idx].sort((x,y)=>d[x]-d[y]); const r=[]; s.forEach((k,i)=>r[k]=i); return r; }
+  if(mode==='random'){ const s=[...idx].sort((x,y)=>rnd(x,seed)-rnd(y,seed)); const r=[]; s.forEach((k,i)=>r[k]=i); return r; }
+  return idx;
+}
 function drawTextChars(c, L, w, h, W, H, sc, m, lay){
-  const {lines, size, lh, font} = lay;
+  const {lines, size, lh, font} = lay, a = L.anim || {};
   c.font = fontStr(font, size); c.textBaseline='middle'; c.lineJoin='round'; c.miterLimit=2; c.textAlign='left';
-  const sw = size*(L.stroke||0)/100, N = Math.max(1, lay.total);
-  const base = c.globalAlpha;
-  if(L.glow || m.neon){ c.shadowColor = L.glowColor||'#ffffff'; c.shadowBlur = size*.45*sc; }
-  let y = h/2 - (lines.length-1)*size*lh/2, k = 0;
-  for(const l of lines){
+  const sw = size*(L.stroke||0)/100, N = Math.max(1, lay.total), base = c.globalAlpha, sd = seedOf(L.id);
+  const ranks = orderRanks(N, a.order||'ltr', sd), U = k => N>1 ? ranks[k]/(N-1) : 0;
+  const tau = m.tau, du = m.du, ty = m.chars;
+  const glow = L.glow || m.neon;
+  // 何文字目まで出ているか(タイプライター)
+  const typed = ty==='typeCursor' ? Math.floor(clamp(tau/du,0,1)*N + 1e-6) : N;
+  let y = h/2 - (lines.length-1)*size*lh/2, k = 0, cursor = null;
+  lines.forEach((l, li) => {
     const lw = c.measureText(l).width, x0 = L.align==='left' ? 0 : L.align==='right' ? w-lw : (w-lw)/2;
+    // マーカー:行ごとに順番に引く
+    if(ty==='marker' && l){
+      const lq = easeOut(clamp((tau - li*.22*du)/(.6*du), 0, 1));
+      if(lq>0){ c.save(); c.globalAlpha = base*.85; c.fillStyle = a.markerColor || '#ff4f8b'; c.beginPath(); c.roundRect(x0 - size*.12, y - size*.05, (lw + size*.24)*lq, size*.55, size*.08); c.fill(); c.restore(); }
+    }
     const chars = [...l]; let pre = '';
     for(const ch of chars){
       const x = x0 + c.measureText(pre).width, cw = c.measureText(ch).width; pre += ch;
-      let dx=0, dy=0, rot=0, al=1;
-      if(m.chars==='drop'){
-        const q = clamp((m.tau - k/N*.55*m.du)/(.45*m.du), 0, 1);
-        dy = -(1-easeOutBounce(q))*size*4; al = q>0 ? 1 : 0;
-      } else if(m.chars==='gather'){
-        const q = clamp((m.tau - k/N*.35*m.du)/(.65*m.du), 0, 1), e = easeOut(q);
-        dx = (1-e)*(rnd(k,31)-.5)*W*.5; dy = (1-e)*(rnd(k,32)-.5)*H*.5; rot = (1-e)*(rnd(k,33)-.5)*540; al = clamp(q*3,0,1);
+      const u = U(k), stagger = (sp, len) => clamp((tau - u*sp*du)/(len*du), 0, 1);
+      let dx=0, dy=0, rot=0, al=1, sx=1, sy=1, show=ch, fillA=1, dash=null, clipLine=false, col=null;
+      switch(ty){
+        case 'drop': { const q=stagger(.55,.45); dy = -(1-easeOutBounce(q))*size*4; al = q>0?1:0; break; }
+        case 'gather': { const q=stagger(.35,.65), e=easeOut(q); dx=(1-e)*(rnd(k,31)-.5)*W*.5; dy=(1-e)*(rnd(k,32)-.5)*H*.5; rot=(1-e)*(rnd(k,33)-.5)*540; al=clamp(q*3,0,1); break; }
+        case 'charFade': { const q=stagger(.6,.4), e=easeOut(q); dy=(1-e)*size*.5; al=q; break; }
+        case 'charPop': { const q=stagger(.6,.4); sx=sy=Math.max(0, easeOutBack(q)); al=clamp(q*3,0,1); break; }
+        case 'charSpin': { const q=stagger(.6,.4), e=easeOut(q); rot=-(1-e)*360; sx=sy=.3+.7*e; al=q; break; }
+        case 'charFlip': { const q=stagger(.6,.4); sy=Math.max(.02, easeOutBack(q)); al=clamp(q*4,0,1); break; }
+        case 'charRise': { const q=stagger(.6,.4), e=easeOut(q); dy=(1-e)*size*1.05; clipLine=true; al=q>0?1:0; break; }
+        case 'charSlide': { const q=stagger(.6,.4), e=easeOut(q); dx=(1-e)*size*3; al=q; break; }
+        case 'charZoom': { const q=stagger(.6,.4), e=easeOut(q); sx=sy=1+(1-e)*2.6; al=q; break; }
+        case 'decode': { const q=stagger(.7,.3); if(q<1 && ch.trim()){ show = DECODE_SET[Math.floor(rnd(k, Math.floor(m.tau*22)+sd)*DECODE_SET.length)]; al = tau<0?0:.85; } break; }
+        case 'typeCursor': { if(k >= typed) al = 0; break; }
+        case 'draw': { const q=stagger(.5,.5); dash = q; fillA = clamp((q-.55)/.45,0,1); al = q>0?1:0; break; }
+        case 'marker': { al = clamp((tau - .15*du)/(.35*du), 0, 1); break; }
       }
       if(m.wave) dy += Math.sin(m.wave.ph + k*.55)*size*.18*m.wave.amt;
+      if(m.hop){ const cyc = m.hop.c*m.t/m.D; const loc = ((cyc % 1)*(N+4)) - ranks[k]*1; if(loc>0 && loc<1.2) dy -= Math.sin(Math.PI*clamp(loc/1.2,0,1))*size*.4*m.hop.amt; }
+      if(m.rainbow){ const hue = (k*28 + 360*m.rainbow.c*m.t/m.D) % 360; col = `hsl(${hue},${60+40*m.rainbow.amt}%,62%)`; }
+      if(m.jitter){ const slot = Math.floor(m.tau*20); dx += (rnd(k,slot+sd)-.5)*size*.08*m.jitter; dy += (rnd(k+97,slot+sd)-.5)*size*.08*m.jitter; }
+      if(m.outChars){
+        const {type, q, to} = m.outChars;
+        if(type==='charOut'){ const qq = clamp(q*1.6 - u*.6, 0, 1); al *= 1 - qq*to; dy -= qq*size*.4; }
+        if(type==='scatter'){ const qq = easeOut(q); dx += (rnd(k,61)-.5)*W*.6*qq; dy += (rnd(k,62)-.3)*H*.6*qq; rot += (rnd(k,63)-.5)*720*qq; al *= 1 - q*to; }
+        if(type==='backspace'){ if(k >= N - Math.floor(q*N*to + 1e-6)) al = 0; }
+      }
       if(al>0){
-        c.save(); c.globalAlpha = base*al; c.translate(x+cw/2+dx, y+dy); c.rotate(rot*Math.PI/180);
-        if(sw>0 && (L.strokeTrans||0)<100){ c.lineWidth=sw; c.strokeStyle=hexA(L.strokeColor, 1-(L.strokeTrans||0)/100); c.strokeText(ch, -cw/2, 0); }
-        if((L.fillTrans||0)<100){ c.fillStyle=hexA(L.color, 1-(L.fillTrans||0)/100); c.fillText(ch, -cw/2, 0); }
+        c.save(); c.globalAlpha = base*al;
+        if(clipLine){ c.beginPath(); c.rect(x - size, y - size*.62, cw + size*2, size*1.24); c.clip(); }
+        c.translate(x+cw/2+dx, y+dy); c.rotate(rot*Math.PI/180); c.scale(sx, sy);
+        if(glow){ c.shadowColor = L.glowColor||'#ffffff'; c.shadowBlur = size*.45*sc; }
+        const scw = c.measureText(show).width;
+        if(dash!=null){
+          const L2 = size*7; c.setLineDash([Math.max(.01, L2*dash), L2]); c.lineWidth = Math.max(sw, size*.035); c.strokeStyle = sw>0 ? L.strokeColor : L.color; c.strokeText(show, -scw/2, 0); c.setLineDash([]);
+          if(fillA>0){ c.globalAlpha = base*al*fillA; if(sw>0){ c.lineWidth=sw; c.strokeStyle=hexA(L.strokeColor, 1-(L.strokeTrans||0)/100); c.strokeText(show, -scw/2, 0); } c.fillStyle=hexA(L.color, 1-(L.fillTrans||0)/100); c.fillText(show, -scw/2, 0); }
+        } else {
+          if(sw>0 && (L.strokeTrans||0)<100){ c.lineWidth=sw; c.strokeStyle=hexA(L.strokeColor, 1-(L.strokeTrans||0)/100); c.strokeText(show, -scw/2, 0); }
+          if((L.fillTrans||0)<100){ c.fillStyle = col || hexA(L.color, 1-(L.fillTrans||0)/100); c.fillText(show, -scw/2, 0); }
+        }
         c.restore();
       }
+      if(ty==='typeCursor' && k === typed-1) cursor = {x: x+cw, y};
       k++;
     }
+    if(ty==='typeCursor' && typed===0 && li===0) cursor = {x: x0, y};
     y += size*lh;
+  });
+  // タイプライターのカーソル(打っている間は点いたまま、打ち終わると点滅して消える)
+  if(ty==='typeCursor' && cursor && tau >= 0){
+    const done = tau > du, on = !done || (Math.floor((tau-du)*2.6) % 2 === 0);
+    if(on && tau < du + 1.6){ c.save(); c.globalAlpha = base; c.fillStyle = L.color; c.fillRect(cursor.x + size*.06, cursor.y - size*.45, Math.max(2, size*.08), size*.9); c.restore(); }
   }
   c.shadowColor='transparent';
 }
@@ -873,9 +930,19 @@ const KIND = {image:'画像', text:'文字', crawl:'流れる文字'};
 const IN_NAMES = {none:'なし(すぐ表示)', fade:'ふわっと出る', slideUp:'下から上へ', slideDown:'上から下へ', slideLeft:'右から入る', slideRight:'左から入る', zoom:'ズームして出る', pop:'ぽよんと飛び出す', spin:'くるっと回って出る', blur:'ぼかしから出る', type:'1文字ずつ出る(文字だけ)',
   stamp:'ドン!とスタンプ(画面が揺れる)', glitch:'グリッチ(デジタルノイズ)', neon:'ネオン点灯(ちらついて点く)', wipe:'横から開く(ワイプ)', wipeDiag:'斜めに開く(ワイプ)', saber:'光の線で切り出す',
   drop:'1文字ずつ落ちてくる(文字だけ)', gather:'ばらばらから集まる(文字だけ)', flip:'写真がパラパラ切り替わる(画像だけ)'};
-const TEXT_ONLY_IN = ['type','drop','gather'], IMAGE_ONLY_IN = ['flip'], CRAWL_IN = ['none','fade','wipe','glitch'];
-const OUT_NAMES = {none:'なし', fade:'だんだん透明になる', shrink:'小さくなりながら透明に', grow:'大きくなりながら透明に', up:'上へ動きながら透明に', down:'下へ動きながら透明に', blur:'ぼやけながら透明に'};
-const LOOP_NAMES = {none:'なし', float:'ふわふわ上下', sway:'ゆらゆら傾く', pulse:'どきどき拡大縮小', spin:'くるくる回る', blink:'ちかちか点滅', wave:'文字が波打つ(文字だけ)', flicker:'ときどきちらつく(ネオン風)'};
+const TEXT_IN_NAMES = {charFade:'1文字ずつふわっと', charPop:'1文字ずつぽよん', charSpin:'1文字ずつくるっと', charFlip:'1文字ずつ起き上がる', charRise:'下からせり上がる',
+  charSlide:'1文字ずつ横から滑り込む', charZoom:'1文字ずつ大きく降りてくる', decode:'ランダムな文字から決まる(デコード)', typeCursor:'タイプライター(カーソル付き)',
+  draw:'線で描いてから色がつく', marker:'マーカーを引いて出す'};
+Object.assign(IN_NAMES, TEXT_IN_NAMES);
+const CHAR_ORDER_IN = ['drop','gather','charFade','charPop','charSpin','charFlip','charRise','charSlide','charZoom','decode','draw'];
+const ORDER_NAMES = {ltr:'左から', rtl:'右から', center:'中央から', random:'ランダム'};
+const TEXT_ONLY_IN = ['type','drop','gather', ...Object.keys(TEXT_IN_NAMES)], IMAGE_ONLY_IN = ['flip'], CRAWL_IN = ['none','fade','wipe','glitch'];
+const OUT_NAMES = {none:'なし', fade:'だんだん透明になる', shrink:'小さくなりながら透明に', grow:'大きくなりながら透明に', up:'上へ動きながら透明に', down:'下へ動きながら透明に', blur:'ぼやけながら透明に',
+  charOut:'1文字ずつ消える(文字だけ)', scatter:'ばらばらに散る(文字だけ)', backspace:'後ろから消していく(文字だけ)'};
+const TEXT_ONLY_OUT = ['charOut','scatter','backspace'];
+const LOOP_NAMES = {none:'なし', float:'ふわふわ上下', sway:'ゆらゆら傾く', pulse:'どきどき拡大縮小', spin:'くるくる回る', blink:'ちかちか点滅', wave:'文字が波打つ(文字だけ)', flicker:'ときどきちらつく(ネオン風)',
+  hop:'1文字ずつ順番にジャンプ(文字だけ)', rainbow:'虹色に光る(文字だけ)', jitter:'ぷるぷる震える(文字だけ)', bounce:'ぽんぽん弾む'};
+const TEXT_ONLY_LOOP = ['wave','hop','rainbow','jitter'];
 const SHINE_NAMES = {none:'なし', once:'一度だけ', repeat:'くり返す'};
 let userFonts = [];   // 追加したフォント {name, fam, blob}
 let userFontN = 0;
@@ -1283,9 +1350,16 @@ function buildProps(){
   if(L.type!=='text') TEXT_ONLY_IN.forEach(k=>delete inMap[k]);
   if(L.type!=='image') IMAGE_ONLY_IN.forEach(k=>delete inMap[k]);
   if(L.type==='crawl') for(const k of Object.keys(inMap)) if(!CRAWL_IN.includes(k)) delete inMap[k];
-  const loopMap = {...LOOP_NAMES}; if(L.type!=='text') delete loopMap.wave; if(L.type==='crawl') for(const k of Object.keys(loopMap)) if(k!=='none' && k!=='flicker') delete loopMap[k];
+  const loopMap = {...LOOP_NAMES}; if(L.type!=='text') TEXT_ONLY_LOOP.forEach(k=>delete loopMap[k]);
+  const outMap = {...OUT_NAMES}; if(L.type!=='text') TEXT_ONLY_OUT.forEach(k=>delete outMap[k]); if(L.type==='crawl') for(const k of Object.keys(loopMap)) if(k!=='none' && k!=='flicker') delete loopMap[k];
   H.push(`<p class="sub">アニメーション</p>`);
-  H.push(`<label>登場の動き<select id="pa_in">${opts(inMap, L.anim.in)}</select></label>`);
+  const grp = (title, keys) => { const ks = keys.filter(k => k in inMap); return ks.length ? `<optgroup label="${title}">${ks.map(k=>`<option value="${k}"${k===L.anim.in?' selected':''}>${esc(inMap[k])}</option>`).join('')}</optgroup>` : ''; };
+  const textKeys = ['type', ...Object.keys(TEXT_IN_NAMES), 'drop', 'gather'];
+  const fxKeys = ['stamp','glitch','neon','wipe','wipeDiag','saber','flip'];
+  const basicKeys = Object.keys(inMap).filter(k => !textKeys.includes(k) && !fxKeys.includes(k));
+  H.push(`<label>登場の動き<select id="pa_in">${grp('基本', basicKeys)}${grp('文字の動き', textKeys)}${grp('演出', fxKeys)}</select></label>`);
+  H.push(`<div id="pa_orderBox" class="row"><label>出る順番<select id="pa_order">${opts(ORDER_NAMES, L.anim.order||'ltr')}</select></label></div>`);
+  H.push(`<div id="pa_markerBox"><label>マーカーの色<input type="color" id="pa_markerColor"></label></div>`);
   H.push(`<div class="row">${range('pa_start','登場する時間(秒)',0,Math.max(.1,P.duration-.1),.1)}${range('pa_dur','登場にかける時間(秒)',.1,4,.1)}</div>`);
   H.push(`<div id="pa_stampBox">${range('pa_shakeAmt','画面の揺れの強さ',0,100,1)}</div>`);
   H.push(`<div id="pa_saberBox"><label>光の線の色<input type="color" id="pa_saberColor"></label></div>`);
@@ -1299,7 +1373,7 @@ function buildProps(){
     H.push(`<div id="pa_shineBox" style="display:flex;flex-direction:column;gap:10px"><div class="row">${range('pa_shineAt','光る時間(秒)',0,Math.max(.1,P.duration),.1)}<span id="pa_everyWrap" style="flex:1 1 110px">${range('pa_shineEvery','くり返す間隔(秒)',1,8,.1)}</span></div><label>光の色<input type="color" id="pa_shineColor"></label></div>`);
   }
   H.push(`<p class="sub">途中で透明にする・消す</p>`);
-  H.push(`<label>動き<select id="pa_out">${opts(OUT_NAMES, L.anim.out||'none')}</select></label>`);
+  H.push(`<label>動き<select id="pa_out">${opts(outMap, L.anim.out||'none')}</select></label>`);
   H.push(`<div id="pa_outBox" style="display:flex;flex-direction:column;gap:10px"><div class="row">${range('pa_outStart','始める時間(秒)',0,Math.max(.1,P.duration),.1)}${range('pa_outDur','かける時間(秒)',.1,6,.1)}</div>${range('pa_outTo','最後の透明度(100で完全に消える)',5,100,1)}<div class="btns"><button type="button" class="btn ghost small" id="p_previewOut">▶ 透明になる動きを確認</button><button type="button" class="mini" id="p_outNow">今の再生位置から始める</button></div></div>`);
   H.push(`<div class="btns"><button type="button" class="btn small" id="p_preview">▶ この動きを確認</button><button type="button" class="btn ghost small" id="p_hide">${L.hidden?'表示する':'非表示にする'}</button><button type="button" class="btn ghost small" id="p_dup">複製</button><button type="button" class="btn danger small" id="p_del">削除</button></div>`);
   box.innerHTML = H.join('');
@@ -1370,6 +1444,7 @@ function buildProps(){
   $('pa_out').addEventListener('change', ()=>buildList()); $('pa_outStart').addEventListener('input', ()=>buildList());
   $('p_previewOut').onclick = () => { const s=Math.max(0,(L.anim.outStart??0)-.5); play(s, Math.min(P.duration, (L.anim.outStart??0)+(L.anim.outDur??.8)+.8)); };
   $('p_outNow').onclick = () => { L.anim.outStart = Math.round(T*10)/10; setCtl($('pa_outStart'), L.anim.outStart); $('pa_outStart_o').textContent = L.anim.outStart.toFixed(1)+'秒'; buildList(); changed(true); };
+  bind('pa_order', ()=>L.anim.order||'ltr', v=>{ L.anim.order=v; }); bind('pa_markerColor', ()=>L.anim.markerColor||'#ff4f8b', v=>{ L.anim.markerColor=v; });
   bind('pa_shakeAmt', ...A('shakeAmt',true)); bind('pa_saberColor', ...A('saberColor')); bind('pa_flipRate', ...A('flipRate',true), v=>v+'枚');
   bind('pa_flipTint', ...A('flipTint')); bind('pa_flipTintAmt', ...A('flipTintAmt',true), v=>v+'%');
   if($('pa_shine')){ bind('pa_shine', ...A('shine')); bind('pa_shineAt', ...A('shineAt',true), v=>(+v).toFixed(1)+'秒'); bind('pa_shineEvery', ...A('shineEvery',true), v=>(+v).toFixed(1)+'秒'); bind('pa_shineColor', ...A('shineColor')); }
@@ -1388,6 +1463,7 @@ function refreshVis(){
   const lb=$('pa_loopBox'); if(lb) lb.hidden = L.anim.loop==='none';
   const ob=$('pa_outBox'); if(ob) ob.hidden = !L.anim.out || L.anim.out==='none';
   const vis = (id, v) => { const e=$(id); if(e) e.hidden = !v; };
+  vis('pa_orderBox', CHAR_ORDER_IN.includes(L.anim.in)); vis('pa_markerBox', L.anim.in==='marker');
   vis('pa_stampBox', L.anim.in==='stamp'); vis('pa_saberBox', L.anim.in==='saber'); vis('pa_flipBox', L.anim.in==='flip');
   vis('pa_shineBox', L.anim.shine && L.anim.shine!=='none'); vis('pa_everyWrap', L.anim.shine==='repeat');
   const sb=$('p_sizeBox'); if(sb) sb.hidden = L.fit==='fill';
