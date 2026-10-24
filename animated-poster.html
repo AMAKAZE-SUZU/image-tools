@@ -139,7 +139,7 @@ details.fxrow .row{display:flex}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>アニメポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.5 ・ 2026-10-24 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.6 ・ 2026-10-24 更新</a>
     <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪やBGMを重ねて、動くポスターや短い動画をMP4かGIFで保存できます。最初はサンプルが入っています。</p>
   </header>
 
@@ -459,7 +459,7 @@ function motionOf(L, t, P){
     case 'wipeDiag': m.wipeDiag = e; break;
     case 'saber': m.saber = p<1 ? smooth(p) : 1; m.saberGlow = p<1 ? 1 : clamp(1-(t-st-du)/.35, 0, 1); break;
     case 'drop': case 'gather': case 'charFade': case 'charPop': case 'charSpin': case 'charFlip': case 'charRise':
-    case 'charSlide': case 'charZoom': case 'decode': case 'typeCursor': case 'draw': case 'marker':
+    case 'charSlide': case 'charZoom': case 'decode': case 'typeCursor': case 'draw': case 'marker': case 'tracking':
       if(L.type==='text') m.chars = a.in; break;
     case 'flip': {
       const n = (L.images||[]).length;
@@ -600,8 +600,8 @@ function drawTextChars(c, L, w, h, W, H, sc, m, lay){
       const lq = easeOut(clamp((tau - li*.22*du)/(.6*du), 0, 1));
       if(lq>0){ c.save(); c.globalAlpha = base*.85; c.fillStyle = a.markerColor || '#ff4f8b'; c.beginPath(); c.roundRect(x0 - size*.12, y - size*.05, (lw + size*.24)*lq, size*.55, size*.08); c.fill(); c.restore(); }
     }
-    const chars = [...l]; let pre = '';
-    for(const ch of chars){
+    const chars = [...l]; let pre = '', ci = -1;
+    for(const ch of chars){ ci++;
       const x = x0 + c.measureText(pre).width, cw = c.measureText(ch).width; pre += ch;
       const u = U(k), stagger = (sp, len) => clamp((tau - u*sp*du)/(len*du), 0, 1);
       let dx=0, dy=0, rot=0, al=1, sx=1, sy=1, show=ch, fillA=1, dash=null, clipLine=false, col=null;
@@ -619,6 +619,9 @@ function drawTextChars(c, L, w, h, W, H, sc, m, lay){
         case 'typeCursor': { if(k >= typed) al = 0; break; }
         case 'draw': { const q=stagger(.5,.5); dash = q; fillA = clamp((q-.55)/.45,0,1); al = q>0?1:0; break; }
         case 'marker': { al = clamp((tau - .15*du)/(.35*du), 0, 1); break; }
+        // 字間を詰めながら出る:広く空いた字間が、ゆっくり元の間隔まで詰まっていく(映画のエンドカード風)
+        case 'tracking': { const q = clamp(tau/du, 0, 1), e = 1 - Math.pow(1-q, 3), spr = (a.trackAmt ?? 50)/100*1.5;
+          dx = (ci - (chars.length-1)/2)*size*spr*(1-e); al = tau < 0 ? 0 : easeOut(clamp(q*1.4, 0, 1)); sx = sy = 1 + (a.trackZoom ?? 0)/100*.15*(1-e); break; }
       }
       if(m.wave) dy += Math.sin(m.wave.ph + k*.55)*size*.18*m.wave.amt;
       if(m.hop){ const cyc = m.hop.c*m.t/m.D; const loc = ((cyc % 1)*(N+4)) - ranks[k]*1; if(loc>0 && loc<1.2) dy -= Math.sin(Math.PI*clamp(loc/1.2,0,1))*size*.4*m.hop.amt; }
@@ -1113,7 +1116,7 @@ const IN_NAMES = {none:'なし(すぐ表示)', fade:'ふわっと出る', slideU
   drop:'1文字ずつ落ちてくる(文字だけ)', gather:'ばらばらから集まる(文字だけ)', flip:'写真がパラパラ切り替わる(画像だけ)'};
 const TEXT_IN_NAMES = {charFade:'1文字ずつふわっと', charPop:'1文字ずつぽよん', charSpin:'1文字ずつくるっと', charFlip:'1文字ずつ起き上がる', charRise:'下からせり上がる',
   charSlide:'1文字ずつ横から滑り込む', charZoom:'1文字ずつ大きく降りてくる', decode:'ランダムな文字から決まる(デコード)', typeCursor:'タイプライター(カーソル付き)',
-  draw:'線で描いてから色がつく', marker:'マーカーを引いて出す'};
+  draw:'線で描いてから色がつく', marker:'マーカーを引いて出す', tracking:'字間を詰めながら出る(映画風)'};
 Object.assign(IN_NAMES, TEXT_IN_NAMES);
 const CHAR_ORDER_IN = ['drop','gather','charFade','charPop','charSpin','charFlip','charRise','charSlide','charZoom','decode','draw'];
 const ORDER_NAMES = {ltr:'左から', rtl:'右から', center:'中央から', random:'ランダム'};
@@ -1598,6 +1601,7 @@ function buildProps(){
   H.push(`<label>登場の動き<select id="pa_in">${grp('基本', basicKeys)}${grp('文字の動き', textKeys)}${grp('演出', fxKeys)}</select></label>`);
   H.push(`<div id="pa_orderBox" class="row"><label>出る順番<select id="pa_order">${opts(ORDER_NAMES, L.anim.order||'ltr')}</select></label></div>`);
   H.push(`<div id="pa_markerBox"><label>マーカーの色<input type="color" id="pa_markerColor"></label></div>`);
+  H.push(`<div id="pa_trackBox" class="row">${range('pa_trackAmt','最初の字間の広さ',0,100,1)}${range('pa_trackZoom','少し大きい所から縮む',0,100,1)}</div>`);
   H.push(`<div class="row">${range('pa_start','登場する時間(秒)',0,Math.max(.1,P.duration-.1),.1)}${range('pa_dur','登場にかける時間(秒)',.1,4,.1)}</div>`);
   H.push(`<div id="pa_stampBox">${range('pa_shakeAmt','画面の揺れの強さ',0,100,1)}</div>`);
   H.push(`<div id="pa_saberBox"><label>光の線の色<input type="color" id="pa_saberColor"></label></div>`);
@@ -1710,6 +1714,7 @@ function buildProps(){
   $('p_previewOut').onclick = () => { const s=Math.max(0,(L.anim.outStart??0)-.5); play(s, Math.min(P.duration, (L.anim.outStart??0)+(L.anim.outDur??.8)+.8)); };
   $('p_outNow').onclick = () => { L.anim.outStart = Math.round(T*10)/10; setCtl($('pa_outStart'), L.anim.outStart); $('pa_outStart_o').textContent = L.anim.outStart.toFixed(1)+'秒'; buildList(); changed(true); };
   bind('pa_order', ()=>L.anim.order||'ltr', v=>{ L.anim.order=v; }); bind('pa_markerColor', ()=>L.anim.markerColor||'#ff4f8b', v=>{ L.anim.markerColor=v; });
+  bind('pa_trackAmt', ()=>L.anim.trackAmt ?? 50, v=>{ L.anim.trackAmt=+v; }); bind('pa_trackZoom', ()=>L.anim.trackZoom ?? 0, v=>{ L.anim.trackZoom=+v; });
   bind('pa_shakeAmt', ...A('shakeAmt',true)); bind('pa_saberColor', ...A('saberColor')); bind('pa_flipRate', ...A('flipRate',true), v=>v+'枚');
   bind('pa_flipTint', ...A('flipTint')); bind('pa_flipTintAmt', ...A('flipTintAmt',true), v=>v+'%');
   if($('pa_shine')){ bind('pa_shine', ...A('shine')); bind('pa_shineAt', ...A('shineAt',true), v=>(+v).toFixed(1)+'秒'); bind('pa_shineEvery', ...A('shineEvery',true), v=>(+v).toFixed(1)+'秒'); bind('pa_shineColor', ...A('shineColor')); }
@@ -1728,7 +1733,7 @@ function refreshVis(){
   const lb=$('pa_loopBox'); if(lb) lb.hidden = L.anim.loop==='none';
   const ob=$('pa_outBox'); if(ob) ob.hidden = !L.anim.out || L.anim.out==='none';
   const vis = (id, v) => { const e=$(id); if(e) e.hidden = !v; };
-  vis('pa_orderBox', CHAR_ORDER_IN.includes(L.anim.in)); vis('pa_markerBox', L.anim.in==='marker');
+  vis('pa_orderBox', CHAR_ORDER_IN.includes(L.anim.in)); vis('pa_markerBox', L.anim.in==='marker'); vis('pa_trackBox', L.anim.in==='tracking');
   vis('pa_stampBox', L.anim.in==='stamp'); vis('pa_saberBox', L.anim.in==='saber'); vis('pa_flipBox', L.anim.in==='flip');
   vis('pa_shineBox', L.anim.shine && L.anim.shine!=='none'); vis('pa_everyWrap', L.anim.shine==='repeat');
   const sb=$('p_sizeBox'); if(sb) sb.hidden = L.fit==='fill';
