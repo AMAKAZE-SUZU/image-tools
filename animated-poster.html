@@ -139,7 +139,7 @@ details.fxrow .row{display:flex}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>アニメポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.3 ・ 2026-10-24 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.4 ・ 2026-10-24 更新</a>
     <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪やBGMを重ねて、動くポスターや短い動画をMP4かGIFで保存できます。最初はサンプルが入っています。</p>
   </header>
 
@@ -272,6 +272,7 @@ details.fxrow .row{display:flex}
           <button type="button" class="btn ghost small" data-add="image">+ 写真・画像</button>
           <button type="button" class="btn ghost small" data-add="text">+ 文字</button>
           <button type="button" class="btn ghost small" data-add="crawl">+ 奥へ流れる文字</button>
+          <button type="button" class="btn ghost small" data-add="logo">+ 画像が動くロゴ文字</button>
         </div>
       </fieldset>
 
@@ -687,6 +688,93 @@ function drawCrawl(c, L, w, h, W, H, t){
   c.restore(); c.globalAlpha = baseA;
 }
 
+/* ---- ロゴ文字(文字の形にくり抜いた中で、画像がパラパラ切り替わったり動いたりする) ---- */
+let LOGO_SAMPLES = null;
+function logoSamples(){
+  if(LOGO_SAMPLES) return LOGO_SAMPLES;
+  LOGO_SAMPLES = [200, 330, 20, 270, 170, 45].map((hue, i) => {
+    const c=document.createElement('canvas'); c.width=640; c.height=400; const g=c.getContext('2d');
+    const gr=g.createLinearGradient(0,0,640,400); gr.addColorStop(0,`hsl(${hue},70%,28%)`); gr.addColorStop(1,`hsl(${(hue+40)%360},80%,58%)`);
+    g.fillStyle=gr; g.fillRect(0,0,640,400);
+    for(let k=0;k<26;k++){ g.fillStyle=`rgba(255,255,255,${.05+rnd(k,i+40)*.12})`; g.beginPath(); g.arc(rnd(k,i+41)*640, rnd(k,i+42)*400, 10+rnd(k,i+43)*70, 0, Math.PI*2); g.fill(); }
+    g.fillStyle='rgba(0,0,0,.18)'; for(let y=0;y<400;y+=12) for(let x=(y/12%2)*6;x<640;x+=12){ g.beginPath(); g.arc(x,y,2.2,0,Math.PI*2); g.fill(); }
+    const cx = 160 + rnd(i,44)*320, s = 1 + rnd(i,45)*.5;   // 人の形(頭と肩)
+    g.fillStyle=`hsl(${(hue+180)%360},60%,82%)`; g.beginPath(); g.arc(cx, 190, 52*s, 0, Math.PI*2); g.fill();
+    g.beginPath(); g.ellipse(cx, 400, 120*s, 150*s, 0, Math.PI, 0); g.fill();
+    return c;
+  });
+  return LOGO_SAMPLES;
+}
+function logoLayout(L, w, h){
+  const f = fontOf(L), sp = (L.spacing||0)/100;
+  const pr = L.plateOn ? (L.platePad ?? 18)/100 : 0;
+  const key = JSON.stringify(['logo', L.text, f.fam, f.w, w, h, L.lineHeight, sp, pr]);
+  if(layoutCache.has(key)) return layoutCache.get(key);
+  const lines = String(L.text||'').split('\n'), lh = L.lineHeight || 1.05;
+  measureCtx.font = fontStr(f, 100); measureCtx.letterSpacing = '0px';
+  const ws = lines.map(l => measureCtx.measureText(l).width + sp*100*Math.max(0, [...l].length-1));
+  const maxW = Math.max(1, ...ws);
+  const size = Math.max(4, Math.min(h*.98/((lines.length-1)*lh + 1 + pr*1.4), w*.98/(maxW/100 + pr*2)));   // 板も枠に収まる大きさ
+  const r = {lines, size, lh, sp, font:f, tw: maxW*size/100, th: ((lines.length-1)*lh + 1)*size}; layoutCache.set(key, r); return r;
+}
+function logoState(L, t){
+  const st = L.anim.start||0, end = Math.max(st+.1, L.logoSettleAt ?? st+3), sd = Math.max(.05, L.logoSettleDur ?? .8);
+  const T = end - st, u = clamp((t-st)/T, 0, 1), r = L.logoRate ?? 10, ac = L.logoAccel || 'up';
+  const f = ac==='up' ? .4*u + .6*u*u : ac==='down' ? 1.6*u - .6*u*u : u;
+  const zq = easeOut(clamp((t-st)/(T+sd), 0, 1));
+  return {u, idx: Math.floor(r*T*f + 1e-6), settle: L.logoKeep ? 0 : smooth(clamp((t-end)/sd, 0, 1)), zoom: 1 + ((L.logoZoom ?? 135)/100 - 1)*(1-zq)};
+}
+function drawLogoInner(g, img, L, x, y, w, h, s, i){
+  const iw = img.naturalWidth||img.width, ih = img.naturalHeight||img.height;
+  let k = (L.logoFit==='contain' ? Math.min(w/iw, h/ih) : Math.max(w/iw, h/ih)), ox = 0, oy = 0;
+  const mv = L.logoMove || 'zoom', u = s.u;
+  if(mv==='zoom') k *= 1.28 - .22*u;
+  else if(mv==='panL'){ k *= 1.2; ox = (.5-u)*w*.16; }
+  else if(mv==='panUp'){ k *= 1.2; oy = (.5-u)*h*.2; }
+  if(s.u < 1 && mv!=='none'){ ox += (rnd(i,71)-.5)*w*.08; oy += (rnd(i,72)-.5)*h*.08; }   // 1枚ごとに少しずらしてコマ送りらしく
+  g.drawImage(img, x + w/2 + ox - iw*k/2, y + h/2 + oy - ih*k/2, iw*k, ih*k);
+}
+const logoCv = document.createElement('canvas');
+function drawLogo(c, L, w, h, W, H, t, sc){
+  const lay = logoLayout(L, w, h), s = logoState(L, t);
+  const ims = (L.images && L.images.length) ? L.images : logoSamples(), n = ims.length;
+  const i = s.u >= 1 ? n-1 : ((s.idx % n) + n) % n, img = ims[i];
+  const Tm = c.getTransform(), px = Math.hypot(Tm.a, Tm.b) || 1, z = s.zoom;
+  const {lines, size, lh, sp, font, tw, th} = lay;
+  c.save(); c.translate(w/2, h/2); c.scale(z, z); c.translate(-w/2, -h/2);
+  // 文字の後ろの板
+  const pad = size*(L.platePad ?? 18)/100;
+  const pr = [w/2 - tw/2 - pad, h/2 - th/2 - pad*.7, tw + pad*2, th + pad*1.4];
+  if(L.plateOn){ c.fillStyle = hexA(L.plateColor || '#d81b4a', 1 - (L.plateTrans||0)/100); c.fillRect(...pr); }
+  // 文字の外にも画像を薄く見せる
+  const outA = (L.logoOutside||0)/100 * (1 - s.settle);
+  if(outA > 0){ c.save(); const ba = c.globalAlpha; c.beginPath(); if(L.plateOn) c.rect(...pr); else c.rect(0, 0, w, h); c.clip(); c.globalAlpha = ba*outA; drawLogoInner(c, img, L, 0, 0, w, h, s, i); c.restore(); }
+  // 文字の形にくり抜いた画像を、別のキャンバスに描いてから重ねる
+  const m = size*.35, ow = w + m*2, oh = h + m*2;
+  const k = Math.max(.05, Math.min(px*z, 4096/Math.max(ow, oh)));
+  const cw = Math.max(1, Math.ceil(ow*k)), ch = Math.max(1, Math.ceil(oh*k));
+  if(logoCv.width!==cw || logoCv.height!==ch){ logoCv.width = cw; logoCv.height = ch; }
+  const g = logoCv.getContext('2d');
+  g.setTransform(1,0,0,1,0,0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over'; g.shadowColor = 'transparent'; g.filter = 'none'; g.clearRect(0, 0, cw, ch);
+  g.setTransform(k, 0, 0, k, m*k, m*k);
+  g.font = fontStr(font, size); g.letterSpacing = (sp*size) + 'px'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+  const ys = lines.map((_, j) => h/2 + (j - (lines.length-1)/2)*size*lh);
+  const cxT = w/2 + sp*size/2;   // 文字間隔を空けたぶん、中心がずれないように
+  g.fillStyle = '#000'; lines.forEach((l, j) => g.fillText(l, cxT, ys[j]));
+  g.globalCompositeOperation = 'source-in'; g.fillStyle = L.logoBack || '#111111'; g.fillRect(-m, -m, ow, oh);
+  g.globalCompositeOperation = 'source-atop';
+  if(s.settle < 1){
+    drawLogoInner(g, img, L, 0, 0, w, h, s, i);
+    const ta = (L.logoTintAmt ?? 15)/100; if(ta > 0){ g.globalAlpha = ta; g.fillStyle = L.logoTint || '#000000'; g.fillRect(-m, -m, ow, oh); g.globalAlpha = 1; }
+  }
+  if(s.settle > 0){ g.globalAlpha = s.settle; g.fillStyle = L.color || '#ffffff'; g.fillRect(-m, -m, ow, oh); g.globalAlpha = 1; }
+  if((L.stroke||0) > 0){ g.globalCompositeOperation = 'destination-over'; g.lineWidth = size*L.stroke/100*2; g.strokeStyle = L.strokeColor || '#ffffff'; lines.forEach((l, j) => g.strokeText(l, cxT, ys[j])); }
+  g.globalCompositeOperation = 'source-over'; g.letterSpacing = '0px';
+  if(L.glow){ c.shadowColor = L.glowColor || '#ffffff'; c.shadowBlur = size*.35*px*z; }
+  c.drawImage(logoCv, -m, -m, ow, oh);
+  c.restore();
+}
+
 /* ---- エフェクト(長さの中でちょうど一周するので、ループ再生がつながる) ---- */
 function star4(c, x, y, r){
   c.beginPath(); c.moveTo(x, y-r);
@@ -751,6 +839,7 @@ function offFor(id, pw, ph){
 function drawLayerContent(g, L, w, h, W, H, t, sc, editing, m){
   if(L.type==='text') drawTextLayer(g, L, w, h, W, H, m.reveal, sc, m);
   else if(L.type==='crawl') drawCrawl(g, L, w, h, W, H, t);
+  else if(L.type==='logo') drawLogo(g, L, w, h, W, H, t, sc);
   else drawImageLayer(g, L, w, h, sc, editing, m);
 }
 function drawShine(g, L, w, h, pad, p){
@@ -978,7 +1067,7 @@ function renderFrame(c, P, W, H, t, sc, editing){
 /* ===== 編集画面 ===== */
 const $ = id => document.getElementById(id);
 const uid = () => Math.random().toString(36).slice(2,10);
-const KIND = {image:'画像', text:'文字', crawl:'流れる文字'};
+const KIND = {image:'画像', text:'文字', crawl:'流れる文字', logo:'ロゴ文字'};
 const IN_NAMES = {none:'なし(すぐ表示)', fade:'ふわっと出る', slideUp:'下から上へ', slideDown:'上から下へ', slideLeft:'右から入る', slideRight:'左から入る', zoom:'ズームして出る', pop:'ぽよんと飛び出す', spin:'くるっと回って出る', blur:'ぼかしから出る', type:'1文字ずつ出る(文字だけ)',
   stamp:'ドン!とスタンプ(画面が揺れる)', glitch:'グリッチ(デジタルノイズ)', neon:'ネオン点灯(ちらついて点く)', wipe:'横から開く(ワイプ)', wipeDiag:'斜めに開く(ワイプ)', saber:'光の線で切り出す',
   drop:'1文字ずつ落ちてくる(文字だけ)', gather:'ばらばらから集まる(文字だけ)', flip:'写真がパラパラ切り替わる(画像だけ)'};
@@ -1004,6 +1093,10 @@ function newLayer(type, extra={}){
     anim:{in:'fade', start:0, dur:.6, loop:'none', loopAmt:50, loopPeriod:2, out:'none', outStart:4, outDur:.8, outTo:100,
       shine:'none', shineAt:2, shineEvery:2.5, shineColor:'#ffffff', saberColor:'#7fdcff', shakeAmt:50, flipRate:10, flipTint:'#e0102a', flipTintAmt:45}};
   if(type==='crawl') Object.assign(base, {name:'流れる文字', text:'第1章\nはじまりのライブ\n\nたくさんの応援に支えられて、ついに初めてのライブを開くことになりました。\n\n当日はみんなで一緒に、最高の夜にしようね！', font:'M PLUS Rounded 1c', localFont:'', size:8, speed:55, tilt:65, lineHeight:1.35, wrapMode:'phrase', color:'#ffd84a', fillTrans:0, stroke:0, strokeColor:'#000000', x:.1, y:.12, w:.8, h:.88});
+  if(type==='logo') Object.assign(base, {name:'ロゴ文字', text:'YUMECHIFFO', font:'Dela Gothic One', localFont:'', images:[], lineHeight:1.05, spacing:4,
+    color:'#ffffff', logoBack:'#111111', stroke:0, strokeColor:'#ffffff', glow:false, glowColor:'#ffffff',
+    logoRate:10, logoAccel:'up', logoSettleAt:3, logoSettleDur:.8, logoKeep:false, logoZoom:135, logoMove:'zoom', logoFit:'cover', logoTint:'#000000', logoTintAmt:15,
+    logoOutside:0, plateOn:true, plateColor:'#d81b4a', platePad:18, plateTrans:0, x:.06, y:.32, w:.88, h:.36});
   if(type==='image') Object.assign(base, {img:null, images:[], sample:false, shape:'round', fit:'cover', border:0, borderColor:'#ffffff', shadow:true,
     sil:false, silColor:'#05040a', rimOn:true, rimColor:'#bfe6ff', rimWidth:3, rimGlow:45, silReveal:false, silRevealAt:3, silRevealDur:1});
   if(type==='text') Object.assign(base, {text:'テキスト', font:FONTS[0].fam, localFont:'', fit:'fill', size:8, wrapMode:'sentence', balance:true, lineHeight:1.3,
@@ -1349,7 +1442,7 @@ function buildList(){
 }
 document.querySelectorAll('[data-add]').forEach(b => b.addEventListener('click', () => {
   const type=b.dataset.add; const n=P.layers.filter(l=>l.type===type).length+1;
-  const L = type==='crawl' ? newLayer('crawl', {anim:{in:'fade', start:0, dur:.8}}) : newLayer(type, {name:(type==='text'?'文字':'画像')+n, anim:{in: type==='text'?'pop':'fade', start:Math.min(1, P.duration-.5), dur:.6, loop:'none', loopAmt:50, loopPeriod:2}});
+  const L = type==='crawl' ? newLayer('crawl', {anim:{in:'fade', start:0, dur:.8}}) : type==='logo' ? newLayer('logo', {anim:{in:'fade', start:Math.min(.3, P.duration-.5), dur:.3}, logoSettleAt:Math.min(3.3, Math.max(.5, P.duration-1))}) : newLayer(type, {name:(type==='text'?'文字':'画像')+n, anim:{in: type==='text'?'pop':'fade', start:Math.min(1, P.duration-.5), dur:.6, loop:'none', loopAmt:50, loopPeriod:2}});
   P.layers.push(L); changed(); select(L.id);
 }));
 
@@ -1407,6 +1500,29 @@ function buildProps(){
     H.push(`<div class="row"><label>文字色<input type="color" id="p_color"></label><label>縁取り色<input type="color" id="p_strokeColor"></label></div>`);
     H.push(range('p_stroke','縁取りの太さ',0,30,1));
     H.push(`<p class="hint">「登場する時間」から流れ始め、作品の最後まで流れ続けます。枠の下の端が手前、上の端がいちばん奥です。</p>`);
+  } else if(L.type==='logo'){
+    H.push(`<label>ロゴの文字(改行で2段にできます)<textarea id="p_text" style="min-height:60px"></textarea></label>`);
+    H.push(`<label>フォント(太い文字ほど中の画像がよく見えます)<select id="p_font">${[...FONTS].map(f=>`<option value="${esc(f.fam)}"${f.fam===L.font?' selected':''}>${esc(f.name)}</option>`).join('')}</select></label>`);
+    H.push(`<label>PCに入っているフォント名で指定<input type="text" id="p_localFont" placeholder="例:けいふぉんと"></label>`);
+    H.push(`<div class="row">${range('p_spacing','文字の間隔',-10,40,1)}${range('p_lineHeight','行間',.8,1.6,.05)}</div>`);
+    H.push(`<p class="sub">中で動く画像</p>`);
+    H.push(`<label>文字の中に入れる画像(複数選べます。ファイル名の順に切り替わり、最後の1枚で止まります)<input type="file" id="p_imgs" accept="image/*" multiple></label><div class="btns"><span class="hint" id="p_imgsname"></span><button type="button" class="mini" id="p_imgsclear">画像を外す</button></div>`);
+    H.push(`<p class="hint">画像がないあいだは見本の画像が入ります。背景を透明にしたキャラクターの画像を入れると、下地の色の上でキャラクターが動きます。</p>`);
+    H.push(`<div class="row"><label>入れ方<select id="p_logoFit">${opts({cover:'文字いっぱい(はみ出しは切る)',contain:'全体を収める(キャラ向け)'},L.logoFit||'cover')}</select></label><label>中の画像の動き<select id="p_logoMove">${opts({zoom:'ゆっくり引いていく',panL:'横に流れる',panUp:'上に流れる',none:'動かさない'},L.logoMove||'zoom')}</select></label></div>`);
+    H.push(`<div class="row">${range('p_logoRate','切り替わる速さ(枚/秒)',1,24,1)}<label>速さの変化<select id="p_logoAccel">${opts({up:'だんだん速く',flat:'一定',down:'だんだん遅く'},L.logoAccel||'up')}</select></label></div>`);
+    H.push(`<div class="row"><label>のせる色<input type="color" id="p_logoTint"></label>${range('p_logoTintAmt','色の濃さ',0,100,1)}</div>`);
+    H.push(`<div class="row"><label>文字の中の下地の色<input type="color" id="p_logoBack"></label>${range('p_logoOutside','文字の外にも画像を薄く見せる',0,100,1)}</div>`);
+    H.push(`<p class="sub">ロゴに落ち着く</p>`);
+    H.push(`<label class="check"><input type="checkbox" id="p_logoKeep"> 最後まで画像のままにする(文字の色に変えない)</label>`);
+    H.push(`<div class="row">${range('p_logoSettleAt','画像が止まる時間(秒)',0,Math.max(.1,P.duration),.1)}<span id="p_settleDurWrap" style="flex:1 1 110px">${range('p_logoSettleDur','文字の色に変わる時間(秒)',.1,3,.1)}</span></div>`);
+    H.push(`<div class="btns"><button type="button" class="mini" id="p_settleNow">今の再生位置で止める</button><button type="button" class="btn ghost small" id="p_previewLogo">▶ ロゴの動きを確認</button></div>`);
+    H.push(range('p_logoZoom','始まりの大きさ(%。だんだん引いて100%になります)',100,250,1));
+    H.push(`<div class="row"><label>最後の文字色<input type="color" id="p_color"></label><label>縁取り色<input type="color" id="p_strokeColor"></label></div>`);
+    H.push(range('p_stroke','縁取りの太さ',0,20,1));
+    H.push(`<div class="row"><label class="check"><input type="checkbox" id="p_glow"> 光らせる</label><label>光の色<input type="color" id="p_glowColor"></label></div>`);
+    H.push(`<label class="check"><input type="checkbox" id="p_plateOn"> 文字の後ろに板を敷く</label>`);
+    H.push(`<div id="p_plateBox" class="row"><label>板の色<input type="color" id="p_plateColor"></label>${range('p_platePad','板の余白',0,80,1)}${range('p_plateTrans','板の透明度',0,100,1)}</div>`);
+    H.push(`<p class="hint">「登場する時間」から画像が切り替わり始め、「画像が止まる時間」で最後の1枚になって、文字の色に変わります。タイムラインの帯の長さでも変えられます。</p>`);
   } else {
     H.push(`<label>文字<textarea id="p_text"></textarea></label>`);
     H.push(`<label>フォント<select id="p_font">${[...FONTS].map(f=>`<option value="${esc(f.fam)}"${f.fam===L.font?' selected':''}>${esc(f.name)}</option>`).join('')}</select></label>`);
@@ -1508,6 +1624,22 @@ function buildProps(){
     bind('p_size', ...N('size'), v=>(+v).toFixed(1)+'%'); bind('p_lineHeight', ...N('lineHeight'), v=>(+v).toFixed(2));
     bind('p_speed', ...N('speed')); bind('p_tilt', ...N('tilt')); bind('p_color', ...S('color')); bind('p_strokeColor', ...S('strokeColor')); bind('p_stroke', ...N('stroke'));
     $('p_font').addEventListener('change', ()=>loadFontsFor());
+  } else if(L.type==='logo'){
+    bind('p_text', ...S('text')); bind('p_font', ...S('font')); bind('p_localFont', ...S('localFont'));
+    bind('p_spacing', ()=>L.spacing||0, v=>{ L.spacing=+v; }); bind('p_lineHeight', ...N('lineHeight'), v=>(+v).toFixed(2));
+    bind('p_logoFit', ...S('logoFit')); bind('p_logoMove', ...S('logoMove')); bind('p_logoRate', ...N('logoRate'), v=>v+'枚'); bind('p_logoAccel', ...S('logoAccel'));
+    bind('p_logoTint', ...S('logoTint')); bind('p_logoTintAmt', ...N('logoTintAmt'), v=>v+'%'); bind('p_logoBack', ...S('logoBack')); bind('p_logoOutside', ...N('logoOutside'), v=>v+'%');
+    bind('p_logoKeep', ...S('logoKeep')); bind('p_logoSettleAt', ...N('logoSettleAt'), v=>(+v).toFixed(1)+'秒'); bind('p_logoSettleDur', ...N('logoSettleDur'), v=>(+v).toFixed(1)+'秒');
+    bind('p_logoZoom', ...N('logoZoom'), v=>v+'%'); bind('p_color', ...S('color')); bind('p_strokeColor', ...S('strokeColor')); bind('p_stroke', ...N('stroke'));
+    bind('p_glow', ...S('glow')); bind('p_glowColor', ...S('glowColor'));
+    bind('p_plateOn', ...S('plateOn')); bind('p_plateColor', ...S('plateColor')); bind('p_platePad', ...N('platePad')); bind('p_plateTrans', ()=>L.plateTrans||0, v=>{ L.plateTrans=+v; }, v=>v+'%');
+    $('p_font').addEventListener('change', ()=>loadFontsFor());
+    $('p_settleNow').onclick = () => { L.logoSettleAt = Math.round(T*10)/10; setCtl($('p_logoSettleAt'), L.logoSettleAt); changed(true); };
+    $('p_previewLogo').onclick = () => { const s=Math.max(0,(L.anim.start||0)-.3); play(s, Math.min(P.duration, (L.logoSettleAt ?? 3)+(L.logoSettleDur ?? .8)+1)); };
+    const nm = () => { $('p_imgsname').textContent = (L.images||[]).length ? `${L.images.length}枚を使用中` : 'まだありません(見本を表示中)'; }; nm();
+    $('p_imgs').addEventListener('change', async e => { const fs=[...e.target.files].sort((a,b)=>a.name.localeCompare(b.name,'ja',{numeric:true})); e.target.value=''; if(!fs.length) return;
+      const ims=[]; for(const f of fs){ try{ ims.push(await loadImageFile(f)); }catch(err){} } L.images = ims; nm(); changed(true); });
+    $('p_imgsclear').onclick = () => { L.images=[]; nm(); changed(true); };
   } else {
     bind('p_text', ...S('text')); bind('p_font', ...S('font')); bind('p_localFont', ...S('localFont'));
     bind('p_fit', ...S('fit')); bind('p_size', ...N('size'), v=>(+v).toFixed(1)+'%'); bind('p_wrapMode', ...S('wrapMode')); bind('p_align', ...S('align'));
@@ -1550,12 +1682,13 @@ function refreshVis(){
   vis('pa_stampBox', L.anim.in==='stamp'); vis('pa_saberBox', L.anim.in==='saber'); vis('pa_flipBox', L.anim.in==='flip');
   vis('pa_shineBox', L.anim.shine && L.anim.shine!=='none'); vis('pa_everyWrap', L.anim.shine==='repeat');
   const sb=$('p_sizeBox'); if(sb) sb.hidden = L.fit==='fill';
+  vis('p_plateBox', !!L.plateOn); vis('p_settleDurWrap', !L.logoKeep);
   vis('p_silBox', !!L.sil); vis('p_rimBox', L.rimOn!==false); vis('p_revealBox', !!L.silReveal);
   const per=$('pa_loopPeriod_o'); if(per && L.anim.loop && L.anim.loop!=='none'){ const c=loopCycles(P.duration, L.anim.loopPeriod||2); per.textContent=`${(+L.anim.loopPeriod).toFixed(1)}秒 → ${(P.duration/c).toFixed(2)}秒`; }
 }
 function cloneLayer(L){ const c={...L, anim:{...L.anim}, images:[...(L.images||[])]}; return c; }
 function loadFontsFor(){
-  const ps=[]; for(const L of P.layers) if(L.type==='text'||L.type==='crawl'){ const f=fontOf(L); ps.push(document.fonts.load(fontStr(f,40), L.text||'あ').catch(()=>{})); }
+  const ps=[]; for(const L of P.layers) if(L.type==='text'||L.type==='crawl'||L.type==='logo'){ const f=fontOf(L); ps.push(document.fonts.load(fontStr(f,40), L.text||'あ').catch(()=>{})); }
   return Promise.all(ps).then(()=>{ layoutCache.clear(); redraw(); });
 }
 
@@ -1627,6 +1760,7 @@ function tlItems(){
     if(L.type==='crawl') blocks[0] = {kind:'in', start:a.start||0, dur:Math.max(.1, P.duration-(a.start||0)), set:(s)=>{ a.start=s; }, fixedEnd:true};
     if(a.out && a.out!=='none') blocks.push({kind:'out', start:a.outStart ?? P.duration-1, dur:Math.max(.1,a.outDur ?? .8), set:(s,d)=>{ a.outStart=s; a.outDur=d; }});
     const marks = a.shine && a.shine!=='none' ? [{t:a.shineAt ?? 2, set:v=>{ a.shineAt=v; }, tip:'キラッ'}] : [];
+    if(L.type==='logo') blocks[0] = {kind:'in', start:a.start||0, dur:Math.max(.1, (L.logoSettleAt ?? 3)-(a.start||0)), set:(s,d)=>{ a.start=s; L.logoSettleAt=Math.round((s+d)*10)/10; }};
     if(L.type==='image' && L.sil && L.silReveal) marks.push({t:L.silRevealAt ?? 3, set:v=>{ L.silRevealAt=v; }, tip:'シルエットを解く', cls:'rev'});
     rows.push({label:L.name+(L.hidden?'(非表示)':''), color: null, blocks, marks, onLabel:()=>select(L.id), sel: L.id===selId});
   });
@@ -1746,7 +1880,7 @@ async function deserialize(d){
   p.cine = migrateCine(p, d);
   p.bg = await im(d.bg); p.frame = await im(d.frame);
   p.layers = [];
-  for(const x of d.layers||[]){ const L = newLayer(['text','crawl'].includes(x.type) ? x.type : 'image'); Object.assign(L, x, {anim:{...L.anim, ...(x.anim||{})}}); L.img = await im(x.img);
+  for(const x of d.layers||[]){ const L = newLayer(['text','crawl','logo'].includes(x.type) ? x.type : 'image'); Object.assign(L, x, {anim:{...L.anim, ...(x.anim||{})}}); L.img = await im(x.img);
     L.images = []; for(const b of x.images||[]){ const i2 = await im(b); if(i2) L.images.push(i2); } if(L.font && famMap[L.font]) L.font=famMap[L.font]; p.layers.push(L); }
   delete p.fonts;
   return p;
