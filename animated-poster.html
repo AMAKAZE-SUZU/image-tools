@@ -139,7 +139,7 @@ details.fxrow .row{display:flex}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>アニメポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.6 ・ 2026-10-24 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.7 ・ 2026-10-24 更新</a>
     <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪やBGMを重ねて、動くポスターや短い動画をMP4かGIFで保存できます。最初はサンプルが入っています。</p>
   </header>
 
@@ -727,10 +727,13 @@ function logoState(L, t){
   const zq = easeOut(clamp((t-st)/(T+sd), 0, 1));
   return {u, tau: Math.max(0, t-st), idx: Math.floor(r*T*f + 1e-6), settle: L.logoKeep ? 0 : smooth(clamp((t-end)/sd, 0, 1)), zoom: 1 + ((L.logoZoom ?? 135)/100 - 1)*(1-zq)};
 }
-function drawCoverTile(g, img, x, y, w, h){
-  const iw = img.naturalWidth||img.width, ih = img.naturalHeight||img.height, k = Math.max(w/iw, h/ih);
-  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.drawImage(img, x + (w-iw*k)/2, y + (h-ih*k)/2, iw*k, ih*k); g.restore();
+function drawCoverTile(g, img, x, y, w, h, a){
+  const iw = img.naturalWidth||img.width, ih = img.naturalHeight||img.height, k = Math.max(w/iw, h/ih)*(a ? a.s/100 : 1);
+  const ox = a ? a.x/100*w*.5 : 0, oy = a ? a.y/100*h*.5 : 0;
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.drawImage(img, x + ox + (w-iw*k)/2, y + oy + (h-ih*k)/2, iw*k, ih*k); g.restore();
 }
+let logoPin = null;   // 調整中の画像をプレビューに固定して表示する {id, i}
+const adjOf = (L, i) => { const a = (L.imgAdj||[])[i]; return {s: a?.s ?? 100, x: a?.x ?? 0, y: a?.y ?? 0}; };
 function drawLogoInner(g, img, L, x, y, w, h, s, i, ims){
   if(L.logoMove==='collage' && ims && ims.length){
     // 複数の画像をすき間なく並べて、段ごとに逆向きに流す
@@ -739,8 +742,8 @@ function drawLogoInner(g, img, L, x, y, w, h, s, i, ims){
     for(let r=0; r<rows; r++){
       const dir = r%2 ? 1 : -1, off = ((s.tau*sp*dir) % tw + tw) % tw, first = Math.floor(s.tau*sp*dir/tw);
       for(let c=-1; c*tw - off < w + tw; c++){
-        const im = ims[(((c - first + r*3) % n) + n) % n];
-        drawCoverTile(g, im, x + c*tw - off + gap/2, y + r*th + gap/2, tw - gap, th - gap);
+        const ii = (((c - first + r*3) % n) + n) % n, a = (L.images && L.images.length) ? adjOf(L, ii) : null;
+        drawCoverTile(g, ims[ii], x + c*tw - off + gap/2, y + r*th + gap/2, tw - gap, th - gap, a);
       }
     }
     return;
@@ -752,13 +755,17 @@ function drawLogoInner(g, img, L, x, y, w, h, s, i, ims){
   else if(mv==='panL'){ k *= 1.2; ox = (.5-u)*w*.16; }
   else if(mv==='panUp'){ k *= 1.2; oy = (.5-u)*h*.2; }
   if(s.u < 1 && mv!=='none'){ ox += (rnd(i,71)-.5)*w*.08; oy += (rnd(i,72)-.5)*h*.08; }   // 1枚ごとに少しずらしてコマ送りらしく
+  if(L.images && L.images.length){ const a = adjOf(L, i); k *= a.s/100; ox += a.x/100*w*.5; oy += a.y/100*h*.5; }   // 画像ごとの大きさ・位置
   g.drawImage(img, x + w/2 + ox - iw*k/2, y + h/2 + oy - ih*k/2, iw*k, ih*k);
 }
 const logoCv = document.createElement('canvas');
-function drawLogo(c, L, w, h, W, H, t, sc){
-  const lay = logoLayout(L, w, h), s = logoState(L, t);
+function drawLogo(c, L, w, h, W, H, t, sc, editing){
+  const lay = logoLayout(L, w, h); let s = logoState(L, t);
   const ims = (L.images && L.images.length) ? L.images : logoSamples(), n = ims.length;
-  const i = s.u >= 1 ? n-1 : ((s.idx % n) + n) % n, img = ims[i];
+  let i = s.u >= 1 ? n-1 : ((s.idx % n) + n) % n;
+  const pinned = editing && !playing && logoPin && logoPin.id===L.id && L.images && logoPin.i < L.images.length;
+  if(pinned){ i = logoPin.i; s = {u:1, tau:0, idx:i, settle:0, zoom:1}; }
+  const img = ims[i];
   const Tm = c.getTransform(), px = Math.hypot(Tm.a, Tm.b) || 1, z = s.zoom;
   const {lines, sp, font} = lay; let {size, lh, tw, th} = lay;
   // ロゴ画像を形に使うとき:枠に収まる大きさの範囲を出す(板の余白も含めて)
@@ -882,7 +889,7 @@ function offFor(id, pw, ph){
 function drawLayerContent(g, L, w, h, W, H, t, sc, editing, m){
   if(L.type==='text') drawTextLayer(g, L, w, h, W, H, m.reveal, sc, m);
   else if(L.type==='crawl') drawCrawl(g, L, w, h, W, H, t);
-  else if(L.type==='logo') drawLogo(g, L, w, h, W, H, t, sc);
+  else if(L.type==='logo') drawLogo(g, L, w, h, W, H, t, sc, editing);
   else drawImageLayer(g, L, w, h, sc, editing, m);
 }
 function drawShine(g, L, w, h, pad, p){
@@ -1254,7 +1261,7 @@ function tick(now){
   requestAnimationFrame(tick);
 }
 let playClock = 'perf';
-function play(from=0, until=null){ playing=true; playFrom=from; playUntil=until; playStart=performance.now(); playClock = audioPlay(from, until) ? 'audio' : 'perf'; $('play').textContent='❚❚ 停止'; $('board').classList.add('playing'); }
+function play(from=0, until=null){ logoPin=null; { const pc=document.getElementById('p_adjPin'); if(pc) pc.checked=false; } playing=true; playFrom=from; playUntil=until; playStart=performance.now(); playClock = audioPlay(from, until) ? 'audio' : 'perf'; $('play').textContent='❚❚ 停止'; $('board').classList.add('playing'); }
 function stop(){ audioStop(); playing=false; playUntil=null; $('play').textContent='▶ 再生'; $('board').classList.remove('playing'); dirty=true; }
 $('play').onclick = () => playing ? stop() : play(T >= P.duration-.05 ? 0 : T);
 $('seek').addEventListener('input', e => { if(playing) stop(); T = +e.target.value/1000*P.duration; dirty=true; });
@@ -1469,7 +1476,7 @@ document.addEventListener('keydown', e => {
 });
 
 /* ---- レイヤー一覧 ---- */
-function select(id){ selId=id; buildOverlay(); buildList(); buildProps(); buildTimeline(); }
+function select(id){ if(logoPin && logoPin.id!==id) logoPin=null; selId=id; buildOverlay(); buildList(); buildProps(); buildTimeline(); }
 function buildList(){
   const ul=$('layerList'); ul.innerHTML='';
   P.layers.forEach((L,i) => {
@@ -1556,6 +1563,14 @@ function buildProps(){
     H.push(`</div>`);
     H.push(`<p class="sub">中で動く画像</p>`);
     H.push(`<label>文字の中に入れる画像(複数選べます。ファイル名の順に切り替わり、最後の1枚で止まります)<input type="file" id="p_imgs" accept="image/*" multiple></label><div class="btns"><span class="hint" id="p_imgsname"></span><button type="button" class="mini" id="p_imgsclear">画像を外す</button></div>`);
+    H.push(`<div id="p_adjBox" style="display:flex;flex-direction:column;gap:10px">
+      <p class="sub" style="margin:0">画像ごとの大きさ・位置</p>
+      <div id="p_adjThumbs" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+      <label class="check"><input type="checkbox" id="p_adjPin" checked> 調整中は選んだ画像をプレビューに止めて表示する</label>
+      ${range('p_adjS','大きさ(%)',20,300,1)}
+      <div class="row">${range('p_adjX','横の位置',-100,100,1)}${range('p_adjY','縦の位置',-100,100,1)}</div>
+      <div class="btns"><button type="button" class="mini" id="p_adjReset">この画像を元に戻す</button><button type="button" class="mini" id="p_adjResetAll">全部の画像を元に戻す</button></div>
+    </div>`);
     H.push(`<p class="hint">画像がないあいだは見本の画像が入ります。背景を透明にしたキャラクターの画像を入れると、下地の色の上でキャラクターが動きます。</p>`);
     H.push(`<div class="row"><label>入れ方<select id="p_logoFit">${opts({cover:'文字いっぱい(はみ出しは切る)',contain:'全体を収める(キャラ向け)'},L.logoFit||'cover')}</select></label><label>中の画像の動き<select id="p_logoMove">${opts({zoom:'1枚ずつ・ゆっくり引いていく',panL:'1枚ずつ・横に流れる',panUp:'1枚ずつ・上に流れる',none:'1枚ずつ・動かさない',collage:'何枚も並べて流す'},L.logoMove||'zoom')}</select></label></div>`);
     H.push(`<div class="row">${range('p_logoRate','切り替わる速さ(並べて流すときは流れる速さ)',1,24,1)}<label>速さの変化<select id="p_logoAccel">${opts({up:'だんだん速く',flat:'一定',down:'だんだん遅く'},L.logoAccel||'up')}</select></label></div>`);
@@ -1692,8 +1707,31 @@ function buildProps(){
     $('p_previewLogo').onclick = () => { const s=Math.max(0,(L.anim.start||0)-.3); play(s, Math.min(P.duration, (L.logoSettleAt ?? 3)+(L.logoSettleDur ?? .8)+1)); };
     const nm = () => { $('p_imgsname').textContent = (L.images||[]).length ? `${L.images.length}枚を使用中` : 'まだありません(見本を表示中)'; }; nm();
     $('p_imgs').addEventListener('change', async e => { const fs=[...e.target.files].sort((a,b)=>a.name.localeCompare(b.name,'ja',{numeric:true})); e.target.value=''; if(!fs.length) return;
-      const ims=[]; for(const f of fs){ try{ ims.push(await loadImageFile(f)); }catch(err){} } L.images = ims; nm(); changed(true); });
-    $('p_imgsclear').onclick = () => { L.images=[]; nm(); changed(true); };
+      const ims=[]; for(const f of fs){ try{ ims.push(await loadImageFile(f)); }catch(err){} } L.images = ims; L.imgAdj = ims.map(()=>({s:100,x:0,y:0})); adjSel = 0; nm(); buildAdj(); changed(true); });
+    $('p_imgsclear').onclick = () => { L.images=[]; L.imgAdj=[]; logoPin=null; nm(); buildAdj(); changed(true); };
+    // 画像ごとの大きさ・位置
+    let adjSel = Math.min(logoPin && logoPin.id===L.id ? logoPin.i : 0, Math.max(0, (L.images||[]).length-1));
+    const pinUpd = () => { logoPin = ($('p_adjPin').checked && (L.images||[]).length) ? {id:L.id, i:adjSel} : null; dirty = true; };
+    const adjGet = () => { if(!L.imgAdj) L.imgAdj = []; while(L.imgAdj.length < L.images.length) L.imgAdj.push({s:100,x:0,y:0}); return L.imgAdj[adjSel]; };
+    const adjFill = () => { if(!(L.images||[]).length) return; const a = adjOf(L, adjSel);
+      for(const [id,k,f] of [['p_adjS','s',v=>v+'%'],['p_adjX','x',v=>v],['p_adjY','y',v=>v]]){ setCtl($(id), a[k]); $(id+'_o').textContent = f(a[k]); } };
+    function buildAdj(){
+      const box = $('p_adjThumbs'), has = (L.images||[]).length > 0; $('p_adjBox').hidden = !has; box.innerHTML = '';
+      if(!has){ logoPin = null; return; }
+      L.images.forEach((im, k) => { const b = document.createElement('button'); b.type = 'button'; b.title = `${k+1}枚目`; b.setAttribute('aria-label', `${k+1}枚目を調整`);
+        b.style.cssText = `padding:0;width:48px;height:48px;border-radius:8px;overflow:hidden;cursor:pointer;background:#000;border:3px solid ${k===adjSel?'#6b4fd8':'transparent'}`;
+        const th = document.createElement('img'); th.src = im.src; th.alt = ''; th.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block'; b.appendChild(th);
+        b.onclick = () => { adjSel = k; buildAdj(); adjFill(); pinUpd(); }; box.appendChild(b); });
+      pinUpd();
+    }
+    for(const [id,k,f] of [['p_adjS','s',v=>v+'%'],['p_adjX','x',v=>v],['p_adjY','y',v=>v]]){
+      $(id).addEventListener('input', () => { if(!(L.images||[]).length) return; adjGet()[k] = +$(id).value; $(id+'_o').textContent = f($(id).value); pinUpd(); changed(true); });
+      $(id).addEventListener('dblclick', () => { if(!(L.images||[]).length) return; adjGet()[k] = k==='s' ? 100 : 0; adjFill(); changed(true); });
+    }
+    $('p_adjPin').addEventListener('change', pinUpd);
+    $('p_adjReset').onclick = () => { if(!(L.images||[]).length) return; Object.assign(adjGet(), {s:100,x:0,y:0}); adjFill(); changed(true); };
+    $('p_adjResetAll').onclick = () => { L.imgAdj = (L.images||[]).map(()=>({s:100,x:0,y:0})); adjFill(); changed(true); };
+    buildAdj(); adjFill();
   } else {
     bind('p_text', ...S('text')); bind('p_font', ...S('font')); bind('p_localFont', ...S('localFont'));
     bind('p_fit', ...S('fit')); bind('p_size', ...N('size'), v=>(+v).toFixed(1)+'%'); bind('p_wrapMode', ...S('wrapMode')); bind('p_align', ...S('align'));
