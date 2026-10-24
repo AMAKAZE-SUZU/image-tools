@@ -113,6 +113,11 @@ details.fxrow{display:block}
 .tl-blk:hover{opacity:1}
 .tl-blk .rz{position:absolute;right:-3px;top:0;bottom:0;width:9px;cursor:ew-resize}
 .tl-dia{position:absolute;top:50%;width:9px;height:9px;margin:-5px 0 0 -5px;transform:rotate(45deg);background:#ffd24a;border:1px solid #9a7a00;cursor:grab;touch-action:none}
+.tl-dia.rev{background:#cfe9ff;border-color:#3b6f9a;border-radius:50%;transform:none}
+.tl-row.bgm{height:38px}
+.tl-bgm{cursor:ew-resize}
+.tl-bgm::before{display:none}
+.tl-wave{position:absolute;inset:0;width:100%;height:100%;display:block;border-radius:5px;background:var(--field)}
 .tl-tick{position:absolute;top:0;font-size:.62rem;color:var(--muted);transform:translateX(-50%);font-variant-numeric:tabular-nums}
 .tl-head-track::before{display:none}
 .tl-play{position:absolute;top:0;bottom:0;width:0;border-left:2px solid var(--sel);pointer-events:none;z-index:4}
@@ -134,8 +139,8 @@ details.fxrow .row{display:flex}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>アニメポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.2 ・ 2026-10-24 更新</a>
-    <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪を重ねて、動くポスターをMP4かGIFで保存できます。最初はサンプルが入っています。</p>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.3 ・ 2026-10-24 更新</a>
+    <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪やBGMを重ねて、動くポスターや短い動画をMP4かGIFで保存できます。最初はサンプルが入っています。</p>
   </header>
 
   <div class="grid">
@@ -181,7 +186,8 @@ details.fxrow .row{display:flex}
         </div>
         <label class="check"><input type="checkbox" id="autoRelayout" checked> 縦向き・横向きを切り替えたら、レイヤーを自動で並べ直す</label>
         <div class="btns"><button type="button" class="mini" id="relayoutNow">今の向きに合わせて並べ直す</button><button type="button" class="mini" id="relayoutUndo" hidden>並べ直す前に戻す</button></div>
-        <label>長さ(秒)<input type="range" id="duration" min="2" max="30" step="0.5" value="6"></label>
+        <label>長さ(秒・最大120秒)<input type="range" id="duration" min="2" max="120" step="0.1" value="6"></label>
+        <div class="row"><label>長さを数字で入力(秒)<input type="number" id="durationNum" min="2" max="120" step="0.1" value="6"></label></div>
         <label>背景画像<input type="file" id="bgFile" accept="image/*"></label>
         <div class="btns"><button type="button" class="mini" id="bgClear">背景をサンプルに戻す</button></div>
         <div class="row">
@@ -213,6 +219,20 @@ details.fxrow .row{display:flex}
         <div class="btns"><button type="button" class="mini" id="frameClear">フレームを外す</button></div>
         <label>フレームの透明度<input type="range" id="frameTrans" min="0" max="100" value="0"></label>
         <label class="check"><input type="checkbox" id="outro"> 終わりに全体をフェードアウトする(ループ再生がなめらかになります)</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>BGM(音楽)</legend>
+        <p class="hint">音楽を入れると、再生中に鳴り、MP4にも音が入ります(GIFには音は入りません)。タイムラインの「BGM」の波形を左右にドラッグすると、曲のどこから使うかを動かせます。</p>
+        <label>音楽ファイル(MP3・WAV・M4Aなど)<input type="file" id="bgmFile" accept="audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac"></label>
+        <div class="btns"><span class="hint" id="bgmName">まだ音楽がありません</span><button type="button" class="mini" id="bgmClear">音楽を外す</button></div>
+        <div id="bgmBox" style="display:flex;flex-direction:column;gap:10px" hidden>
+          <label><span class="lab"><span>曲のどこから使うか(秒)</span><output id="bgmOffset_o"></output></span><input type="range" id="bgmOffset" min="0" max="60" step="0.05" value="0"></label>
+          <label><span class="lab"><span>音量</span><output id="bgmVol_o"></output></span><input type="range" id="bgmVol" min="0" max="100" step="1" value="80"></label>
+          <div class="row"><label><span class="lab"><span>始めのフェードイン(秒)</span><output id="bgmFadeIn_o"></output></span><input type="range" id="bgmFadeIn" min="0" max="10" step="0.1" value="0"></label><label><span class="lab"><span>終わりのフェードアウト(秒)</span><output id="bgmFadeOut_o"></output></span><input type="range" id="bgmFadeOut" min="0" max="10" step="0.1" value="1.5"></label></div>
+          <label class="check"><input type="checkbox" id="bgmPreview" checked> プレビューで音を鳴らす</label>
+          <div class="btns"><button type="button" class="mini" id="bgmFit">作品の長さを曲の残りに合わせる(最大120秒)</button></div>
+        </div>
       </fieldset>
 
       <fieldset>
@@ -419,7 +439,7 @@ function motionOf(L, t, P){
   const D = P.duration, a = L.anim || {};
   const st = a.start||0, du = Math.max(.05, a.dur||.6);
   const p = clamp((t-st)/du, 0, 1), e = easeOut(p);
-  const m = {alpha:1, dx:0, dy:0, scale:1, rot:0, reveal:1, visible: t >= st - 1e-6};
+  const m = {alpha:1, dx:0, dy:0, scale:1, rot:0, reveal:1, visible: t >= st - 1e-6, t};
   switch(a.in){
     case 'fade': m.alpha = e; break;
     case 'slideUp': m.dy = (1-e)*.08; m.alpha = e; break;
@@ -514,14 +534,15 @@ function drawImageLayer(c, L, w, h, sc, editing, m){
     return;
   }
   const bw = L.border||0;
-  if(L.shadow){ c.shadowColor='rgba(10,0,30,.35)'; c.shadowBlur=30*sc; c.shadowOffsetY=10*sc; }
+  const shad = L.shadow && !(L.sil && silAmt(L, m && m.t)>0);
+  if(shad){ c.shadowColor='rgba(10,0,30,.35)'; c.shadowBlur=30*sc; c.shadowOffsetY=10*sc; }
   if(L.fit==='contain'){
     const iw=img.naturalWidth||img.width, ih=img.naturalHeight||img.height, k=Math.min(w/iw,h/ih), dw=iw*k, dh=ih*k;
     c.drawImage(img,(w-dw)/2,(h-dh)/2,dw,dh);
     return;
   }
   if(bw>0){ c.fillStyle=L.borderColor; shapePath(c,L.shape,0,0,w,h); c.fill(); c.shadowColor='transparent'; }
-  c.save(); shapePath(c,L.shape,bw,bw,w-bw*2,h-bw*2); if(bw<=0 && L.shadow){ c.fillStyle='#000'; c.fill(); c.shadowColor='transparent'; } c.clip();
+  c.save(); shapePath(c,L.shape,bw,bw,w-bw*2,h-bw*2); if(bw<=0 && shad){ c.fillStyle='#000'; c.fill(); c.shadowColor='transparent'; } c.clip();
   if(m && m.flipZoom){ const z=m.flipZoom, cw=(w-bw*2)*z, ch=(h-bw*2)*z; drawCoverImg(c, img, bw-(cw-(w-bw*2))/2, bw-(ch-(h-bw*2))/2, cw, ch); }
   else drawCoverImg(c, img, bw, bw, w-bw*2, h-bw*2);
   if(m && m.flipTint && (L.anim.flipTintAmt ?? 45) > 0){ c.globalCompositeOperation='multiply'; c.fillStyle=hexA(L.anim.flipTint||'#e0102a', (L.anim.flipTintAmt ?? 45)/100); c.fillRect(0,0,w,h); c.globalCompositeOperation='source-over'; }
@@ -739,8 +760,38 @@ function drawShine(g, L, w, h, pad, p){
   gr.addColorStop(0, hexA(col,0)); gr.addColorStop(.5, hexA(col,.9)); gr.addColorStop(1, hexA(col,0));
   g.fillStyle = gr; g.fillRect(cx-bw, -pad, bw*2, h+pad*2); g.restore();
 }
+/* ---- シルエット(黒く塗りつぶして、輪郭だけ光らせる) ---- */
+// 1 = 完全にシルエット、0 = 元の姿。「シルエットを解く」を使うと、決めた時間に元の姿へ戻る
+function silAmt(L, t){
+  if(L.type!=='image' || !L.sil) return 0;
+  if(!L.silReveal || t==null) return 1;
+  const st = L.silRevealAt ?? 3, du = Math.max(.05, L.silRevealDur ?? 1);
+  return 1 - smooth(clamp((t-st)/du, 0, 1));
+}
+const silCvs = [0,1,2].map(() => document.createElement('canvas'));
+function applySil(off, L, sc, k){
+  const [A, B, C] = silCvs;
+  for(const x of silCvs) if(x.width!==off.width || x.height!==off.height){ x.width=off.width; x.height=off.height; }
+  const tint = (cv, col) => { const g=cv.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.globalAlpha=1; g.shadowColor='transparent'; g.filter='none';
+    g.globalCompositeOperation='source-over'; g.clearRect(0,0,cv.width,cv.height); g.drawImage(off,0,0);
+    g.globalCompositeOperation='source-in'; g.fillStyle=col; g.fillRect(0,0,cv.width,cv.height); g.globalCompositeOperation='source-over'; };
+  tint(A, L.silColor || '#05040a');
+  const gc = C.getContext('2d'); gc.setTransform(1,0,0,1,0,0); gc.globalAlpha=1; gc.globalCompositeOperation='source-over'; gc.clearRect(0,0,C.width,C.height);
+  if(L.rimOn !== false){
+    const col = L.rimColor || '#bfe6ff'; tint(B, col);
+    const glow = (L.rimGlow ?? 45)/100, th = Math.max(0, (L.rimWidth ?? 3))*sc;
+    if(glow > 0){ gc.shadowColor = col; const n = glow > .66 ? 3 : glow > .33 ? 2 : 1;
+      for(let i=0;i<n;i++){ gc.shadowBlur = Math.max(1, (20 + 60*glow)*sc*(1+i*.6)); gc.drawImage(B,0,0); } gc.shadowColor='transparent'; gc.shadowBlur=0; }
+    if(th > 0) for(let i=0;i<16;i++){ const a=i/16*Math.PI*2; gc.drawImage(B, Math.cos(a)*th, Math.sin(a)*th); }
+  }
+  gc.drawImage(A, 0, 0);
+  const g = off.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.shadowColor='transparent'; g.filter='none'; g.globalCompositeOperation='source-over';
+  if(k >= .999){ g.globalAlpha=1; g.clearRect(0,0,off.width,off.height); g.drawImage(C,0,0); }
+  else { g.globalAlpha=k; g.drawImage(C,0,0); g.globalAlpha=1; }
+}
 function drawLayer(c, L, w, h, W, H, t, sc, editing, m){
-  const useOff = m.glitch>0 || m.shine!=null;
+  const sk = silAmt(L, t);
+  const useOff = m.glitch>0 || m.shine!=null || sk>0;
   // 横から開く・斜めに開く・光の線で切り出す:見せる範囲を切り取る
   const pad = Math.max(w,h)*.25;
   if(m.wipe!=null || m.wipeDiag!=null || (m.saber!=null && m.saber<1)){
@@ -757,6 +808,7 @@ function drawLayer(c, L, w, h, W, H, t, sc, editing, m){
     g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,off.width,off.height); g.globalAlpha=1; g.filter='none';
     g.setTransform(sc,0,0,sc,pad*sc,pad*sc);
     drawLayerContent(g, L, w, h, W, H, t, sc, editing, m);
+    if(sk>0) applySil(off, L, sc, sk);
     if(m.shine!=null){ g.setTransform(sc,0,0,sc,pad*sc,pad*sc); drawShine(g, L, w, h, pad, m.shine); }
     if(m.glitch>0){
       // 色ずれ(赤と水色)と横のずれ
@@ -952,13 +1004,15 @@ function newLayer(type, extra={}){
     anim:{in:'fade', start:0, dur:.6, loop:'none', loopAmt:50, loopPeriod:2, out:'none', outStart:4, outDur:.8, outTo:100,
       shine:'none', shineAt:2, shineEvery:2.5, shineColor:'#ffffff', saberColor:'#7fdcff', shakeAmt:50, flipRate:10, flipTint:'#e0102a', flipTintAmt:45}};
   if(type==='crawl') Object.assign(base, {name:'流れる文字', text:'第1章\nはじまりのライブ\n\nたくさんの応援に支えられて、ついに初めてのライブを開くことになりました。\n\n当日はみんなで一緒に、最高の夜にしようね！', font:'M PLUS Rounded 1c', localFont:'', size:8, speed:55, tilt:65, lineHeight:1.35, wrapMode:'phrase', color:'#ffd84a', fillTrans:0, stroke:0, strokeColor:'#000000', x:.1, y:.12, w:.8, h:.88});
-  if(type==='image') Object.assign(base, {img:null, images:[], sample:false, shape:'round', fit:'cover', border:0, borderColor:'#ffffff', shadow:true});
+  if(type==='image') Object.assign(base, {img:null, images:[], sample:false, shape:'round', fit:'cover', border:0, borderColor:'#ffffff', shadow:true,
+    sil:false, silColor:'#05040a', rimOn:true, rimColor:'#bfe6ff', rimWidth:3, rimGlow:45, silReveal:false, silRevealAt:3, silRevealDur:1});
   if(type==='text') Object.assign(base, {text:'テキスト', font:FONTS[0].fam, localFont:'', fit:'fill', size:8, wrapMode:'sentence', balance:true, lineHeight:1.3,
     color:'#ffffff', strokeColor:'#6b4fd8', stroke:18, align:'center', glow:false, glowColor:'#ffffff'});
-  const r = Object.assign(base, extra); r.anim = {...base.anim, ...(extra.anim||{})}; return r;
+  const baseAnim = base.anim;
+  const r = Object.assign(base, extra); r.anim = {...baseAnim, ...(extra.anim||{})}; return r;
 }
 function sampleProject(){
-  return {v:1, sizeMode:'bg', customW:1200, customH:1600, duration:6, bg:null, bgMotion:'zoomIn', bgDim:0, bgFit:'cover', bgColor:'#1a1424', bgScale:100, bgRot:0, bgX:0, bgY:0, bgTrans:0, frame:null, frameTrans:0, outro:false, fxBehind:false,
+  return {v:1, sizeMode:'bg', customW:1200, customH:1600, duration:6, bg:null, bgMotion:'zoomIn', bgDim:0, bgFit:'cover', bgColor:'#1a1424', bgScale:100, bgRot:0, bgX:0, bgY:0, bgTrans:0, frame:null, frameTrans:0, outro:false, fxBehind:false, bgm:null,
     fx:{sparkle:{on:true, amount:45, size:1, color:'#fff6c8'}, confetti:{on:false, amount:70, size:1}, hearts:{on:false, amount:18, size:1, color:'#ff6fa3'}},
     cine:[],
     layers:[
@@ -1055,14 +1109,17 @@ function draw(){
 }
 function tick(now){
   if(playing){
-    let t = playFrom + (now - playStart)/1000;
+    // BGMが鳴っているときは音の時計に合わせる(音と映像がずれないように)
+    let t = playClock==='audio' && actx ? aFrom + Math.max(0, actx.currentTime - aStart) : playFrom + (now - playStart)/1000;
     if(playUntil!=null && t >= playUntil){ T = playUntil; stop(); draw(); requestAnimationFrame(tick); return; }
-    T = t % P.duration; draw();
+    if(t >= P.duration){ play(0); t = 0; }
+    T = t; draw();
   } else if(dirty){ draw(); dirty=false; }
   requestAnimationFrame(tick);
 }
-function play(from=0, until=null){ playing=true; playFrom=from; playUntil=until; playStart=performance.now(); $('play').textContent='❚❚ 停止'; $('board').classList.add('playing'); }
-function stop(){ playing=false; playUntil=null; $('play').textContent='▶ 再生'; $('board').classList.remove('playing'); dirty=true; }
+let playClock = 'perf';
+function play(from=0, until=null){ playing=true; playFrom=from; playUntil=until; playStart=performance.now(); playClock = audioPlay(from, until) ? 'audio' : 'perf'; $('play').textContent='❚❚ 停止'; $('board').classList.add('playing'); }
+function stop(){ audioStop(); playing=false; playUntil=null; $('play').textContent='▶ 再生'; $('board').classList.remove('playing'); dirty=true; }
 $('play').onclick = () => playing ? stop() : play(T >= P.duration-.05 ? 0 : T);
 $('seek').addEventListener('input', e => { if(playing) stop(); T = +e.target.value/1000*P.duration; dirty=true; });
 function redraw(){ dirty = true; }
@@ -1077,6 +1134,7 @@ const FXF = [['sparkle',['on','amount','size','color']], ['confetti',['on','amou
 function setCtl(el, v){ if(el.type==='checkbox') el.checked=!!v; else el.value=v; el._upd && el._upd(); }
 function loadGlobal(){
   for(const [k] of G) setCtl($(k), P[k]);
+  $('durationNum').value = P.duration;
   $('customBox').hidden = P.sizeMode!=='custom';
   for(const [n,ks] of FXF) for(const k of ks){ const v = P.fx[n][k]; setCtl($(`fx_${n}_${k}`), k==='size' ? Math.round(v*100) : v); }
   fxBadges();
@@ -1092,6 +1150,8 @@ for(const [k,conv] of G){
     changed();
   });
 }
+$('durationNum').addEventListener('change', () => { const v = clamp(Math.round((+$('durationNum').value||6)*10)/10, 2, 120); $('durationNum').value = v; setCtl($('duration'), v); $('duration').value = v; $('duration').dispatchEvent(new Event('input')); P.duration = v; });
+$('duration').addEventListener('input', () => { $('durationNum').value = P.duration; });
 for(const [n,ks] of FXF) for(const k of ks){
   const el=$(`fx_${n}_${k}`);
   const h = () => { P.fx[n][k] = el.type==='checkbox' ? el.checked : (el.type==='color'||el.tagName==='SELECT') ? el.value : k==='size' ? +el.value/100 : +el.value; fxBadges(); changed(); };
@@ -1279,7 +1339,7 @@ function buildList(){
   P.layers.forEach((L,i) => {
     const li=document.createElement('li'); if(L.id===selId) li.className='sel';
     const nm=document.createElement('span'); nm.className='nm'; nm.textContent=L.name + (L.hidden?'(非表示)':'');
-    const kd=document.createElement('span'); kd.className='kind'; kd.textContent=KIND[L.type];
+    const kd=document.createElement('span'); kd.className='kind'; kd.textContent=KIND[L.type] + (L.type==='image' && L.sil ? '・シルエット' : '');
     const wh=document.createElement('span'); wh.className='when'; wh.textContent=`${(L.anim.start||0).toFixed(1)}秒` + (L.anim.out && L.anim.out!=='none' ? `→${(+L.anim.outStart).toFixed(1)}秒` : '');
     const mk=(t,lab,dis,fn)=>{ const b=document.createElement('button'); b.type='button'; b.className='mini'; b.textContent=t; b.setAttribute('aria-label',lab); b.disabled=dis; b.onclick=e=>{ e.stopPropagation(); fn(); }; return b; };
     const up=mk('↑','奥へ',i===0,()=>{ [P.layers[i-1],P.layers[i]]=[P.layers[i],P.layers[i-1]]; changed(); select(selId); });
@@ -1321,6 +1381,22 @@ function buildProps(){
     H.push(`<div class="row"><label>形<select id="p_shape">${opts({rect:'四角',round:'角丸',circle:'丸'},L.shape)}</select></label><label>入れ方<select id="p_fit">${opts({cover:'枠いっぱい(はみ出しは切る)',contain:'全体を収める(ロゴ向け)'},L.fit)}</select></label></div>`);
     H.push(`<div class="row">${range('p_border','縁の太さ',0,40,1)}<label>縁の色<input type="color" id="p_borderColor"></label></div>`);
     H.push(`<label class="check"><input type="checkbox" id="p_shadow"> 影をつける</label>`);
+    H.push(`<p class="sub">シルエット</p>`);
+    H.push(`<label class="check"><input type="checkbox" id="p_sil"> シルエットにする(黒く塗りつぶす)</label>`);
+    H.push(`<div id="p_silBox" style="display:flex;flex-direction:column;gap:10px">
+      <p class="hint">背景を透明にした画像(切り抜いたPNG)を使うと、人の形のシルエットになります。四角い写真だと四角く塗りつぶされます。</p>
+      <label>シルエットの色<input type="color" id="p_silColor"></label>
+      <label class="check"><input type="checkbox" id="p_rimOn"> 輪郭を光らせる(逆光のような光)</label>
+      <div id="p_rimBox" style="display:flex;flex-direction:column;gap:10px">
+        <label>輪郭の光の色<input type="color" id="p_rimColor"></label>
+        <div class="row">${range('p_rimWidth','輪郭の線の太さ',0,20,.5)}${range('p_rimGlow','光のにじみ',0,100,1)}</div>
+      </div>
+      <label class="check"><input type="checkbox" id="p_silReveal"> 途中でシルエットを解いて、元の姿を見せる</label>
+      <div id="p_revealBox" style="display:flex;flex-direction:column;gap:10px">
+        <div class="row">${range('p_silRevealAt','解く時間(秒)',0,Math.max(.1,P.duration),.1)}${range('p_silRevealDur','かける時間(秒)',.1,5,.1)}</div>
+        <div class="btns"><button type="button" class="mini" id="p_revealNow">今の再生位置から解く</button><button type="button" class="btn ghost small" id="p_previewReveal">▶ 解ける動きを確認</button></div>
+      </div>
+    </div>`);
     H.push(`<label>パラパラ用の写真(複数選べます。登場の動きを「写真がパラパラ切り替わる」にすると使われます)<input type="file" id="p_imgs" accept="image/*" multiple></label><div class="btns"><span class="hint" id="p_imgsname"></span><button type="button" class="mini" id="p_imgsclear">パラパラ用の写真を外す</button></div>`);
   } else if(L.type==='crawl'){
     H.push(`<label>文字(奥へ流れていきます)<textarea id="p_text" style="min-height:120px"></textarea></label>`);
@@ -1415,6 +1491,13 @@ function buildProps(){
     $('p_img').addEventListener('change', async e => { const f=e.target.files[0]; if(!f) return; try{ L.img=await loadImageFile(f); L.sample=false; $('p_imgname').textContent='画像を使用中'; changed(true); }catch(err){ msg('画像を読み込めませんでした。PNGかJPEGを選んでください。'); } });
     $('p_imgclear').onclick = () => { L.img=null; L.sample=false; $('p_imgname').textContent='まだ画像がありません'; changed(true); };
     bind('p_shape', ...S('shape')); bind('p_fit', ...S('fit')); bind('p_border', ...N('border')); bind('p_borderColor', ...S('borderColor')); bind('p_shadow', ...S('shadow'));
+    bind('p_sil', ...S('sil')); bind('p_silColor', ()=>L.silColor||'#05040a', v=>{ L.silColor=v; }); bind('p_rimOn', ()=>L.rimOn!==false, v=>{ L.rimOn=v; });
+    bind('p_rimColor', ()=>L.rimColor||'#bfe6ff', v=>{ L.rimColor=v; }); bind('p_rimWidth', ()=>L.rimWidth ?? 3, v=>{ L.rimWidth=+v; }, v=>(+v).toFixed(1)+'px');
+    bind('p_rimGlow', ()=>L.rimGlow ?? 45, v=>{ L.rimGlow=+v; }); bind('p_silReveal', ()=>!!L.silReveal, v=>{ L.silReveal=v; });
+    bind('p_silRevealAt', ()=>L.silRevealAt ?? 3, v=>{ L.silRevealAt=+v; }, v=>(+v).toFixed(1)+'秒'); bind('p_silRevealDur', ()=>L.silRevealDur ?? 1, v=>{ L.silRevealDur=+v; }, v=>(+v).toFixed(1)+'秒');
+    $('p_sil').addEventListener('change', ()=>buildList());
+    $('p_revealNow').onclick = () => { L.silRevealAt = Math.round(T*10)/10; setCtl($('p_silRevealAt'), L.silRevealAt); changed(true); };
+    $('p_previewReveal').onclick = () => { const s=L.silRevealAt ?? 3; play(Math.max(0,s-.8), Math.min(P.duration, s+(L.silRevealDur ?? 1)+.8)); };
     const nm = () => { $('p_imgsname').textContent = (L.images||[]).length ? `${L.images.length}枚を使用中` : 'まだありません'; }; nm();
     $('p_imgs').addEventListener('change', async e => { const fs=[...e.target.files].sort((a,b)=>a.name.localeCompare(b.name,'ja',{numeric:true})); e.target.value=''; if(!fs.length) return;
       const ims=[]; for(const f of fs){ try{ ims.push(await loadImageFile(f)); }catch(err){} }
@@ -1467,6 +1550,7 @@ function refreshVis(){
   vis('pa_stampBox', L.anim.in==='stamp'); vis('pa_saberBox', L.anim.in==='saber'); vis('pa_flipBox', L.anim.in==='flip');
   vis('pa_shineBox', L.anim.shine && L.anim.shine!=='none'); vis('pa_everyWrap', L.anim.shine==='repeat');
   const sb=$('p_sizeBox'); if(sb) sb.hidden = L.fit==='fill';
+  vis('p_silBox', !!L.sil); vis('p_rimBox', L.rimOn!==false); vis('p_revealBox', !!L.silReveal);
   const per=$('pa_loopPeriod_o'); if(per && L.anim.loop && L.anim.loop!=='none'){ const c=loopCycles(P.duration, L.anim.loopPeriod||2); per.textContent=`${(+L.anim.loopPeriod).toFixed(1)}秒 → ${(P.duration/c).toFixed(2)}秒`; }
 }
 function cloneLayer(L){ const c={...L, anim:{...L.anim}, images:[...(L.images||[])]}; return c; }
@@ -1542,7 +1626,8 @@ function tlItems(){
     const a = L.anim, blocks = [{kind:'in', start:a.start||0, dur:Math.max(.1,a.dur||.6), set:(s,d)=>{ a.start=s; a.dur=d; }}];
     if(L.type==='crawl') blocks[0] = {kind:'in', start:a.start||0, dur:Math.max(.1, P.duration-(a.start||0)), set:(s)=>{ a.start=s; }, fixedEnd:true};
     if(a.out && a.out!=='none') blocks.push({kind:'out', start:a.outStart ?? P.duration-1, dur:Math.max(.1,a.outDur ?? .8), set:(s,d)=>{ a.outStart=s; a.outDur=d; }});
-    const marks = a.shine && a.shine!=='none' ? [{t:a.shineAt ?? 2, set:v=>{ a.shineAt=v; }}] : [];
+    const marks = a.shine && a.shine!=='none' ? [{t:a.shineAt ?? 2, set:v=>{ a.shineAt=v; }, tip:'キラッ'}] : [];
+    if(L.type==='image' && L.sil && L.silReveal) marks.push({t:L.silRevealAt ?? 3, set:v=>{ L.silRevealAt=v; }, tip:'シルエットを解く', cls:'rev'});
     rows.push({label:L.name+(L.hidden?'(非表示)':''), color: null, blocks, marks, onLabel:()=>select(L.id), sel: L.id===selId});
   });
   if((P.cine||[]).length){
@@ -1558,10 +1643,31 @@ function buildTimeline(){
   const head = document.createElement('div'); head.className='tl-row head';
   const hl = document.createElement('span'); hl.className='tl-lab'; hl.textContent='タイムライン';
   const ht = document.createElement('div'); ht.className='tl-track tl-head-track';
-  const stepT = D>16 ? 2 : 1;
+  const stepT = D>60 ? 10 : D>30 ? 5 : D>16 ? 2 : 1;
   for(let s=0; s<=D+1e-6; s+=stepT){ const k=document.createElement('span'); k.className='tl-tick'; k.style.left=(s/D*100)+'%'; k.textContent=s+'s'; ht.appendChild(k); }
   head.append(hl, ht); tl.appendChild(head);
   const tracks = [ht];
+  bgmWave = null;
+  if(P.bgm && bgmPeaks){
+    const sec = document.createElement('div'); sec.className='tl-sec'; sec.textContent='BGM'; tl.appendChild(sec);
+    const row = document.createElement('div'); row.className='tl-row bgm';
+    const lab = document.createElement('span'); lab.className='tl-lab'; lab.textContent = P.bgm.name; lab.title = P.bgm.name;
+    const tr = document.createElement('div'); tr.className='tl-track tl-bgm'; tr.title='左右にドラッグすると、曲のどこから使うかを動かせます(クリックで再生位置を移動)';
+    const wv = document.createElement('canvas'); wv.className='tl-wave'; tr.appendChild(wv); bgmWave = wv; tracks.push(tr);
+    tr.addEventListener('pointerdown', ev => {
+      ev.preventDefault(); const r2 = tr.getBoundingClientRect(), x0 = ev.clientX, o0 = P.bgm.offset||0; let moved = false;
+      try{ tr.setPointerCapture(ev.pointerId); }catch(_){}
+      const mv = e2 => { if(Math.abs(e2.clientX-x0) > 3) moved = true; if(!moved) return;
+        P.bgm.offset = clamp(Math.round((o0 - (e2.clientX-x0)/r2.width*D)*100)/100, 0, Math.max(0, bgmBuf.duration-.1));
+        $('bgmOffset').value = P.bgm.offset; $('bgmOffset_o').textContent = fmtSec(P.bgm.offset); drawBgmWave(); };
+      const up = e2 => { tr.removeEventListener('pointermove',mv); tr.removeEventListener('pointerup',up); tr.removeEventListener('pointercancel',up);
+        if(!moved){ if(playing) stop(); T = clamp((e2.clientX-r2.left)/r2.width*D, 0, D); redraw(); }
+        else { if(playing) play(T, playUntil); changed(true); } };
+      tr.addEventListener('pointermove',mv); tr.addEventListener('pointerup',up); tr.addEventListener('pointercancel',up);
+    });
+    row.append(lab, tr); tl.appendChild(row);
+    requestAnimationFrame(drawBgmWave);
+  }
   for(const r of tlItems()){
     if(r.sec){ const s=document.createElement('div'); s.className='tl-sec'; s.textContent=r.sec; tl.appendChild(s); continue; }
     const row=document.createElement('div'); row.className='tl-row';
@@ -1589,7 +1695,7 @@ function buildTimeline(){
       tr.appendChild(el);
     }
     for(const mk of r.marks){
-      const el=document.createElement('div'); el.className='tl-dia'; el.style.left=(mk.t/D*100)+'%'; el.title=`キラッ ${mk.t.toFixed(1)}秒`;
+      const el=document.createElement('div'); el.className='tl-dia'+(mk.cls?' '+mk.cls:''); el.style.left=(mk.t/D*100)+'%'; el.title=`${mk.tip||'キラッ'} ${mk.t.toFixed(1)}秒`;
       el.addEventListener('pointerdown', ev => { ev.preventDefault(); ev.stopPropagation(); const w=tr.getBoundingClientRect().width, x0=ev.clientX, t0=mk.t; try{ el.setPointerCapture(ev.pointerId); }catch(_){}
         const mv=e2=>{ mk.t=clamp(snap(t0+(e2.clientX-x0)/w*D),0,D); mk.set(mk.t); el.style.left=(mk.t/D*100)+'%'; T=mk.t; redraw(); };
         const up=()=>{ el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); changed(); if(selId) buildProps(); };
@@ -1664,11 +1770,11 @@ $('ioExport').onclick = async () => {
   ioMsg('書き出しています…');
   try{
     const s = serialize(); const conv = async b => b ? await blobToDataURL(b) : null;
-    const out = {...s, app:'anime-poster', bg: await conv(s.bg), frame: await conv(s.frame), layers: [], fonts: []};
+    const out = {...s, app:'anime-poster', bg: await conv(s.bg), frame: await conv(s.frame), layers: [], fonts: [], bgm: s.bgm && s.bgm.blob ? {...s.bgm, blob: await conv(s.bgm.blob)} : null};
     for(const L of s.layers){ const imgs=[]; for(const b of L.images||[]) imgs.push(await conv(b)); out.layers.push({...L, img: await conv(L.img), images: imgs}); }
     for(const f of s.fonts) out.fonts.push({name:f.name, fam:f.fam, blob: await conv(f.blob)});
     const r = await saveFile(`animeposter_${stamp()}.json`, JSON.stringify(out));
-    ioMsg(r==='saved' ? '作品をファイルに書き出しました(画像とフォントも含まれています)。' : r==='declined' ? '書き出しを取り消しました。' : '書き出せませんでした。少し待ってからもう一度試してください。');
+    ioMsg(r==='saved' ? `作品をファイルに書き出しました(画像とフォント${out.bgm?'・音楽':''}も含まれています)。` : r==='declined' ? '書き出しを取り消しました。' : '書き出せませんでした。少し待ってからもう一度試してください。');
   }catch(e){ ioMsg('書き出せませんでした。'); }
 };
 $('ioImport').addEventListener('change', async e => {
@@ -1677,7 +1783,7 @@ $('ioImport').addEventListener('change', async e => {
   try{
     const d = JSON.parse(await f.text()); if(d.app!=='anime-poster' || !Array.isArray(d.layers)) throw new Error('format');
     const toB = u => u ? dataURLToBlob(u) : null;
-    d.bg = toB(d.bg); d.frame = toB(d.frame); d.layers = d.layers.map(L => ({...L, img: toB(L.img), images: (L.images||[]).map(toB).filter(Boolean)})); d.fonts = (d.fonts||[]).map(ft => ({...ft, blob: toB(ft.blob)})).filter(ft=>ft.blob);
+    d.bg = toB(d.bg); d.frame = toB(d.frame); d.bgm = d.bgm && d.bgm.blob ? {...d.bgm, blob: toB(d.bgm.blob)} : null; d.layers = d.layers.map(L => ({...L, img: toB(L.img), images: (L.images||[]).map(toB).filter(Boolean)})); d.fonts = (d.fonts||[]).map(ft => ({...ft, blob: toB(ft.blob)})).filter(ft=>ft.blob);
     P = await deserialize(d); afterLoad(); ioMsg(`「${f.name}」を読み込みました。`);
   }catch(err){ ioMsg('読み込めませんでした。このツールで書き出したファイル(.json)を選んでください。'); }
 });
@@ -1691,11 +1797,11 @@ $('newProj').onclick = () => {
   if(!newArmed){ newArmed=true; $('newProj').textContent='もう一度押すとやり直します'; setTimeout(()=>{ newArmed=false; $('newProj').textContent='サンプルからやり直す'; },3000); return; }
   newArmed=false; $('newProj').textContent='サンプルからやり直す'; P = sampleProject(); afterLoad(); changed(); ioMsg('サンプルの状態に戻しました。');
 };
-function afterLoad(){ selId=null; stop(); T = restT(); loadGlobal(); lastDims = artDims(); hideUndo(); openCine=null; buildCine(); sizeBoard(); buildOverlay(); buildList(); buildProps(); loadFontsFor(); redraw(); }
+function afterLoad(){ selId=null; stop(); syncBgm(); T = restT(); loadGlobal(); lastDims = artDims(); hideUndo(); openCine=null; buildCine(); sizeBoard(); buildOverlay(); buildList(); buildProps(); loadFontsFor(); redraw(); }
 
 /* ---- 数値の表示 ---- */
 document.querySelectorAll('.panel input[type=range]').forEach(inp => {
-  if(inp.closest('#props')) return;
+  if(inp.closest('#props') || inp.closest('#bgmBox')) return;
   const lab=inp.closest('label'); const t=[...lab.childNodes].find(n=>n.nodeType===3 && n.textContent.trim());
   const head=document.createElement('span'); head.className='lab'; const nm=document.createElement('span'); nm.textContent=t?t.textContent.trim():'';
   const out=document.createElement('output'); head.append(nm,out); if(t) lab.replaceChild(head,t); else lab.prepend(head);
@@ -1705,11 +1811,122 @@ document.querySelectorAll('.panel input[type=range]').forEach(inp => {
   inp.addEventListener('input',upd); inp._upd=upd; upd();
 });
 
+/* ---- BGM(音楽) ---- */
+const AC = window.AudioContext || window.webkitAudioContext;
+let actx = null, bgmBuf = null, bgmBufBlob = null, bgmSrc = null, aStart = 0, aFrom = 0, bgmPeaks = null;
+function audioCtx(){ if(!actx && AC){ try{ actx = new AC(); }catch(e){} } return actx; }
+const bgmOn = () => !!(P.bgm && bgmBuf);
+const fmtSec = v => { v = Math.max(0, v||0); const m = Math.floor(v/60), x = v - m*60; return `${m}:${x.toFixed(1).padStart(4,'0')}`; };
+// 作品の時間 tau(秒)での音量(0〜1)。フェードイン・フェードアウト込み
+function bgmGainAt(tau){
+  const b = P.bgm, D = P.duration; let g = (b.vol ?? 80)/100;
+  if(b.fadeIn > 0) g *= clamp(tau/b.fadeIn, 0, 1);
+  if(b.fadeOut > 0) g *= clamp((D-tau)/b.fadeOut, 0, 1);
+  return g;
+}
+function gainCurve(from, to, n){ const a = new Float32Array(n); for(let i=0;i<n;i++) a[i] = bgmGainAt(from + (to-from)*i/(n-1)); return a; }
+function decodeBgm(blob){
+  return blob.arrayBuffer().then(ab => new Promise((res, rej) => {
+    const c = audioCtx(); if(!c) return rej(new Error('noaudio'));
+    try{ const pr = c.decodeAudioData(ab, res, rej); if(pr && pr.then) pr.then(res, rej); }catch(e){ rej(e); }
+  }));
+}
+function makePeaks(buf){                     // 10ミリ秒ごとの音の大きさ(波形表示用)
+  const per = Math.max(1, Math.round(buf.sampleRate/100)), n = Math.ceil(buf.length/per), out = new Float32Array(n);
+  for(let ch=0; ch<buf.numberOfChannels; ch++){ const d = buf.getChannelData(ch);
+    for(let i=0;i<n;i++){ let m = out[i]; const e = Math.min(d.length, (i+1)*per); for(let j=i*per; j<e; j+=4){ const v = d[j] < 0 ? -d[j] : d[j]; if(v > m) m = v; } out[i] = m; } }
+  let mx = 0; for(const v of out) if(v > mx) mx = v; if(mx > 0) for(let i=0;i<n;i++) out[i] /= mx;
+  return out;
+}
+async function syncBgm(){
+  if(!P.bgm || !P.bgm.blob){ P.bgm = null; bgmBuf = null; bgmBufBlob = null; bgmPeaks = null; buildBgmUI(); buildTimeline(); return; }
+  if(P.bgm.blob !== bgmBufBlob || !bgmBuf){
+    $('bgmName').textContent = '音楽を読み込んでいます…';
+    try{ bgmBuf = await decodeBgm(P.bgm.blob); bgmBufBlob = P.bgm.blob; bgmPeaks = makePeaks(bgmBuf); }
+    catch(e){ msg('音楽を読み込めませんでした。MP3・WAV・M4Aなどの音楽ファイルを選んでください。'); P.bgm = null; bgmBuf = null; bgmBufBlob = null; bgmPeaks = null; }
+  }
+  buildBgmUI(); buildTimeline();
+}
+function audioStop(){ if(bgmSrc){ try{ bgmSrc.stop(); }catch(e){} try{ bgmSrc.disconnect(); }catch(e){} bgmSrc = null; } }
+function audioPlay(from, until){
+  audioStop();
+  if(!bgmOn() || P.bgm.preview === false) return false;
+  const c = audioCtx(); if(!c) return false;
+  if(c.state === 'suspended') c.resume().catch(()=>{});
+  const end = until ?? P.duration, len = Math.max(.02, end - from), off = (P.bgm.offset || 0) + from;
+  const src = c.createBufferSource(), g = c.createGain(), t0 = c.currentTime + .06;
+  src.buffer = bgmBuf;
+  g.gain.value = bgmGainAt(from);
+  try{ g.gain.setValueCurveAtTime(gainCurve(from, end, Math.max(2, Math.ceil(len*50))), t0, len); }catch(e){}
+  src.connect(g); g.connect(c.destination);
+  if(off < bgmBuf.duration) src.start(t0, off, Math.min(len, bgmBuf.duration - off));
+  bgmSrc = src; aStart = t0; aFrom = from;
+  return true;
+}
+const BGMF = [['bgmOffset','offset', v=>fmtSec(v)], ['bgmVol','vol', v=>v+'%'], ['bgmFadeIn','fadeIn', v=>(+v).toFixed(1)+'秒'], ['bgmFadeOut','fadeOut', v=>(+v).toFixed(1)+'秒']];
+function buildBgmUI(){
+  const b = P.bgm; $('bgmBox').hidden = !b; $('bgmClear').disabled = !b;
+  $('bgmName').textContent = b ? `「${b.name}」(長さ ${fmtSec(bgmBuf ? bgmBuf.duration : 0)})` : 'まだ音楽がありません';
+  if(!b) return;
+  $('bgmOffset').max = bgmBuf ? Math.max(0, bgmBuf.duration - .1).toFixed(2) : 600;
+  for(const [id, k, f] of BGMF){ $(id).value = b[k]; $(id+'_o').textContent = f(b[k]); }
+  $('bgmPreview').checked = b.preview !== false;
+}
+for(const [id, k, f] of BGMF){
+  $(id).addEventListener('input', () => { if(!P.bgm) return; P.bgm[k] = +$(id).value; $(id+'_o').textContent = f(P.bgm[k]); drawBgmWave(); });
+  $(id).addEventListener('change', () => { if(!P.bgm) return; if(playing) play(T, playUntil); changed(true); });
+}
+$('bgmPreview').addEventListener('change', () => { if(!P.bgm) return; P.bgm.preview = $('bgmPreview').checked; if(playing) play(T, playUntil); changed(true); });
+$('bgmFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = ''; if(!f) return;
+  stop();
+  P.bgm = {name: f.name, blob: f, offset: 0, vol: 80, fadeIn: 0, fadeOut: 1.5, preview: true};
+  await syncBgm();
+  if(P.bgm) msg(`「${f.name}」を入れました。再生すると音が鳴ります。`);
+  changed();
+});
+$('bgmClear').onclick = () => { stop(); P.bgm = null; syncBgm(); changed(); msg('音楽を外しました。'); };
+$('bgmFit').onclick = () => {
+  if(!bgmOn()) return;
+  const v = clamp(Math.floor((bgmBuf.duration - (P.bgm.offset||0))*10)/10, 2, 120);
+  $('duration').value = v; $('duration').dispatchEvent(new Event('input')); setCtl($('duration'), v);
+  msg(`作品の長さを${v.toFixed(1)}秒にしました。`);
+};
+// タイムラインの波形
+let bgmWave = null;
+function drawBgmWave(){
+  if(!bgmWave || !bgmWave.isConnected || !bgmPeaks || !P.bgm) return;
+  const cvw = bgmWave, wpx = cvw.clientWidth, hpx = cvw.clientHeight, dpr = Math.min(2, window.devicePixelRatio||1);
+  if(!wpx) return;
+  cvw.width = Math.round(wpx*dpr); cvw.height = Math.round(hpx*dpr);
+  const g = cvw.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); g.clearRect(0,0,wpx,hpx);
+  const D = P.duration, off = P.bgm.offset||0, col = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#6b4fd8';
+  g.fillStyle = col; g.globalAlpha = .75;
+  for(let x=0; x<wpx; x++){
+    const t0 = x/wpx*D, t1 = (x+1)/wpx*D, a = Math.floor((off+t0)*100), b = Math.max(a+1, Math.ceil((off+t1)*100));
+    if(a >= bgmPeaks.length) break;
+    let m = 0; for(let i=a; i<b && i<bgmPeaks.length; i++) if(bgmPeaks[i] > m) m = bgmPeaks[i];
+    const vol = Math.max(.15, (P.bgm.vol ?? 80)/100), k = bgmGainAt((t0+t1)/2) / vol;
+    const hh = Math.max(1, m * k * (hpx-4)); g.fillRect(x, (hpx-hh)/2, 1, hh);
+  }
+  g.globalAlpha = 1;
+}
+window.addEventListener('resize', () => drawBgmWave());
+
 /* ===== 書き出し ===== */
 function setBusy(b){ for(const id of ['saveMp4','saveGif','savePng']) $(id).disabled=b; $('play').disabled=b; }
 function bar(p){ $('bar').style.width=(p*100).toFixed(1)+'%'; }
 const nextTick = () => new Promise(r=>setTimeout(r,0));
 
+async function renderBgm(D, sr){          // 作品の長さぶんの音を、音量・フェード込みで作る
+  const oc = new OfflineAudioContext(2, Math.max(1, Math.ceil(D*sr)), sr);
+  const src = oc.createBufferSource(), g = oc.createGain(); src.buffer = bgmBuf;
+  g.gain.value = bgmGainAt(0);
+  try{ g.gain.setValueCurveAtTime(gainCurve(0, D, Math.max(2, Math.ceil(D*50))), 0, D); }catch(e){}
+  src.connect(g); g.connect(oc.destination);
+  const off = P.bgm.offset || 0; if(off < bgmBuf.duration) src.start(0, off, Math.min(D, bgmBuf.duration - off));
+  return await oc.startRendering();
+}
 async function exportMp4(){
   if(typeof VideoEncoder==='undefined' || typeof VideoFrame==='undefined'){ msg('このブラウザはMP4の書き出しに対応していません。パソコンのChromeかEdgeで開いてください(GIFは保存できます)。'); return; }
   if(typeof Mp4Muxer==='undefined'){ msg('MP4の作成機能を読み込めませんでした。ネットにつないだ状態でページを開き直してください。'); return; }
@@ -1727,7 +1944,21 @@ async function exportMp4(){
       try{ const s=await VideoEncoder.isConfigSupported(c); if(s && s.supported){ cfg=c; mux=m; break; } }catch(e){}
     }
     if(!cfg) throw new Error('nocodec');
-    const muxer=new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(), video:{codec:mux, width:w, height:h, frameRate:fps}, fastStart:'in-memory'});
+    // BGM:AAC(Twitterで使える形式)を優先。使えないときは Opus
+    let aud = null, audWarn = '';
+    if(bgmOn()){
+      if(typeof AudioEncoder==='undefined' || typeof AudioData==='undefined' || typeof OfflineAudioContext==='undefined') audWarn = 'このブラウザでは音を入れられないため、音なしで作りました。';
+      else {
+        for(const [codec, am] of [['mp4a.40.2','aac'], ['opus','opus']]){
+          const c = {codec, sampleRate:48000, numberOfChannels:2, bitrate:192000};
+          try{ const r = await AudioEncoder.isConfigSupported(c); if(r && r.supported){ aud = {cfg:c, mux:am}; break; } }catch(e){}
+        }
+        if(!aud) audWarn = 'このブラウザでは音を入れられないため、音なしで作りました。';
+        else if(aud.mux!=='aac') audWarn = 'このブラウザではAACが使えないため、音をOpus形式で入れました。Twitterで音が出ない場合は、パソコンのChromeかEdgeで作り直してください。';
+      }
+    }
+    const muxer=new Mp4Muxer.Muxer({target:new Mp4Muxer.ArrayBufferTarget(), video:{codec:mux, width:w, height:h, frameRate:fps},
+      ...(aud ? {audio:{codec:aud.mux, numberOfChannels:2, sampleRate:48000}} : {}), fastStart:'in-memory', firstTimestampBehavior:'offset'});
     let encErr=null;
     const enc=new VideoEncoder({output:(chunk,meta)=>muxer.addVideoChunk(chunk,meta), error:e=>{ encErr=e; }});
     enc.configure(cfg);
@@ -1740,13 +1971,30 @@ async function exportMp4(){
       while(enc.encodeQueueSize>6) await new Promise(r=>setTimeout(r,4));
       if(i%5===0){ bar(i/frames*.95); msg(`MP4を作成中… ${i+1} / ${frames} コマ`); await nextTick(); }
     }
-    await enc.flush(); enc.close(); muxer.finalize();
+    await enc.flush(); enc.close();
     if(encErr) throw encErr;
+    if(aud){
+      msg('音を入れています…'); await nextTick();
+      const buf = await renderBgm(P.duration, 48000);
+      const aenc = new AudioEncoder({output:(chunk,meta)=>muxer.addAudioChunk(chunk,meta), error:e=>{ encErr=e; }});
+      aenc.configure(aud.cfg);
+      const c0 = buf.getChannelData(0), c1 = buf.numberOfChannels>1 ? buf.getChannelData(1) : c0, total = buf.length, CH = 4800;
+      for(let i=0;i<total;i+=CH){
+        if(encErr) throw encErr;
+        const n = Math.min(CH, total-i), data = new Float32Array(n*2); data.set(c0.subarray(i,i+n), 0); data.set(c1.subarray(i,i+n), n);
+        const ad = new AudioData({format:'f32-planar', sampleRate:48000, numberOfFrames:n, numberOfChannels:2, timestamp:Math.round(i*1e6/48000), data});
+        aenc.encode(ad); ad.close();
+        while(aenc.encodeQueueSize > 16) await new Promise(r=>setTimeout(r,4));
+      }
+      await aenc.flush(); aenc.close();
+      if(encErr) throw encErr;
+    }
+    muxer.finalize();
     const blob=new Blob([muxer.target.buffer], {type:'video/mp4'});
     bar(1);
     const r=await saveFile(`animeposter_${stamp()}.mp4`, blob);
     const warn = mux==='avc' ? '' : 'このブラウザではH.264が使えないため、別の形式(' + mux.toUpperCase() + ')のMP4で作りました。Twitterに投稿できない場合は、パソコンのChromeかEdgeで作り直してください。';
-    msg(r==='saved' ? `MP4を保存しました(${w}×${h}px・${P.duration}秒・${(blob.size/1048576).toFixed(1)}MB)。${warn}` : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。');
+    msg(r==='saved' ? `MP4を保存しました(${w}×${h}px・${P.duration}秒・${aud?'音あり':'音なし'}・${(blob.size/1048576).toFixed(1)}MB)。${warn}${audWarn}` : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。');
     return blob;
   }catch(e){
     msg(e && e.message==='nocodec' ? 'このブラウザではこの大きさのMP4を作れませんでした。作品の大きさを小さくして試してください。' : 'MP4を作れませんでした。ページを開き直してもう一度試してください。');
@@ -1773,7 +2021,7 @@ async function exportGif(){
     const blob=new Blob([gif.bytes()], {type:'image/gif'});
     bar(1);
     const r=await saveFile(`animeposter_${stamp()}.gif`, blob);
-    msg(r==='saved' ? `GIFを保存しました(${gw}×${gh}px・${(blob.size/1048576).toFixed(1)}MB)。重いときは「GIFの大きさ」か「なめらかさ」を下げてください。` : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。');
+    msg(r==='saved' ? `GIFを保存しました(${gw}×${gh}px・${(blob.size/1048576).toFixed(1)}MB)。${P.bgm?'GIFには音は入りません。':''}重いときは「GIFの大きさ」か「なめらかさ」を下げてください。` : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。');
     return blob;
   }catch(e){ msg('GIFを作れませんでした。大きさを小さくしてもう一度試してください。'); console.error(e); }
   finally{ setBusy(false); setTimeout(()=>bar(0),1500); }
