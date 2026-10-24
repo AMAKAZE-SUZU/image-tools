@@ -139,7 +139,7 @@ details.fxrow .row{display:flex}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>アニメポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.4 ・ 2026-10-24 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.5 ・ 2026-10-24 更新</a>
     <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪やBGMを重ねて、動くポスターや短い動画をMP4かGIFで保存できます。最初はサンプルが入っています。</p>
   </header>
 
@@ -722,9 +722,26 @@ function logoState(L, t){
   const T = end - st, u = clamp((t-st)/T, 0, 1), r = L.logoRate ?? 10, ac = L.logoAccel || 'up';
   const f = ac==='up' ? .4*u + .6*u*u : ac==='down' ? 1.6*u - .6*u*u : u;
   const zq = easeOut(clamp((t-st)/(T+sd), 0, 1));
-  return {u, idx: Math.floor(r*T*f + 1e-6), settle: L.logoKeep ? 0 : smooth(clamp((t-end)/sd, 0, 1)), zoom: 1 + ((L.logoZoom ?? 135)/100 - 1)*(1-zq)};
+  return {u, tau: Math.max(0, t-st), idx: Math.floor(r*T*f + 1e-6), settle: L.logoKeep ? 0 : smooth(clamp((t-end)/sd, 0, 1)), zoom: 1 + ((L.logoZoom ?? 135)/100 - 1)*(1-zq)};
 }
-function drawLogoInner(g, img, L, x, y, w, h, s, i){
+function drawCoverTile(g, img, x, y, w, h){
+  const iw = img.naturalWidth||img.width, ih = img.naturalHeight||img.height, k = Math.max(w/iw, h/ih);
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.drawImage(img, x + (w-iw*k)/2, y + (h-ih*k)/2, iw*k, ih*k); g.restore();
+}
+function drawLogoInner(g, img, L, x, y, w, h, s, i, ims){
+  if(L.logoMove==='collage' && ims && ims.length){
+    // 複数の画像をすき間なく並べて、段ごとに逆向きに流す
+    const rows = h > w*.55 ? 3 : 2, th = h/rows, tw = th*1.45, n = ims.length, gap = Math.max(1, th*.03);
+    const sp = tw * (L.logoRate ?? 10) * .06;
+    for(let r=0; r<rows; r++){
+      const dir = r%2 ? 1 : -1, off = ((s.tau*sp*dir) % tw + tw) % tw, first = Math.floor(s.tau*sp*dir/tw);
+      for(let c=-1; c*tw - off < w + tw; c++){
+        const im = ims[(((c - first + r*3) % n) + n) % n];
+        drawCoverTile(g, im, x + c*tw - off + gap/2, y + r*th + gap/2, tw - gap, th - gap);
+      }
+    }
+    return;
+  }
   const iw = img.naturalWidth||img.width, ih = img.naturalHeight||img.height;
   let k = (L.logoFit==='contain' ? Math.min(w/iw, h/ih) : Math.max(w/iw, h/ih)), ox = 0, oy = 0;
   const mv = L.logoMove || 'zoom', u = s.u;
@@ -740,7 +757,15 @@ function drawLogo(c, L, w, h, W, H, t, sc){
   const ims = (L.images && L.images.length) ? L.images : logoSamples(), n = ims.length;
   const i = s.u >= 1 ? n-1 : ((s.idx % n) + n) % n, img = ims[i];
   const Tm = c.getTransform(), px = Math.hypot(Tm.a, Tm.b) || 1, z = s.zoom;
-  const {lines, size, lh, sp, font, tw, th} = lay;
+  const {lines, sp, font} = lay; let {size, lh, tw, th} = lay;
+  // ロゴ画像を形に使うとき:枠に収まる大きさの範囲を出す(板の余白も含めて)
+  const useImg = L.maskMode==='image' && L.img;
+  let mr = null;
+  if(useImg){
+    const iw = L.img.naturalWidth||L.img.width, ih = L.img.naturalHeight||L.img.height, prr = L.plateOn ? (L.platePad ?? 18)/100 : 0;
+    const k0 = Math.min(w*.98/iw, h*.98/ih), ref = Math.min(iw, ih)*k0, kk = Math.min((w*.98 - ref*prr*2)/iw, (h*.98 - ref*prr*1.4)/ih, k0);
+    tw = iw*kk; th = ih*kk; size = Math.min(tw, th); mr = [w/2 - tw/2, h/2 - th/2, tw, th];
+  }
   c.save(); c.translate(w/2, h/2); c.scale(z, z); c.translate(-w/2, -h/2);
   // 文字の後ろの板
   const pad = size*(L.platePad ?? 18)/100;
@@ -748,7 +773,7 @@ function drawLogo(c, L, w, h, W, H, t, sc){
   if(L.plateOn){ c.fillStyle = hexA(L.plateColor || '#d81b4a', 1 - (L.plateTrans||0)/100); c.fillRect(...pr); }
   // 文字の外にも画像を薄く見せる
   const outA = (L.logoOutside||0)/100 * (1 - s.settle);
-  if(outA > 0){ c.save(); const ba = c.globalAlpha; c.beginPath(); if(L.plateOn) c.rect(...pr); else c.rect(0, 0, w, h); c.clip(); c.globalAlpha = ba*outA; drawLogoInner(c, img, L, 0, 0, w, h, s, i); c.restore(); }
+  if(outA > 0){ c.save(); const ba = c.globalAlpha; c.beginPath(); if(L.plateOn) c.rect(...pr); else c.rect(0, 0, w, h); c.clip(); c.globalAlpha = ba*outA; drawLogoInner(c, img, L, 0, 0, w, h, s, i, ims); c.restore(); }
   // 文字の形にくり抜いた画像を、別のキャンバスに描いてから重ねる
   const m = size*.35, ow = w + m*2, oh = h + m*2;
   const k = Math.max(.05, Math.min(px*z, 4096/Math.max(ow, oh)));
@@ -760,15 +785,30 @@ function drawLogo(c, L, w, h, W, H, t, sc){
   g.font = fontStr(font, size); g.letterSpacing = (sp*size) + 'px'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
   const ys = lines.map((_, j) => h/2 + (j - (lines.length-1)/2)*size*lh);
   const cxT = w/2 + sp*size/2;   // 文字間隔を空けたぶん、中心がずれないように
-  g.fillStyle = '#000'; lines.forEach((l, j) => g.fillText(l, cxT, ys[j]));
+  if(useImg) g.drawImage(L.img, ...mr); else { g.fillStyle = '#000'; lines.forEach((l, j) => g.fillText(l, cxT, ys[j])); }
   g.globalCompositeOperation = 'source-in'; g.fillStyle = L.logoBack || '#111111'; g.fillRect(-m, -m, ow, oh);
   g.globalCompositeOperation = 'source-atop';
   if(s.settle < 1){
-    drawLogoInner(g, img, L, 0, 0, w, h, s, i);
+    drawLogoInner(g, img, L, 0, 0, w, h, s, i, ims);
     const ta = (L.logoTintAmt ?? 15)/100; if(ta > 0){ g.globalAlpha = ta; g.fillStyle = L.logoTint || '#000000'; g.fillRect(-m, -m, ow, oh); g.globalAlpha = 1; }
   }
-  if(s.settle > 0){ g.globalAlpha = s.settle; g.fillStyle = L.color || '#ffffff'; g.fillRect(-m, -m, ow, oh); g.globalAlpha = 1; }
-  if((L.stroke||0) > 0){ g.globalCompositeOperation = 'destination-over'; g.lineWidth = size*L.stroke/100*2; g.strokeStyle = L.strokeColor || '#ffffff'; lines.forEach((l, j) => g.strokeText(l, cxT, ys[j])); }
+  if(s.settle > 0){ g.globalAlpha = s.settle;
+    if(useImg && (L.logoSettleTo||'original')==='original') g.drawImage(L.img, ...mr);   // ロゴ画像の元の色に戻す
+    else { g.fillStyle = L.color || '#ffffff'; g.fillRect(-m, -m, ow, oh); }
+    g.globalAlpha = 1; }
+  if(useImg && (L.stroke||0) > 0){
+    // 画像の輪郭に縁取り:形を縁取り色で塗ったものを少しずつずらして後ろに重ねる
+    const sw = size*L.stroke/100*.5;
+    if(!drawLogo.rim) drawLogo.rim = document.createElement('canvas');
+    const R = drawLogo.rim; if(R.width!==cw || R.height!==ch){ R.width=cw; R.height=ch; }
+    const rg = R.getContext('2d'); rg.setTransform(1,0,0,1,0,0); rg.globalCompositeOperation='source-over'; rg.clearRect(0,0,cw,ch);
+    rg.setTransform(k,0,0,k,m*k,m*k); rg.drawImage(L.img, ...mr); rg.setTransform(1,0,0,1,0,0);
+    rg.globalCompositeOperation='source-in'; rg.fillStyle = L.strokeColor || '#ffffff'; rg.fillRect(0,0,cw,ch); rg.globalCompositeOperation='source-over';
+    g.setTransform(1,0,0,1,0,0); g.globalCompositeOperation = 'destination-over';
+    for(let a=0; a<16; a++){ const an = a/16*Math.PI*2; g.drawImage(R, Math.cos(an)*sw*k, Math.sin(an)*sw*k); }
+    g.setTransform(k, 0, 0, k, m*k, m*k);
+  }
+  if(!useImg && (L.stroke||0) > 0){ g.globalCompositeOperation = 'destination-over'; g.lineWidth = size*L.stroke/100*2; g.strokeStyle = L.strokeColor || '#ffffff'; lines.forEach((l, j) => g.strokeText(l, cxT, ys[j])); }
   g.globalCompositeOperation = 'source-over'; g.letterSpacing = '0px';
   if(L.glow){ c.shadowColor = L.glowColor || '#ffffff'; c.shadowBlur = size*.35*px*z; }
   c.drawImage(logoCv, -m, -m, ow, oh);
@@ -1096,7 +1136,7 @@ function newLayer(type, extra={}){
   if(type==='logo') Object.assign(base, {name:'ロゴ文字', text:'YUMECHIFFO', font:'Dela Gothic One', localFont:'', images:[], lineHeight:1.05, spacing:4,
     color:'#ffffff', logoBack:'#111111', stroke:0, strokeColor:'#ffffff', glow:false, glowColor:'#ffffff',
     logoRate:10, logoAccel:'up', logoSettleAt:3, logoSettleDur:.8, logoKeep:false, logoZoom:135, logoMove:'zoom', logoFit:'cover', logoTint:'#000000', logoTintAmt:15,
-    logoOutside:0, plateOn:true, plateColor:'#d81b4a', platePad:18, plateTrans:0, x:.06, y:.32, w:.88, h:.36});
+    logoOutside:0, maskMode:'text', img:null, logoSettleTo:'original', plateOn:true, plateColor:'#d81b4a', platePad:18, plateTrans:0, x:.06, y:.32, w:.88, h:.36});
   if(type==='image') Object.assign(base, {img:null, images:[], sample:false, shape:'round', fit:'cover', border:0, borderColor:'#ffffff', shadow:true,
     sil:false, silColor:'#05040a', rimOn:true, rimColor:'#bfe6ff', rimWidth:3, rimGlow:45, silReveal:false, silRevealAt:3, silRevealDur:1});
   if(type==='text') Object.assign(base, {text:'テキスト', font:FONTS[0].fam, localFont:'', fit:'fill', size:8, wrapMode:'sentence', balance:true, lineHeight:1.3,
@@ -1501,15 +1541,21 @@ function buildProps(){
     H.push(range('p_stroke','縁取りの太さ',0,30,1));
     H.push(`<p class="hint">「登場する時間」から流れ始め、作品の最後まで流れ続けます。枠の下の端が手前、上の端がいちばん奥です。</p>`);
   } else if(L.type==='logo'){
+    H.push(`<label>くり抜く形<select id="p_maskMode">${opts({text:'文字',image:'ロゴ画像(背景が透明なPNG)'},L.maskMode||'text')}</select></label>`);
+    H.push(`<div id="p_maskImgBox" style="display:flex;flex-direction:column;gap:10px"><label>ロゴ画像<input type="file" id="p_logoImg" accept="image/*"></label><div class="btns"><span class="hint" id="p_logoImgName"></span><button type="button" class="mini" id="p_logoImgClear">ロゴ画像を外す</button></div>
+      <p class="hint">ロゴの色がついている部分の形に、中の画像が入ります。背景を透明にしたPNGを使ってください(背景が白い画像だと四角くなります)。</p>
+      <label>最後に落ち着く色<select id="p_logoSettleTo">${opts({original:'ロゴ画像の元の色',color:'1色で塗る(下の「最後の文字色」)'},L.logoSettleTo||'original')}</select></label></div>`);
+    H.push(`<div id="p_maskTextBox" style="display:flex;flex-direction:column;gap:10px">`);
     H.push(`<label>ロゴの文字(改行で2段にできます)<textarea id="p_text" style="min-height:60px"></textarea></label>`);
     H.push(`<label>フォント(太い文字ほど中の画像がよく見えます)<select id="p_font">${[...FONTS].map(f=>`<option value="${esc(f.fam)}"${f.fam===L.font?' selected':''}>${esc(f.name)}</option>`).join('')}</select></label>`);
     H.push(`<label>PCに入っているフォント名で指定<input type="text" id="p_localFont" placeholder="例:けいふぉんと"></label>`);
     H.push(`<div class="row">${range('p_spacing','文字の間隔',-10,40,1)}${range('p_lineHeight','行間',.8,1.6,.05)}</div>`);
+    H.push(`</div>`);
     H.push(`<p class="sub">中で動く画像</p>`);
     H.push(`<label>文字の中に入れる画像(複数選べます。ファイル名の順に切り替わり、最後の1枚で止まります)<input type="file" id="p_imgs" accept="image/*" multiple></label><div class="btns"><span class="hint" id="p_imgsname"></span><button type="button" class="mini" id="p_imgsclear">画像を外す</button></div>`);
     H.push(`<p class="hint">画像がないあいだは見本の画像が入ります。背景を透明にしたキャラクターの画像を入れると、下地の色の上でキャラクターが動きます。</p>`);
-    H.push(`<div class="row"><label>入れ方<select id="p_logoFit">${opts({cover:'文字いっぱい(はみ出しは切る)',contain:'全体を収める(キャラ向け)'},L.logoFit||'cover')}</select></label><label>中の画像の動き<select id="p_logoMove">${opts({zoom:'ゆっくり引いていく',panL:'横に流れる',panUp:'上に流れる',none:'動かさない'},L.logoMove||'zoom')}</select></label></div>`);
-    H.push(`<div class="row">${range('p_logoRate','切り替わる速さ(枚/秒)',1,24,1)}<label>速さの変化<select id="p_logoAccel">${opts({up:'だんだん速く',flat:'一定',down:'だんだん遅く'},L.logoAccel||'up')}</select></label></div>`);
+    H.push(`<div class="row"><label>入れ方<select id="p_logoFit">${opts({cover:'文字いっぱい(はみ出しは切る)',contain:'全体を収める(キャラ向け)'},L.logoFit||'cover')}</select></label><label>中の画像の動き<select id="p_logoMove">${opts({zoom:'1枚ずつ・ゆっくり引いていく',panL:'1枚ずつ・横に流れる',panUp:'1枚ずつ・上に流れる',none:'1枚ずつ・動かさない',collage:'何枚も並べて流す'},L.logoMove||'zoom')}</select></label></div>`);
+    H.push(`<div class="row">${range('p_logoRate','切り替わる速さ(並べて流すときは流れる速さ)',1,24,1)}<label>速さの変化<select id="p_logoAccel">${opts({up:'だんだん速く',flat:'一定',down:'だんだん遅く'},L.logoAccel||'up')}</select></label></div>`);
     H.push(`<div class="row"><label>のせる色<input type="color" id="p_logoTint"></label>${range('p_logoTintAmt','色の濃さ',0,100,1)}</div>`);
     H.push(`<div class="row"><label>文字の中の下地の色<input type="color" id="p_logoBack"></label>${range('p_logoOutside','文字の外にも画像を薄く見せる',0,100,1)}</div>`);
     H.push(`<p class="sub">ロゴに落ち着く</p>`);
@@ -1625,6 +1671,10 @@ function buildProps(){
     bind('p_speed', ...N('speed')); bind('p_tilt', ...N('tilt')); bind('p_color', ...S('color')); bind('p_strokeColor', ...S('strokeColor')); bind('p_stroke', ...N('stroke'));
     $('p_font').addEventListener('change', ()=>loadFontsFor());
   } else if(L.type==='logo'){
+    bind('p_maskMode', ...S('maskMode')); bind('p_logoSettleTo', ...S('logoSettleTo'));
+    const lnm = () => { $('p_logoImgName').textContent = L.img ? 'ロゴ画像を使用中' : 'まだありません'; }; lnm();
+    $('p_logoImg').addEventListener('change', async e => { const f=e.target.files[0]; if(!f) return; try{ L.img=await loadImageFile(f); L.maskMode='image'; $('p_maskMode').value='image'; lnm(); refreshVis(); changed(true); }catch(err){ msg('画像を読み込めませんでした。PNGを選んでください。'); } });
+    $('p_logoImgClear').onclick = () => { L.img=null; lnm(); changed(true); };
     bind('p_text', ...S('text')); bind('p_font', ...S('font')); bind('p_localFont', ...S('localFont'));
     bind('p_spacing', ()=>L.spacing||0, v=>{ L.spacing=+v; }); bind('p_lineHeight', ...N('lineHeight'), v=>(+v).toFixed(2));
     bind('p_logoFit', ...S('logoFit')); bind('p_logoMove', ...S('logoMove')); bind('p_logoRate', ...N('logoRate'), v=>v+'枚'); bind('p_logoAccel', ...S('logoAccel'));
@@ -1682,7 +1732,7 @@ function refreshVis(){
   vis('pa_stampBox', L.anim.in==='stamp'); vis('pa_saberBox', L.anim.in==='saber'); vis('pa_flipBox', L.anim.in==='flip');
   vis('pa_shineBox', L.anim.shine && L.anim.shine!=='none'); vis('pa_everyWrap', L.anim.shine==='repeat');
   const sb=$('p_sizeBox'); if(sb) sb.hidden = L.fit==='fill';
-  vis('p_plateBox', !!L.plateOn); vis('p_settleDurWrap', !L.logoKeep);
+  vis('p_plateBox', !!L.plateOn); if(L.type==='logo'){ vis('p_maskImgBox', L.maskMode==='image'); vis('p_maskTextBox', L.maskMode!=='image'); } vis('p_settleDurWrap', !L.logoKeep);
   vis('p_silBox', !!L.sil); vis('p_rimBox', L.rimOn!==false); vis('p_revealBox', !!L.silReveal);
   const per=$('pa_loopPeriod_o'); if(per && L.anim.loop && L.anim.loop!=='none'){ const c=loopCycles(P.duration, L.anim.loopPeriod||2); per.textContent=`${(+L.anim.loopPeriod).toFixed(1)}秒 → ${(P.duration/c).toFixed(2)}秒`; }
 }
