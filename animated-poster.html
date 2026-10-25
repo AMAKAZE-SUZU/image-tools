@@ -67,6 +67,10 @@ a.ver:hover{color:var(--accent);border-color:var(--accent)}
 .thumbin{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;align-items:flex-start}
 .thumbin canvas{width:240px;max-width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#000}
 .thumbin .col{flex:1 1 240px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.thumbin .side{flex:0 1 240px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.thumbin .sec{font-weight:700;font-size:.82rem;margin:6px 0 0;padding-top:6px;border-top:1px dashed var(--line)}
+.thumbin .tv{font-variant-numeric:tabular-nums;color:var(--fg);font-weight:700;margin-left:4px}
+.thumbin .row>label{flex:1 1 100px}
 .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .hint{color:var(--muted);font-size:.8rem;margin:0}
 .status{min-height:1.3em}
@@ -144,7 +148,7 @@ details.fxrow .row{display:flex}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>アニメポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.9 ・ 2026-10-25 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v3.0 ・ 2026-10-25 更新</a>
     <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪やBGMを重ねて、動くポスターや短い動画をMP4かGIFで保存できます。最初はサンプルが入っています。</p>
   </header>
 
@@ -170,13 +174,28 @@ details.fxrow .row{display:flex}
           <span class="hint" id="sizeLabel"></span>
         </div>
         <details class="thumbbox" id="thumbBox">
-          <summary>Twitter用のサムネイル(ネタバレを防ぐ)</summary>
+          <summary>サムネイルを作る(Twitter用・ネタバレを防ぐ)</summary>
           <div class="thumbin">
-            <canvas id="thumbCv" width="480" height="270" aria-label="サムネイルの見本"></canvas>
+            <div class="side"><canvas id="thumbCv" width="480" height="270" aria-label="サムネイルの見本"></canvas>
+              <p class="hint">ワンタッチで設定</p>
+              <div class="btns"><button type="button" class="mini" data-tpre="notice">告知(ぼかし+文字)</button><button type="button" class="mini" data-tpre="secret">シルエット予告(暗く+???)</button><button type="button" class="mini" data-tpre="simple">シンプル(加工なし)</button></div>
+            </div>
             <div class="col">
               <label>サムネイルにするもの<select id="thumbSrc"><option value="time">作品の中の場面</option><option value="image">自分で用意した画像</option></select></label>
               <div class="row" id="thumbTimeBox"><label style="flex:1 1 120px">場面の時間(秒)<input type="number" id="thumbT" min="0" step="0.1"></label><button type="button" class="mini" id="thumbNow" style="align-self:end;margin-bottom:6px">今の再生位置にする</button></div>
               <div id="thumbImgBox" style="display:flex;flex-direction:column;gap:6px"><label>画像(動画と同じ形に合わせて切り抜きます)<input type="file" id="thumbFile" accept="image/*"></label><span class="hint" id="thumbImgName"></span></div>
+              <p class="sec">ネタバレを隠す</p>
+              <div class="row"><label>ぼかし<span class="tv" data-tvo="thumbBlur"></span><input type="range" data-tk="thumbBlur" min="0" max="100" step="1"></label><label>モザイク<span class="tv" data-tvo="thumbPixel"></span><input type="range" data-tk="thumbPixel" min="0" max="100" step="1"></label></div>
+              <div class="row"><label>暗くする<span class="tv" data-tvo="thumbDim"></span><input type="range" data-tk="thumbDim" min="0" max="90" step="1"></label><label>色をのせる<span class="tv" data-tvo="thumbTintAmt"></span><input type="range" data-tk="thumbTintAmt" min="0" max="100" step="1"></label><label style="flex:0 1 70px">色<input type="color" data-tk="thumbTint"></label></div>
+              <p class="sec">文字</p>
+              <label>大きい文字(改行で2行に)<textarea data-tk="thumbTitle" rows="2" placeholder="例:近日公開"></textarea></label>
+              <label>小さい文字<input type="text" data-tk="thumbSub" placeholder="例:10.31 SAT 21:00〜"></label>
+              <div class="row"><label>フォント<select data-tk="thumbFont" id="thumbFontSel"></select></label><label>位置<select data-tk="thumbPos"><option value="top">上</option><option value="center">真ん中</option><option value="bottom">下</option></select></label></div>
+              <div class="row"><label>文字の大きさ<span class="tv" data-tvo="thumbSize"></span><input type="range" data-tk="thumbSize" min="4" max="40" step="1"></label><label>縁取りの太さ<span class="tv" data-tvo="thumbStrokeW"></span><input type="range" data-tk="thumbStrokeW" min="0" max="30" step="1"></label></div>
+              <div class="row"><label>文字色<input type="color" data-tk="thumbColor"></label><label>縁取り色<input type="color" data-tk="thumbStroke"></label><label class="check" style="align-self:end"><input type="checkbox" data-tk="thumbBand"> 帯を敷く</label><label>帯の色<input type="color" data-tk="thumbBandColor"></label></div>
+              <p class="sec">飾り</p>
+              <div class="row"><label class="check"><input type="checkbox" data-tk="thumbPlay"> 真ん中に再生マーク</label><label class="check"><input type="checkbox" data-tk="thumbFrameOn"> 枠線</label><label>枠線の色<input type="color" data-tk="thumbFrameColor"></label></div>
+              <div class="row"><label>左上のバッジ<input type="text" data-tk="thumbBadge" placeholder="例:解禁 / NEW / 予告"></label><label style="flex:0 1 80px">バッジの色<input type="color" data-tk="thumbBadgeColor"></label></div>
               <div class="btns"><button type="button" class="btn small" id="saveThumb">サムネイル画像を保存</button><select id="thumbFmt" aria-label="サムネイルの形式" style="width:auto"><option value="png">PNG</option><option value="jpeg">JPEG(軽い)</option></select></div>
               <label class="check"><input type="checkbox" id="thumbLeadOn"> MP4・GIFの最初にもサムネイルを入れる</label>
               <label id="thumbLeadBox">入れる長さ<select id="thumbLead"><option value="0.1">0.1秒(ほとんど見えない)</option><option value="0.3">0.3秒</option><option value="0.5">0.5秒</option><option value="1">1秒</option><option value="2">2秒</option></select></label>
@@ -1185,6 +1204,8 @@ function newLayer(type, extra={}){
 }
 function sampleProject(){
   return {v:1, sizeMode:'bg', customW:1200, customH:1600, duration:6, bg:null, bgMotion:'zoomIn', bgDim:0, bgFit:'cover', bgColor:'#1a1424', bgScale:100, bgRot:0, bgX:0, bgY:0, bgTrans:0, frame:null, frameTrans:0, outro:false, fxBehind:false, bgm:null, thumbSrc:'time', thumbT:0, thumbImg:null, thumbLeadOn:false, thumbLead:.1,
+    thumbBlur:0, thumbPixel:0, thumbDim:0, thumbTint:'#6b4fd8', thumbTintAmt:0, thumbTitle:'', thumbSub:'', thumbFont:'Dela Gothic One', thumbPos:'bottom', thumbSize:14, thumbColor:'#ffffff', thumbStroke:'#6b4fd8', thumbStrokeW:12,
+    thumbBand:false, thumbBandColor:'#000000', thumbPlay:false, thumbFrameOn:false, thumbFrameColor:'#ffffff', thumbBadge:'', thumbBadgeColor:'#ff3d7f',
     fx:{sparkle:{on:true, amount:45, size:1, color:'#fff6c8'}, confetti:{on:false, amount:70, size:1}, hearts:{on:false, amount:18, size:1, color:'#ff6fa3'}},
     cine:[],
     layers:[
@@ -2203,6 +2224,57 @@ function drawThumb(g, w, h){
     g.fillStyle = '#000'; g.fillRect(0,0,w,h); g.imageSmoothingQuality = 'high'; g.drawImage(im, (w-iw*k)/2, (h-ih*k)/2, iw*k, ih*k); }
   else { const [W,H] = artDims(); renderFrame(g, P, W, H, clamp(+P.thumbT||0, 0, P.duration), w/W, false); }
   g.setTransform(1,0,0,1,0,0);
+  thumbDecorate(g, w, h);
+}
+// サムネイルの加工(ぼかし・モザイク・暗く・色)と、文字・飾り。大きさはすべて高さに対する割合
+const thumbTmp = document.createElement('canvas');
+function thumbDecorate(g, w, h){
+  const u = Math.min(w, h);
+  const blur = (+P.thumbBlur||0)/100, pix = (+P.thumbPixel||0)/100;
+  if(blur > 0 || pix > 0){
+    thumbTmp.width = w; thumbTmp.height = h; const t = thumbTmp.getContext('2d'); t.drawImage(g.canvas, 0, 0);
+    if(pix > 0){   // モザイク:小さくしてから、ぼかさずに大きくする
+      const n = Math.max(4, Math.round(w / (2 + pix*u*.09))), m = Math.max(3, Math.round(n*h/w));
+      const sm = document.createElement('canvas'); sm.width = n; sm.height = m; sm.getContext('2d').drawImage(thumbTmp, 0, 0, n, m);
+      t.imageSmoothingEnabled = false; t.clearRect(0,0,w,h); t.drawImage(sm, 0, 0, w, h); t.imageSmoothingEnabled = true;
+    }
+    g.save(); g.clearRect(0,0,w,h); g.fillStyle = '#000'; g.fillRect(0,0,w,h);
+    if(blur > 0){ const r = blur*u*.06; g.filter = `blur(${r}px)`; g.drawImage(thumbTmp, -r*2, -r*2, w+r*4, h+r*4); g.filter = 'none'; }   // 端が透けないよう少し大きく
+    else g.drawImage(thumbTmp, 0, 0);
+    g.restore();
+  }
+  if(+P.thumbTintAmt > 0){ g.globalAlpha = P.thumbTintAmt/100*.85; g.fillStyle = P.thumbTint || '#6b4fd8'; g.fillRect(0,0,w,h); g.globalAlpha = 1; }
+  if(+P.thumbDim > 0){ g.fillStyle = `rgba(0,0,0,${P.thumbDim/100})`; g.fillRect(0,0,w,h); }
+  // 再生マーク
+  const drawPlay = () => { if(!P.thumbPlay) return; const r = u*.12, cx = w/2, cy = h/2;
+    g.save(); g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = r*.4; g.fillStyle = 'rgba(255,255,255,.92)'; g.beginPath(); g.arc(cx, cy, r, 0, Math.PI*2); g.fill(); g.restore();
+    g.fillStyle = 'rgba(20,16,30,.85)'; g.beginPath(); g.moveTo(cx - r*.32, cy - r*.45); g.lineTo(cx + r*.5, cy); g.lineTo(cx - r*.32, cy + r*.45); g.closePath(); g.fill(); };
+  // 文字
+  const title = String(P.thumbTitle||'').trim(), sub = String(P.thumbSub||'').trim();
+  if(title || sub){
+    const f = FONTS.find(x => x.fam===P.thumbFont) || FONTS[0];
+    let size = h*(+P.thumbSize||14)/100; const lines = title ? title.split('\n') : [];
+    g.font = fontStr(f, size); const mw = Math.max(1, ...lines.map(l => g.measureText(l).width)); size *= Math.min(1, w*.9/mw);
+    let ss = Math.max(8, size*.42); g.font = fontStr(f, ss); if(sub){ const sw = g.measureText(sub).width; if(sw > w*.9) ss *= w*.9/sw; }
+    const lh = size*1.12, gap = lines.length && sub ? size*.22 : 0, bh = lines.length*lh + gap + (sub ? ss*1.2 : 0);
+    const pos = P.thumbPos || 'bottom', mg = h*.07;
+    const y0 = pos==='top' ? mg : pos==='center' ? (h-bh)/2 : h - mg - bh;
+    if(P.thumbBand){ const pd = Math.max(size, ss)*.35; g.globalAlpha = .72; g.fillStyle = P.thumbBandColor || '#000'; g.fillRect(0, y0 - pd, w, bh + pd*2); g.globalAlpha = 1; }
+    drawPlay();
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.miterLimit = 2;
+    const draw = (txt, y, sz) => { g.font = fontStr(f, sz); const sw = sz*(+P.thumbStrokeW||0)/100*2;
+      if(sw > 0){ g.lineWidth = sw; g.strokeStyle = P.thumbStroke || '#000'; g.strokeText(txt, w/2, y); } g.fillStyle = P.thumbColor || '#fff'; g.fillText(txt, w/2, y); };
+    lines.forEach((l, i) => draw(l, y0 + lh*(i+.5), size));
+    if(sub) draw(sub, y0 + lines.length*lh + gap + ss*.6, ss);
+  } else drawPlay();
+  // バッジ
+  const bd = String(P.thumbBadge||'').trim();
+  if(bd){ const f = FONTS.find(x => x.fam===P.thumbFont) || FONTS[0], sz = u*.065; g.font = fontStr(f, sz);
+    const tw = g.measureText(bd).width, px = sz*.55, bx = u*.045, by = u*.045, bw = tw + px*2, bhh = sz*1.55;
+    g.fillStyle = P.thumbBadgeColor || '#ff3d7f'; g.beginPath(); g.roundRect(bx, by, bw, bhh, bhh*.22); g.fill();
+    g.fillStyle = '#fff'; g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(bd, bx + px, by + bhh/2); }
+  if(P.thumbFrameOn){ const lw = u*.02; g.lineWidth = lw; g.strokeStyle = P.thumbFrameColor || '#fff'; g.strokeRect(lw/2, lw/2, w-lw, h-lw); }
+  g.textAlign = 'left'; g.textBaseline = 'alphabetic';
 }
 var thumbTimer = null;
 function scheduleThumb(){ clearTimeout(thumbTimer); thumbTimer = setTimeout(drawThumbPreview, 250); }
@@ -2217,8 +2289,25 @@ function syncThumb(){
   $('thumbLeadOn').checked = !!P.thumbLeadOn; $('thumbLead').value = String(P.thumbLead ?? .1);
   $('thumbTimeBox').hidden = P.thumbSrc==='image'; $('thumbImgBox').hidden = P.thumbSrc!=='image'; $('thumbLeadBox').hidden = !P.thumbLeadOn;
   $('thumbImgName').textContent = P.thumbImg ? '画像を使用中' : 'まだ画像がありません(選ぶまでは作品の場面を使います)';
-  scheduleThumb();
+  document.querySelectorAll('[data-tk]').forEach(el => { const v = P[el.dataset.tk]; if(el.type==='checkbox') el.checked = !!v; else if(v!=null) el.value = v; });
+  document.querySelectorAll('[data-tvo]').forEach(el => { el.textContent = P[el.dataset.tvo] ?? 0; });
+  loadThumbFont(); scheduleThumb();
 }
+function loadThumbFont(){ const f = FONTS.find(x => x.fam===P.thumbFont) || FONTS[0]; const txt = (P.thumbTitle||'')+(P.thumbSub||'')+(P.thumbBadge||'') || 'あ';
+  return document.fonts.load(fontStr(f, 40), txt).catch(()=>{}).then(scheduleThumb); }
+for(const f of FONTS){ const op=document.createElement('option'); op.value=f.fam; op.textContent=f.name; $('thumbFontSel').appendChild(op); }
+document.querySelectorAll('[data-tk]').forEach(el => {
+  const h = () => { const k = el.dataset.tk; P[k] = el.type==='checkbox' ? el.checked : el.type==='range' ? +el.value : el.value;
+    const o = document.querySelector(`[data-tvo="${k}"]`); if(o) o.textContent = P[k];
+    if(k==='thumbFont' || k==='thumbTitle' || k==='thumbSub' || k==='thumbBadge') loadThumbFont(); scheduleThumb(); changed(true); };
+  el.addEventListener('input', h); if(el.type==='checkbox' || el.tagName==='SELECT') el.addEventListener('change', h);
+});
+const THUMB_PRESETS = {
+  notice: {thumbBlur:45, thumbPixel:0, thumbDim:25, thumbTintAmt:0, thumbTitle:'近日公開', thumbSub:'', thumbPos:'center', thumbSize:18, thumbColor:'#ffffff', thumbStroke:'#6b4fd8', thumbStrokeW:14, thumbBand:false, thumbPlay:false, thumbBadge:'告知'},
+  secret: {thumbBlur:10, thumbPixel:0, thumbDim:65, thumbTintAmt:35, thumbTint:'#3b2a7a', thumbTitle:'???', thumbSub:'まもなく解禁', thumbPos:'center', thumbSize:24, thumbColor:'#ffffff', thumbStroke:'#000000', thumbStrokeW:6, thumbBand:false, thumbPlay:false, thumbBadge:''},
+  simple: {thumbBlur:0, thumbPixel:0, thumbDim:0, thumbTintAmt:0, thumbTitle:'', thumbSub:'', thumbBand:false, thumbPlay:false, thumbBadge:'', thumbFrameOn:false},
+};
+document.querySelectorAll('[data-tpre]').forEach(b => b.onclick = () => { Object.assign(P, THUMB_PRESETS[b.dataset.tpre]); syncThumb(); changed(true); msg('サムネイルの設定を変えました。文字や加工は下の欄で調整できます。'); });
 $('thumbBox').addEventListener('toggle', drawThumbPreview);
 $('thumbSrc').addEventListener('change', () => { P.thumbSrc = $('thumbSrc').value; syncThumb(); changed(true); });
 $('thumbT').addEventListener('input', () => { const v = parseFloat($('thumbT').value); if(isNaN(v)) return; P.thumbT = clamp(v, 0, P.duration); scheduleThumb(); changed(true); });
@@ -2228,7 +2317,7 @@ $('thumbFile').addEventListener('change', async e => { const f = e.target.files[
 $('thumbLeadOn').addEventListener('change', () => { P.thumbLeadOn = $('thumbLeadOn').checked; syncThumb(); changed(true); });
 $('thumbLead').addEventListener('change', () => { P.thumbLead = +$('thumbLead').value; changed(true); });
 $('saveThumb').onclick = async () => {
-  await loadFontsFor();
+  await loadFontsFor(); await loadThumbFont();
   const [w,h] = mp4Dims(), c = document.createElement('canvas'); c.width = w; c.height = h; drawThumb(c.getContext('2d'), w, h);
   const fm = $('thumbFmt').value, blob = await new Promise(r => c.toBlob(r, fm==='jpeg' ? 'image/jpeg' : 'image/png', .92));
   const r = await saveFile(`animeposter_thumbnail_${stamp()}.${fm==='jpeg'?'jpg':'png'}`, blob);
@@ -2240,7 +2329,7 @@ async function exportMp4(){
   if(typeof Mp4Muxer==='undefined'){ msg('MP4の作成機能を読み込めませんでした。ネットにつないだ状態でページを開き直してください。'); return; }
   stop(); setBusy(true); bar(0);
   try{
-    await loadFontsFor();
+    await loadFontsFor(); if(thumbOn()) await loadThumbFont();
     const [W,H]=artDims(), [w,h]=mp4Dims(), fps=+$('mp4Fps').value;
     const frames=Math.max(1, Math.round(P.duration*fps));
     const leadN = thumbOn() ? Math.max(1, Math.round(leadSec()*fps)) : 0, leadUs = leadN*1e6/fps;   // 最初に入れるサムネイルのコマ数
@@ -2316,7 +2405,7 @@ async function exportMp4(){
 async function exportGif(){
   stop(); setBusy(true); bar(0);
   try{
-    await loadFontsFor();
+    await loadFontsFor(); if(thumbOn()) await loadThumbFont();
     const [W,H]=artDims(); const gw=Math.min(+$('gifSize').value, W), gh=Math.max(2, Math.round(gw*H/W)), fps=+$('gifFps').value;
     const frames=Math.max(1, Math.round(P.duration*fps)), delay=Math.round(1000/fps);
     const gif=GIFENC.GIFEncoder();
