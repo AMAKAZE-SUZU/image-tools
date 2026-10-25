@@ -139,7 +139,7 @@ details.fxrow .row{display:flex}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>アニメポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.7 ・ 2026-10-24 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.8 ・ 2026-10-25 更新</a>
     <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪やBGMを重ねて、動くポスターや短い動画をMP4かGIFで保存できます。最初はサンプルが入っています。</p>
   </header>
 
@@ -732,17 +732,26 @@ function drawCoverTile(g, img, x, y, w, h, a){
   const ox = a ? a.x/100*w*.5 : 0, oy = a ? a.y/100*h*.5 : 0;
   g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip(); g.drawImage(img, x + ox + (w-iw*k)/2, y + oy + (h-ih*k)/2, iw*k, ih*k); g.restore();
 }
+// 何番目に出す画像か(ファイル名の順/ランダム。ランダムは1周ごとに並べ替える)
+const logoPerm = new Map();
+function logoSeq(L, k, n){
+  if(L.logoOrder!=='random' || n<2) return ((k % n) + n) % n;
+  const cyc = Math.floor(k/n), pos = ((k % n) + n) % n, key = L.id+':'+n+':'+cyc;
+  let pm = logoPerm.get(key);
+  if(!pm){ const sd = seedOf(L.id) + cyc*7.31; pm = [...Array(n).keys()].sort((a,b)=>rnd(a,sd)-rnd(b,sd)); logoPerm.set(key, pm); if(logoPerm.size>400) logoPerm.clear(); }
+  return pm[pos];
+}
 let logoPin = null;   // 調整中の画像をプレビューに固定して表示する {id, i}
 const adjOf = (L, i) => { const a = (L.imgAdj||[])[i]; return {s: a?.s ?? 100, x: a?.x ?? 0, y: a?.y ?? 0}; };
 function drawLogoInner(g, img, L, x, y, w, h, s, i, ims){
   if(L.logoMove==='collage' && ims && ims.length){
     // 複数の画像をすき間なく並べて、段ごとに逆向きに流す
     const rows = h > w*.55 ? 3 : 2, th = h/rows, tw = th*1.45, n = ims.length, gap = Math.max(1, th*.03);
-    const sp = tw * (L.logoRate ?? 10) * .06;
+    const sp = tw * (L.logoRate ?? 10) * .12;
     for(let r=0; r<rows; r++){
       const dir = r%2 ? 1 : -1, off = ((s.tau*sp*dir) % tw + tw) % tw, first = Math.floor(s.tau*sp*dir/tw);
       for(let c=-1; c*tw - off < w + tw; c++){
-        const ii = (((c - first + r*3) % n) + n) % n, a = (L.images && L.images.length) ? adjOf(L, ii) : null;
+        const ii = logoSeq(L, (c - first)*rows + r, n), a = (L.images && L.images.length) ? adjOf(L, ii) : null;
         drawCoverTile(g, ims[ii], x + c*tw - off + gap/2, y + r*th + gap/2, tw - gap, th - gap, a);
       }
     }
@@ -762,7 +771,7 @@ const logoCv = document.createElement('canvas');
 function drawLogo(c, L, w, h, W, H, t, sc, editing){
   const lay = logoLayout(L, w, h); let s = logoState(L, t);
   const ims = (L.images && L.images.length) ? L.images : logoSamples(), n = ims.length;
-  let i = s.u >= 1 ? n-1 : ((s.idx % n) + n) % n;
+  let i = s.u >= 1 ? n-1 : logoSeq(L, s.idx, n);
   const pinned = editing && !playing && logoPin && logoPin.id===L.id && L.images && logoPin.i < L.images.length;
   if(pinned){ i = logoPin.i; s = {u:1, tau:0, idx:i, settle:0, zoom:1}; }
   const img = ims[i];
@@ -1146,7 +1155,7 @@ function newLayer(type, extra={}){
   if(type==='logo') Object.assign(base, {name:'ロゴ文字', text:'YUMECHIFFO', font:'Dela Gothic One', localFont:'', images:[], lineHeight:1.05, spacing:4,
     color:'#ffffff', logoBack:'#111111', stroke:0, strokeColor:'#ffffff', glow:false, glowColor:'#ffffff',
     logoRate:10, logoAccel:'up', logoSettleAt:3, logoSettleDur:.8, logoKeep:false, logoZoom:135, logoMove:'zoom', logoFit:'cover', logoTint:'#000000', logoTintAmt:15,
-    logoOutside:0, maskMode:'text', img:null, logoSettleTo:'original', plateOn:true, plateColor:'#d81b4a', platePad:18, plateTrans:0, x:.06, y:.32, w:.88, h:.36});
+    logoOutside:0, logoOrder:'name', maskMode:'text', img:null, logoSettleTo:'original', plateOn:true, plateColor:'#d81b4a', platePad:18, plateTrans:0, x:.06, y:.32, w:.88, h:.36});
   if(type==='image') Object.assign(base, {img:null, images:[], sample:false, shape:'round', fit:'cover', border:0, borderColor:'#ffffff', shadow:true,
     sil:false, silColor:'#05040a', rimOn:true, rimColor:'#bfe6ff', rimWidth:3, rimGlow:45, silReveal:false, silRevealAt:3, silRevealDur:1});
   if(type==='text') Object.assign(base, {text:'テキスト', font:FONTS[0].fam, localFont:'', fit:'fill', size:8, wrapMode:'sentence', balance:true, lineHeight:1.3,
@@ -1573,7 +1582,9 @@ function buildProps(){
     </div>`);
     H.push(`<p class="hint">画像がないあいだは見本の画像が入ります。背景を透明にしたキャラクターの画像を入れると、下地の色の上でキャラクターが動きます。</p>`);
     H.push(`<div class="row"><label>入れ方<select id="p_logoFit">${opts({cover:'文字いっぱい(はみ出しは切る)',contain:'全体を収める(キャラ向け)'},L.logoFit||'cover')}</select></label><label>中の画像の動き<select id="p_logoMove">${opts({zoom:'1枚ずつ・ゆっくり引いていく',panL:'1枚ずつ・横に流れる',panUp:'1枚ずつ・上に流れる',none:'1枚ずつ・動かさない',collage:'何枚も並べて流す'},L.logoMove||'zoom')}</select></label></div>`);
-    H.push(`<div class="row">${range('p_logoRate','切り替わる速さ(並べて流すときは流れる速さ)',1,24,1)}<label>速さの変化<select id="p_logoAccel">${opts({up:'だんだん速く',flat:'一定',down:'だんだん遅く'},L.logoAccel||'up')}</select></label></div>`);
+    H.push(`<div class="row">${range('p_logoRate','切り替わる速さ(並べて流すときは流れる速さ)',1,40,1)}<label>速さの変化<select id="p_logoAccel">${opts({up:'だんだん速く',flat:'一定',down:'だんだん遅く'},L.logoAccel||'up')}</select></label></div>`);
+    H.push(`<label>並び順<select id="p_logoOrder">${opts({name:'ファイル名の順',random:'ランダム(最後の1枚はそのまま)'},L.logoOrder||'name')}</select></label>`);
+    H.push(`<p class="hint" id="p_flipInfo"></p><div class="btns" id="p_fitRateBox"><button type="button" class="mini" id="p_fitRate">全部の画像が出る速さにする</button></div>`);
     H.push(`<div class="row"><label>のせる色<input type="color" id="p_logoTint"></label>${range('p_logoTintAmt','色の濃さ',0,100,1)}</div>`);
     H.push(`<div class="row"><label>文字の中の下地の色<input type="color" id="p_logoBack"></label>${range('p_logoOutside','文字の外にも画像を薄く見せる',0,100,1)}</div>`);
     H.push(`<p class="sub">ロゴに落ち着く</p>`);
@@ -1690,6 +1701,8 @@ function buildProps(){
     bind('p_speed', ...N('speed')); bind('p_tilt', ...N('tilt')); bind('p_color', ...S('color')); bind('p_strokeColor', ...S('strokeColor')); bind('p_stroke', ...N('stroke'));
     $('p_font').addEventListener('change', ()=>loadFontsFor());
   } else if(L.type==='logo'){
+    bind('p_logoOrder', ...S('logoOrder'));
+    $('p_fitRate').onclick = () => { const n=(L.images||[]).length || 6, T=Math.max(.1,(L.logoSettleAt ?? 3)-(L.anim.start||0)); L.logoRate = clamp(Math.ceil(n/T), 1, 40); setCtl($('p_logoRate'), L.logoRate); refreshVis(); changed(true); };
     bind('p_maskMode', ...S('maskMode')); bind('p_logoSettleTo', ...S('logoSettleTo'));
     const lnm = () => { $('p_logoImgName').textContent = L.img ? 'ロゴ画像を使用中' : 'まだありません'; }; lnm();
     $('p_logoImg').addEventListener('change', async e => { const f=e.target.files[0]; if(!f) return; try{ L.img=await loadImageFile(f); L.maskMode='image'; $('p_maskMode').value='image'; lnm(); refreshVis(); changed(true); }catch(err){ msg('画像を読み込めませんでした。PNGを選んでください。'); } });
@@ -1707,8 +1720,8 @@ function buildProps(){
     $('p_previewLogo').onclick = () => { const s=Math.max(0,(L.anim.start||0)-.3); play(s, Math.min(P.duration, (L.logoSettleAt ?? 3)+(L.logoSettleDur ?? .8)+1)); };
     const nm = () => { $('p_imgsname').textContent = (L.images||[]).length ? `${L.images.length}枚を使用中` : 'まだありません(見本を表示中)'; }; nm();
     $('p_imgs').addEventListener('change', async e => { const fs=[...e.target.files].sort((a,b)=>a.name.localeCompare(b.name,'ja',{numeric:true})); e.target.value=''; if(!fs.length) return;
-      const ims=[]; for(const f of fs){ try{ ims.push(await loadImageFile(f)); }catch(err){} } L.images = ims; L.imgAdj = ims.map(()=>({s:100,x:0,y:0})); adjSel = 0; nm(); buildAdj(); changed(true); });
-    $('p_imgsclear').onclick = () => { L.images=[]; L.imgAdj=[]; logoPin=null; nm(); buildAdj(); changed(true); };
+      const ims=[]; for(const f of fs){ try{ ims.push(await loadImageFile(f)); }catch(err){} } L.images = ims; L.imgAdj = ims.map(()=>({s:100,x:0,y:0})); adjSel = 0; nm(); buildAdj(); refreshVis(); changed(true); });
+    $('p_imgsclear').onclick = () => { L.images=[]; L.imgAdj=[]; logoPin=null; nm(); buildAdj(); refreshVis(); changed(true); };
     // 画像ごとの大きさ・位置
     let adjSel = Math.min(logoPin && logoPin.id===L.id ? logoPin.i : 0, Math.max(0, (L.images||[]).length-1));
     const pinUpd = () => { logoPin = ($('p_adjPin').checked && (L.images||[]).length) ? {id:L.id, i:adjSel} : null; dirty = true; };
@@ -1775,7 +1788,12 @@ function refreshVis(){
   vis('pa_stampBox', L.anim.in==='stamp'); vis('pa_saberBox', L.anim.in==='saber'); vis('pa_flipBox', L.anim.in==='flip');
   vis('pa_shineBox', L.anim.shine && L.anim.shine!=='none'); vis('pa_everyWrap', L.anim.shine==='repeat');
   const sb=$('p_sizeBox'); if(sb) sb.hidden = L.fit==='fill';
-  vis('p_plateBox', !!L.plateOn); if(L.type==='logo'){ vis('p_maskImgBox', L.maskMode==='image'); vis('p_maskTextBox', L.maskMode!=='image'); } vis('p_settleDurWrap', !L.logoKeep);
+  vis('p_plateBox', !!L.plateOn); if(L.type==='logo' && $('p_flipInfo')){
+    const n=(L.images||[]).length || 6, T=Math.max(.1,(L.logoSettleAt ?? 3)-(L.anim.start||0)), total=Math.floor((L.logoRate ?? 10)*T)+1, fi=$('p_flipInfo');
+    if(L.logoMove==='collage'){ fi.textContent = `段ごとに違う画像が並んで流れます(画像${n}枚)。`; vis('p_fitRateBox', false); }
+    else { fi.textContent = `止まるまでに約${total}回切り替わります(画像${n}枚)。` + (total < n ? `このままだと出てこない画像があります。` : total >= n*2 ? `同じ画像が${Math.floor(total/n)}回ほど出ます。` : ''); vis('p_fitRateBox', total < n); }
+  }
+  if(L.type==='logo'){ vis('p_maskImgBox', L.maskMode==='image'); vis('p_maskTextBox', L.maskMode!=='image'); } vis('p_settleDurWrap', !L.logoKeep);
   vis('p_silBox', !!L.sil); vis('p_rimBox', L.rimOn!==false); vis('p_revealBox', !!L.silReveal);
   const per=$('pa_loopPeriod_o'); if(per && L.anim.loop && L.anim.loop!=='none'){ const c=loopCycles(P.duration, L.anim.loopPeriod||2); per.textContent=`${(+L.anim.loopPeriod).toFixed(1)}秒 → ${(P.duration/c).toFixed(2)}秒`; }
 }
