@@ -33,12 +33,13 @@ h1{font-family:var(--font-display);font-size:clamp(1.7rem,4vw,2.3rem);margin:0 0
 .tool h2{font-family:var(--font-display);font-size:1.3rem;margin:0}
 .tool p{margin:0;color:var(--muted);font-size:.9rem}
 .tool .go{margin-top:auto;font-weight:700}
-.card .go{color:var(--pink)} .poster .go{color:var(--blue)} .anim .go{color:#6b4fd8}
-@media (prefers-color-scheme: dark){.anim .go{color:#a48dff}}
+.card .go{color:var(--pink)} .poster .go{color:var(--blue)} .anim .go{color:#6b4fd8} .resize .go{color:#13806f}
+@media (prefers-color-scheme: dark){.anim .go{color:#a48dff} .resize .go{color:#5fd3bf}}
 .thumb{height:92px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:10px}
 .card .thumb{background:linear-gradient(120deg,#ffd6e7,#e9d5ff 60%,#c7e3ff)}
 .poster .thumb{background:linear-gradient(160deg,#c9d2ff,#f3cfee 60%,#ffe1c4)}
 .anim .thumb{background:linear-gradient(120deg,#2b1d5c,#7a3a8c 55%,#f08aa8)}
+.resize .thumb{background:linear-gradient(135deg,#c9efe6,#e3f4d9 60%,#fff1c9)}
 .anim .thumb b{color:#fff;font-size:1.6rem;letter-spacing:.2em;text-shadow:0 0 12px #ffd6ea}
 .thumb i{display:block;background:#fff;border-radius:6px;box-shadow:0 3px 10px rgba(0,0,0,.12)}
 section{margin-top:36px}
@@ -58,7 +59,7 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
 <body>
 <div class="wrap">
   <h1>画像作成ツール</h1>
-  <p class="lead">ブラウザだけでメッセージカードやポスターが作れます。インストールや登録は不要で、選んだ画像はどこにも送信されません。</p>
+  <p class="lead">ブラウザだけでメッセージカードやポスター、動画を作ったり、画像のサイズを整えたりできます。インストールや登録は不要で、選んだ画像はどこにも送信されません。</p>
 
   <div class="tools">
     <a class="tool card" href="message-card.html">
@@ -80,6 +81,13 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
       <span class="ratio">MP4 / GIF ・ 映画風の演出 ・ BGM ・ v2.8</span>
       <h2>アニメポスターメーカー</h2>
       <p>写真や文字に登場の動きや揺れを付け、キラキラや紙吹雪やBGMを重ねて、動くポスターや2分までの動画を作れます。</p>
+      <span class="go">使ってみる →</span>
+    </a>
+    <a class="tool resize" href="image-resizer.html">
+      <div class="thumb" aria-hidden="true"><i style="width:120px;height:66px;outline:2px dashed #13806f;outline-offset:4px"></i></div>
+      <span class="ratio">PNG / JPEG / WebP ・ まとめて処理 ・ v1.0</span>
+      <h2>リサイズ・トリミング</h2>
+      <p>画像を好きな形に切り抜いて、大きさを変えて保存します。何枚もまとめて同じサイズにして、ZIPで保存することもできます。</p>
       <span class="go">使ってみる →</span>
     </a>
   </div>
@@ -132,6 +140,17 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
       <li>GIFは色数が少ないため、写真のグラデーションが粗く見えることがあります。ファイルが重いときは「GIFの大きさ」や「なめらかさ」を下げてください。</li>
       <li>作業中の作品は画像も含めてブラウザに自動保存されます。別のPCに移すときは「ファイルに書き出す」を使ってください。</li>
     </ul></div>
+  </section>
+
+  <section>
+    <h2>リサイズ・トリミングの使い方</h2>
+    <ol>
+      <li>画像をドラッグ&ドロップするか「画像を選ぶ」で読み込みます。何枚でもまとめて入れられます。</li>
+      <li>「切り抜く形」で縦横比を選び、プレビューの枠をドラッグして切り抜く範囲を決めます。枠の中をドラッグで移動、丸やつまみで大きさを変えられ、矢印キーで1pxずつ動かせます。回転・反転もできます。</li>
+      <li>「サイズ変更」で書き出す大きさを決めます。「よく使うサイズ」のボタンを押すと、大きさと切り抜く形を一度に合わせられます。</li>
+      <li>形式(PNG・JPEG・WebP)を選び、「この画像を保存」か「全部まとめてZIPで保存」を押して完成です。</li>
+    </ol>
+    <p>切り抜く範囲は画像ごとに覚えます。「この切り抜きを全部の画像に使う」を押すと、ほかの画像も同じ割合の範囲にそろいます。サイズや形式などの設定はブラウザに保存されます(画像は保存されません)。</p>
   </section>
 
   <section>
@@ -205,6 +224,8 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
     <div class="log"><b>v1.2(2026-10-19)</b><ul><li>作品の大きさを「自由に指定」できるようにした(幅・高さをpxで入力)</li><li>背景画像の入れ方・大きさ・回転・位置を調整できるようにした。プレビューで背景をドラッグして動かすことも可能</li><li>ドラッグ中に端や中心にぴったり合わせる機能とガイド線、「中心線を表示」を追加</li><li>位置をそろえるボタン、中心の座標と幅・高さ(px)での入力、矢印キーでの微調整を追加</li></ul></div>
     <div class="log"><b>v1.1(2026-10-19)</b><ul><li>縦向き・横向きを切り替えたときに、レイヤーを自動で並べ直すようにした(縦向きは上から順に積む、横向きは写真を左・文字を右に置く)</li><li>同じ向きで縦横比を変えたときは、枠の形が崩れないように大きさを合わせる</li><li>「今の向きに合わせて並べ直す」「並べ直す前に戻す」ボタンを追加</li><li>縦長の作品でプレビューが大きく表示されるようにした</li></ul></div>
     <div class="log"><b>v1.0(2026-10-19)</b><ul><li>公開</li><li>写真・画像・文字のレイヤーに、登場の動き(ふわっと・スライド・ズーム・ぽよん・くるっと・ぼかし・1文字ずつ)と続く動き(ふわふわ・ゆらゆら・どきどき・くるくる・ちかちか)を設定</li><li>背景の動き、キラキラ・紙吹雪・ハートのエフェクト、装飾フレーム</li><li>長さを自由に設定、MP4(最大1920px)・GIF・PNGで保存</li><li>作品の自動保存(画像を含む)とファイルへの書き出し・読み込み</li></ul></div>
+    <h3>リサイズ・トリミング</h3>
+    <div class="log"><b>v1.0(2026-10-25)</b><ul><li>公開</li><li>画像の切り抜き:縦横比(自由・元の比率・1:1・16:9・9:16・4:5 など、数字でも指定可)を選び、枠をドラッグして範囲を決める。px での入力、真ん中に寄せる、できるだけ大きく、も可能</li><li>回転(90度ずつ)・左右反転・上下反転</li><li>サイズ変更:幅・高さ・長い辺・倍率・幅と高さ(収める/はみ出しを切る/引き伸ばす)で指定。よく使うサイズのボタン、元より大きくしない設定</li><li>保存形式は PNG・JPEG・WebP(画質を調整可能)。書き出すサイズとファイルの大きさの目安を表示</li><li>何枚もまとめて読み込み、同じ切り抜きを全部の画像に使ったり、全部まとめてZIPで保存したりできる</li><li>設定(画像以外)をブラウザに保存</li></ul></div>
     <h3>ポスターメーカー</h3>
     <div class="log"><b>v1.0(2026-10-16)</b><ul><li>公開</li><li>テンプレート(写真・画像・ロゴ・文字の枠、背景、装飾フレーム)の作成と自動保存、ファイルへの書き出し・読み込み</li><li>枠のドラッグ操作と実際のピクセルサイズの表示</li><li>レイアウト・枠を初期値に戻す機能</li><li>メンバーの写真をまとめて選んでポスターを一括作成(ZIP保存)</li></ul></div>
   </section>
