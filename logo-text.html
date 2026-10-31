@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>ロゴ文字メーカー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700&family=M+PLUS+Rounded+1c:wght@500;800&family=Kiwi+Maru:wght@500&family=Yusei+Magic&family=Klee+One:wght@600&family=Hachi+Maru+Pop&family=Dela+Gothic+One&family=RocknRoll+One&family=Mochiy+Pop+One&family=Noto+Serif+JP:wght@600&display=swap">
+<style>
+:root{
+  --bg:#f6f3f7; --surface:#ffffff; --fg:#26222b; --muted:#6c6475; --line:#e3dde8; --field:#faf8fb; --chk:#ebe6ee; --sel:#ff4f8b;
+  --font-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#18161b; --surface:#221f26; --fg:#efebf3; --muted:#a9a1b3; --line:#38333f; --field:#2a2630; --chk:#2e2a33; --sel:#ff7aa8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#18161b; --surface:#221f26; --fg:#efebf3; --muted:#a9a1b3; --line:#38333f; --field:#2a2630; --chk:#2e2a33; --sel:#ff7aa8; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.6}
+.wrap{max-width:1320px;margin:0 auto;padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin-bottom:16px}
+header p{flex-basis:100%;margin:0;color:var(--muted);font-size:.85rem}
+h1{font-family:var(--font-display);font-weight:700;font-size:1.5rem;margin:0}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stage{display:flex;flex-direction:column;gap:10px;min-width:0;position:sticky;top:12px}
+@media (max-width:920px){.stage{position:static}}
+.board{margin:0 auto;max-width:100%;border-radius:6px;overflow:hidden;box-shadow:0 8px 28px rgba(30,20,50,.18);background:repeating-conic-gradient(var(--chk) 0 25%, var(--surface) 0 50%) 0 0/18px 18px}
+.board canvas{display:block;width:100%;height:auto}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 16px 16px;display:flex;flex-direction:column;min-width:0}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 8px;display:flex;flex-direction:column;gap:10px;min-width:0}
+fieldset:first-child{border-top:0}
+legend{font-family:var(--font-display);font-weight:700;font-size:.95rem;padding:0;margin-bottom:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row>label{flex:1 1 90px}
+input[type=text],input[type=number],input[type=date],input[type=datetime-local],input[type=time],textarea,select{font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 9px;width:100%}
+textarea{min-height:56px;resize:vertical;line-height:1.5}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:100%;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--field);padding:2px}
+input[type=file]{font-size:.78rem;color:var(--muted);max-width:100%}
+.check{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
+.btn{font:inherit;font-weight:700;border-radius:999px;padding:8px 16px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{font-size:.76rem;padding:4px 11px}
+.btn.danger{border-color:#d4405f;color:#d4405f;background:transparent}
+.btn:disabled{opacity:.5;cursor:default}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.mini{font:inherit;font-size:.75rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:2px 8px;cursor:pointer}
+.mini:disabled{opacity:.4;cursor:default}
+.tabs{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tabs button{flex:1 1 auto;font:inherit;font-size:.82rem;padding:8px 10px;border:0;background:var(--field);color:var(--fg);cursor:pointer}
+.tabs button+button{border-left:1px solid var(--line)}
+.tabs button[aria-pressed=true]{background:var(--accent);color:var(--accent-fg);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font:inherit;font-size:.76rem;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:999px;padding:3px 10px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:700}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:300px;overflow:auto}
+.list li{display:flex;align-items:center;gap:6px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--field);cursor:pointer}
+.list li.sel{border-color:var(--sel);box-shadow:inset 3px 0 0 var(--sel)}
+.list li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list li .sw{width:14px;height:14px;border-radius:50%;flex:none;border:1px solid rgba(0,0,0,.15)}
+.list li img{width:30px;height:30px;border-radius:6px;object-fit:cover;flex:none;background:var(--line)}
+.hint{color:var(--muted);font-size:.78rem;margin:0}
+.status{min-height:1.3em}
+.val{font-variant-numeric:tabular-nums;color:var(--fg);font-weight:700;margin-left:4px}
+.ver{font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 9px;text-decoration:none;white-space:nowrap;align-self:center}
+a.ver:hover{color:var(--accent);border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.progress{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+@media (prefers-reduced-motion: reduce){.progress i{transition:none}}
+.toplink{font-size:.8rem;color:var(--muted);text-decoration:none;flex-basis:100%}
+.toplink:hover{text-decoration:underline}
+details.more summary{cursor:pointer;font-size:.82rem;color:var(--fg);font-weight:700}
+details.more>div{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+
+/* Layout: 左にロゴ文字の大きなプレビュー(透明は市松模様)、右に文字・スタイル・背景の設定 */
+:root{--accent:#7a3cf0; --accent-fg:#ffffff}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--accent:#b796ff; --accent-fg:#1d0d3a}}
+:root[data-theme="dark"]{--accent:#b796ff; --accent-fg:#1d0d3a}
+.styles{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.styles button{font:inherit;font-size:.78rem;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--fg);cursor:pointer;padding:0 0 6px;display:flex;flex-direction:column;align-items:center;gap:4px;overflow:hidden}
+.styles button canvas{width:100%;height:auto;display:block;background:#1d1a24}
+.styles button[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--accent);font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="toplink" href="./">← ツール一覧</a>
+    <h1>ロゴ文字メーカー</h1>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.0 ・ 2026-10-31 公開</a>
+    <p>ネオン看板・立体・メタリック・ポップなどの飾り文字を作って、背景が透明なPNGで保存できます。ポスターや動画にそのまま重ねられます。</p>
+  </header>
+  <div class="grid">
+    <div class="stage">
+      <div class="board" id="board"><canvas id="cv"></canvas></div>
+      <div class="actions">
+        <button class="btn" id="save" type="button">PNGで保存</button>
+        <span class="hint" id="sizeLabel"></span>
+      </div>
+      <p class="hint status" id="msg" role="status" aria-live="polite"></p>
+    </div>
+    <div class="panel">
+      <fieldset>
+        <legend>文字</legend>
+        <label>文字(改行で2行以上にできます)<textarea id="text" rows="2"></textarea></label>
+        <div class="row"><label>フォント<select id="font"></select></label><label>文字の間隔<input type="range" id="spacing" min="-10" max="60" step="1"></label></div>
+        <div class="row"><label>アーチ(弓なりに曲げる)<input type="range" id="arch" min="-100" max="100" step="1"></label><label>傾き<input type="range" id="skew" min="-30" max="30" step="1"></label></div>
+      </fieldset>
+      <fieldset>
+        <legend>スタイル</legend>
+        <div class="styles" id="styles"></div>
+        <div class="row"><label>メインの色<input type="color" id="c1"></label><label>サブの色<input type="color" id="c2"></label></div>
+        <div id="neonBox" class="row"><label>光の強さ<input type="range" id="glow" min="10" max="100" step="1"></label><label class="check" style="align-self:end"><input type="checkbox" id="neonFrame"> まわりにネオンの枠</label></div>
+        <div id="depthBox" class="row"><label>厚み<input type="range" id="depth" min="2" max="40" step="1"></label><label>厚みの向き<input type="range" id="angle" min="0" max="359" step="1"></label></div>
+        <div id="metalBox" class="row"><label>金属の種類<select id="metal"><option value="gold">金</option><option value="silver">銀</option><option value="rose">ローズゴールド</option><option value="rainbow">虹色</option></select></label></div>
+        <div class="row"><label>フチの太さ<input type="range" id="stroke" min="0" max="40" step="1"></label><label class="check" style="align-self:end"><input type="checkbox" id="shadow"> 影</label></div>
+      </fieldset>
+      <fieldset>
+        <legend>背景と大きさ</legend>
+        <div class="row"><label>背景<select id="bg"><option value="clear">透明</option><option value="color">色で塗る</option><option value="wall">夜のかべ(ネオン向け)</option><option value="grad">グラデーション</option></select></label><label id="bgColorBox" style="flex:0 1 80px">背景の色<input type="color" id="bgColor"></label></div>
+        <div class="row"><label>文字の大きさ(1行の高さ)<select id="size"><option value="120">小 120px</option><option value="200">中 200px</option><option value="320">大 320px</option><option value="480">特大 480px</option></select></label><label>まわりの余白<input type="range" id="pad" min="0" max="200" step="1"></label></div>
+      </fieldset>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 共通の部品(画像作成ツール) ===== */
+const $ = id => document.getElementById(id);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const R = Math.round;
+const FONTS = [
+  {name:"Zen Maru Gothic(丸ゴシック)", fam:"Zen Maru Gothic", w:700},
+  {name:"M PLUS Rounded 1c(丸ゴシック太)", fam:"M PLUS Rounded 1c", w:800},
+  {name:"Kiwi Maru(やわらか明朝)", fam:"Kiwi Maru", w:500},
+  {name:"Klee One(手書き風)", fam:"Klee One", w:600},
+  {name:"Yusei Magic(マーカー風)", fam:"Yusei Magic", w:400},
+  {name:"Hachi Maru Pop(まるもじ)", fam:"Hachi Maru Pop", w:400},
+  {name:"Mochiy Pop One(ポップ)", fam:"Mochiy Pop One", w:400},
+  {name:"RocknRoll One(太ゴシック)", fam:"RocknRoll One", w:400},
+  {name:"Dela Gothic One(極太)", fam:"Dela Gothic One", w:400},
+  {name:"Noto Serif JP(明朝)", fam:"Noto Serif JP", w:600},
+];
+const fontOf = fam => FONTS.find(f => f.fam===fam) || FONTS[0];
+const fontStr = (f, px, w) => `${w||f.w} ${Math.max(1,px)}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
+function fontOptions(sel, cur){ sel.innerHTML=''; for(const f of FONTS){ const o=document.createElement('option'); o.value=f.fam; o.textContent=f.name; if(f.fam===cur) o.selected=true; sel.appendChild(o); } }
+const loadFont = (f, text) => document.fonts ? document.fonts.load(fontStr(f, 40), text || 'あA1').catch(()=>{}) : Promise.resolve();
+
+/* 色 */
+function rgbOf(hex){ const n = parseInt(String(hex||'#888888').replace('#','').padEnd(6,'0').slice(0,6), 16); return [n>>16, (n>>8)&255, n&255]; }
+const hexOf = (r,g,b) => '#' + [r,g,b].map(v => clamp(R(v),0,255).toString(16).padStart(2,'0')).join('');
+function mix(a, b, t){ const A=rgbOf(a), B=rgbOf(b); return hexOf(A[0]+(B[0]-A[0])*t, A[1]+(B[1]-A[1])*t, A[2]+(B[2]-A[2])*t); }
+const light = (c, t) => mix(c, '#ffffff', t), dark = (c, t) => mix(c, '#000000', t);
+function rgba(hex, a){ const [r,g,b] = rgbOf(hex); return `rgba(${r},${g},${b},${clamp(a,0,1)})`; }
+function lum(hex){ const [r,g,b] = rgbOf(hex); return (r*.299 + g*.587 + b*.114)/255; }
+const onColor = hex => lum(hex) > .62 ? '#2a2230' : '#ffffff';   // 色の上にのせる文字の色
+
+/* 画像 */
+function loadImg(blob){ return new Promise((res, rej) => { if(!blob) return res(null); const u = URL.createObjectURL(blob), im = new Image();
+  im.onload = () => { im._blob = blob; im._url = u; res(im); }; im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('img')); }; im.src = u; }); }
+// 枠いっぱいに入れる(adj:大きさ%・位置-100〜100)
+function drawCover(g, im, x, y, w, h, adj){
+  if(!im) return; const iw = im.naturalWidth||im.width, ih = im.naturalHeight||im.height, a = adj||{};
+  const k = Math.max(w/iw, h/ih) * (a.s ?? 100)/100, dw = iw*k, dh = ih*k;
+  const ox = (a.x||0)/100*w*.5, oy = (a.y||0)/100*h*.5;   // 右・下へ動かす
+  g.drawImage(im, x + (w-dw)/2 + ox, y + (h-dh)/2 + oy, dw, dh);
+}
+function drawContain(g, im, x, y, w, h){ if(!im) return; const iw = im.naturalWidth||im.width, ih = im.naturalHeight||im.height, k = Math.min(w/iw, h/ih); g.drawImage(im, x+(w-iw*k)/2, y+(h-ih*k)/2, iw*k, ih*k); }
+
+/* 文字(日本語の行頭禁則つきで折り返す) */
+const NO_START = '、。，．,.！？!?）)」』】〉》ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ～〜…‥';
+function wrapText(g, text, maxW){
+  const out = [];
+  for(const para of String(text||'').split('\n')){
+    if(para===''){ out.push(''); continue; }
+    let line = '';
+    for(const ch of [...para]){
+      if(line && g.measureText(line+ch).width > maxW && !NO_START.includes(ch)){ out.push(line); line = ch; }
+      else line += ch;
+    }
+    out.push(line);
+  }
+  return out;
+}
+// 枠に収まる大きさを探す(はじめの大きさから小さくしていく)
+function fitText(g, text, f, maxW, maxH, size, lh=1.3, maxLines=99){
+  let lines = [];
+  for(let i=0;i<60;i++){
+    g.font = fontStr(f, size); lines = wrapText(g, text, maxW);
+    const wd = Math.max(0, ...lines.map(l => g.measureText(l).width));
+    if((lines.length*size*lh <= maxH && wd <= maxW*1.01 && lines.length <= maxLines) || size < 6) break;
+    size *= .94;
+  }
+  g.font = fontStr(f, size); return {size, lines};
+}
+// 1行に収める(長いときだけ小さくする)
+function fitLine(g, text, f, maxW, size, w){ g.font = fontStr(f, size, w); const tw = g.measureText(text).width; if(tw > maxW) size *= maxW/tw; g.font = fontStr(f, size, w); return size; }
+function drawTextLines(g, lines, x, y, size, lh, align='left', stroke=0, strokeColor='#000'){
+  g.textAlign = align; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.miterLimit = 2;
+  lines.forEach((l, i) => { const yy = y + size*lh*(i+.5); if(stroke>0){ g.lineWidth = stroke; g.strokeStyle = strokeColor; g.strokeText(l, x, yy); } g.fillText(l, x, yy); });
+}
+function star(g, x, y, r, n=5, inner=.45){ g.beginPath(); for(let i=0;i<n*2;i++){ const a = -Math.PI/2 + i*Math.PI/n, rr = i%2 ? r*inner : r; g.lineTo(x + Math.cos(a)*rr, y + Math.sin(a)*rr); } g.closePath(); }
+function sparkle(g, x, y, r){ g.beginPath(); g.moveTo(x, y-r); g.quadraticCurveTo(x, y, x+r, y); g.quadraticCurveTo(x, y, x, y+r); g.quadraticCurveTo(x, y, x-r, y); g.quadraticCurveTo(x, y, x, y-r); g.fill(); }
+function heart(g, x, y, s){ g.beginPath(); g.moveTo(x, y+s*.35); g.bezierCurveTo(x-s*.9, y-s*.25, x-s*.45, y-s*.95, x, y-s*.45); g.bezierCurveTo(x+s*.45, y-s*.95, x+s*.9, y-s*.25, x, y+s*.35); g.fill(); }
+function rnd(i, k){ const x = Math.sin(i*127.1 + k*311.7) * 43758.5453; return x - Math.floor(x); }
+
+/* 保存 */
+let downloadsP = null;
+try{ downloadsP = window.claude?.use ? window.claude.use('downloads') : null; }catch(e){}
+async function saveFile(filename, data){
+  const dl = downloadsP ? await Promise.resolve(downloadsP).catch(()=>null) : null;
+  if(dl){ try{ await dl.save({filename, data}); return 'saved'; } catch(err){ if(err?.code==='declined') return 'declined'; if(err?.code==='rate_limited') return 'busy'; return 'failed'; } }
+  const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data])); const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 8000); return 'saved';
+}
+const toBlob = (c, type='image/png', q) => new Promise(r => c.toBlob(r, type, q));
+const stamp = () => { const d=new Date(), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; };
+const safeName = s => (String(s||'').replace(/[\\/:*?"<>|\n\r]/g,'_').trim() || 'image').slice(0, 60);
+const tick = ms => new Promise(r => setTimeout(r, ms||0));
+const resultMsg = (r, ok) => r==='saved' ? ok : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。';
+async function saveZip(entries, zipName, onProgress){   // entries: [{name, blob}]
+  if(typeof JSZip==='undefined') throw new Error('nozip');
+  const zip = new JSZip(), used = new Set();
+  entries.forEach(e => { let n = e.name, k = 2; const m = n.replace(/(\.[^.]+)$/, ''), ext = n.slice(m.length); while(used.has(n)) n = `${m}(${k++})${ext}`; used.add(n); zip.file(n, e.blob); });
+  const z = await zip.generateAsync({type:'blob'}, m => onProgress && onProgress(m.percent/100));
+  return saveFile(zipName, z);
+}
+
+/* 作業の自動保存(IndexedDB。画像もそのまま入る) */
+function makeStore(dbName){
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => { try{ const r = indexedDB.open(dbName, 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }catch(e){ rej(e); } }));
+  const tx = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('kv', mode), st = t.objectStore('kv'), q = fn(st); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); }); };
+  return { get: k => tx('readonly', st => st.get(k)), put: (k, v) => tx('readwrite', st => st.put(v, k)) };
+}
+// 「もう一度押すと〜」の確認つきボタン
+function armButton(btn, label, armedLabel, fn){
+  let armed = false;
+  btn.onclick = () => { if(!armed){ armed = true; btn.textContent = armedLabel; setTimeout(() => { armed = false; btn.textContent = label; }, 3000); return; } armed = false; btn.textContent = label; fn(); };
+}
+// スライダーの値を表示する(label の中の .val に入れる)
+function showVal(input, fmt){ const lab = input.closest('label'); let v = lab && lab.querySelector('.val'); if(lab && !v){ v = document.createElement('span'); v.className = 'val'; const t = [...lab.childNodes].find(n => n.nodeType===3 && n.textContent.trim()); if(t) t.after(v); else lab.prepend(v); }
+  const upd = () => { if(v) v.textContent = fmt ? fmt(input.value) : input.value; }; input.addEventListener('input', upd); upd(); return upd; }
+
+const msg = t => { $('msg').textContent = t; };
+const STYLES = [['neon','ネオン看板'],['three','立体'],['metal','メタリック'],['pop','ポップ(二重フチ)'],['puffy','ぷっくり'],['retro','レトロ(ずらし)']];
+const DEF = {text:'YUMECHIFFO', font:'Dela Gothic One', spacing:4, arch:0, skew:0, style:'neon', c1:'#ff4fd8', c2:'#43e8ff', glow:60, neonFrame:false, depth:16, angle:60, metal:'gold', stroke:10, shadow:true, bg:'clear', bgColor:'#1b1530', size:'200', pad:60};
+const PRESET_COLORS = {neon:['#ff4fd8','#43e8ff'], three:['#ffcf3f','#e0457b'], metal:['#f4c542','#7a4b00'], pop:['#ff6fae','#6b4fd8'], puffy:['#7ad3ff','#2f6fd6'], retro:['#ffd23f','#ff4f6d']};
+const KEY = 'logo-text:v1';
+let S = {...DEF};
+try{ const d = JSON.parse(localStorage.getItem(KEY)||'null'); if(d) S = {...DEF, ...d}; }catch(e){}
+const saveS = () => { try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} };
+
+/* ===== 文字の並び(1文字ずつ位置と回転を決める。アーチもここで) ===== */
+function layout(g, st, size){
+  const f = fontOf(st.font); g.font = fontStr(f, size); const sp = size*st.spacing/100, lh = size*1.15;
+  const lines = String(st.text||'').split('\n'); const glyphs = []; let maxW = 0;
+  const lineW = lines.map(l => [...l].reduce((a, ch) => a + g.measureText(ch).width + sp, -sp));
+  maxW = Math.max(1, ...lineW);
+  lines.forEach((l, li) => {
+    let x = -lineW[li]/2; const y = (li - (lines.length-1)/2)*lh;
+    for(const ch of [...l]){ const w = g.measureText(ch).width; glyphs.push({ch, cx: x + w/2, y, w}); x += w + sp; }
+  });
+  const a = (st.arch||0)/100;
+  if(Math.abs(a) > .01){
+    const Rr = maxW/(Math.abs(a)*Math.PI*.9), sgn = Math.sign(a);
+    // 上に曲げるときは下に円の中心、下に曲げるときは上に中心を置き、行ごとに半径を変える
+    for(const gl of glyphs){ const th = gl.cx/Rr, r = Rr - sgn*gl.y; gl.x = Math.sin(th)*r; gl.yy = sgn*(Rr - Math.cos(th)*r); gl.rot = th*sgn; }
+  } else glyphs.forEach(gl => { gl.x = gl.cx; gl.yy = gl.y; gl.rot = 0; });
+  return {glyphs, f, size, lh, lines: lines.length, maxW};
+}
+// すべての文字に同じ描き方をする(op には fill/stroke などを描く関数を渡す)
+function eachGlyph(g, L, st, dx, dy, op){
+  const sk = Math.tan((st.skew||0)*Math.PI/180);
+  g.font = fontStr(L.f, L.size); g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.miterLimit = 2;
+  for(const gl of L.glyphs){ g.save(); g.translate(gl.x + dx, gl.yy + dy); g.rotate(gl.rot); g.transform(1, 0, -sk, 1, 0, 0); op(gl); g.restore(); }
+}
+const METALS = {gold:['#fff7cf','#f8d35e','#c8901a','#ffe9a3','#9b6406'], silver:['#ffffff','#d9dde3','#8b939e','#f1f3f6','#5c636d'], rose:['#fff0ea','#f2b8a2','#b9715d','#ffd9cc','#7d4535'], rainbow:null};
+function vGrad(g, size, stops){ const gr = g.createLinearGradient(0, -size*.55, 0, size*.5); stops.forEach((c, i) => gr.addColorStop(i/(stops.length-1), c)); return gr; }
+
+/* ===== スタイルごとの描き方 ===== */
+function extent(st, size){   // 文字のまわりにはみ出す分
+  const sw = size*st.stroke/100; let e = sw;
+  if(st.style==='neon') e = Math.max(e, size*(.25 + st.glow/100*.5));
+  if(st.style==='three') e = Math.max(e, size*st.depth/100 + sw);
+  if(st.style==='pop') e = size*.18 + sw;
+  if(st.style==='retro') e = size*.12 + sw;
+  if(st.shadow) e += size*.12;
+  return e;
+}
+function paint(g, L, st, ox, oy){
+  const size = L.size, c1 = st.c1, c2 = st.c2, sw = size*st.stroke/100;
+  const sh = (blur, oy2) => { if(st.shadow){ g.shadowColor = 'rgba(10,0,30,.45)'; g.shadowBlur = blur; g.shadowOffsetY = oy2; } };
+  const noSh = () => { g.shadowColor = 'transparent'; g.shadowBlur = 0; g.shadowOffsetY = 0; };
+  if(st.style==='neon'){
+    const gw = st.glow/100, lw = Math.max(2, size*.055);
+    if(st.neonFrame){ const fw = L.maxW + size*.9, fh = L.lines*L.lh + size*.5; g.save(); g.translate(ox, oy); g.lineWidth = lw*.8;
+      for(const [col, blur, a] of [[c2, size*.5*gw, .9],[c2, size*.2*gw, 1]]){ g.shadowColor = col; g.shadowBlur = blur; g.strokeStyle = rgba(col, a); g.beginPath(); g.roundRect(-fw/2, -fh/2, fw, fh, size*.25); g.stroke(); }
+      g.shadowBlur = 0; g.strokeStyle = light(c2,.75); g.lineWidth = lw*.3; g.beginPath(); g.roundRect(-fw/2, -fh/2, fw, fh, size*.25); g.stroke(); g.restore(); }
+    for(const [blur, a, w] of [[size*.6*gw, .55, lw*1.6],[size*.28*gw, .9, lw*1.2],[size*.1*gw, 1, lw]]){
+      eachGlyph(g, L, st, ox, oy, gl => { g.shadowColor = c1; g.shadowBlur = blur; g.lineWidth = w; g.strokeStyle = rgba(c1, a); g.strokeText(gl.ch, 0, 0); }); }
+    eachGlyph(g, L, st, ox, oy, gl => { g.shadowBlur = 0; g.lineWidth = lw*.38; g.strokeStyle = light(c1,.8); g.strokeText(gl.ch, 0, 0); });
+    return;
+  }
+  if(st.style==='three'){
+    const d = size*st.depth/100, a = st.angle*Math.PI/180, n = Math.max(2, R(d)), dx = Math.cos(a), dy = Math.sin(a);
+    sh(size*.12, size*.04);
+    for(let i=n; i>=1; i--){ eachGlyph(g, L, st, ox + dx*i, oy + dy*i, gl => { const t = i/n; g.fillStyle = mix(dark(c2,.15), dark(c2,.55), t); if(sw>0 && i===n){ g.lineWidth = sw*2; g.strokeStyle = dark(c2,.6); g.strokeText(gl.ch,0,0); } g.fillText(gl.ch, 0, 0); }); if(i===n) noSh(); }
+    eachGlyph(g, L, st, ox, oy, gl => { if(sw>0){ g.lineWidth = sw; g.strokeStyle = dark(c2,.45); g.strokeText(gl.ch, 0, 0); } g.fillStyle = vGrad(g, size, [light(c1,.55), c1, dark(c1,.08)]); g.fillText(gl.ch, 0, 0); });
+    eachGlyph(g, L, st, ox, oy, gl => { g.lineWidth = Math.max(1.5, size*.012); g.strokeStyle = 'rgba(255,255,255,.55)'; g.strokeText(gl.ch, -size*.008, -size*.008); });
+    return;
+  }
+  if(st.style==='metal'){
+    const stops = METALS[st.metal];
+    sh(size*.15, size*.05);
+    eachGlyph(g, L, st, ox, oy, gl => { g.lineWidth = Math.max(sw, size*.05)*2; g.strokeStyle = stops ? stops[4] : '#3a2a5a'; g.strokeText(gl.ch, 0, 0); }); noSh();
+    eachGlyph(g, L, st, ox, oy, gl => { g.lineWidth = Math.max(sw, size*.05); g.strokeStyle = stops ? vGrad(g, size, [stops[0], stops[2], stops[3]]) : '#ffffff'; g.strokeText(gl.ch, 0, 0); });
+    eachGlyph(g, L, st, ox, oy, (gl) => {
+      if(stops) g.fillStyle = vGrad(g, size, [stops[0], stops[1], stops[2], stops[3], stops[1]]);
+      else { const gr = g.createLinearGradient(-gl.w/2, -size*.5, gl.w/2, size*.5); ['#ff6fa3','#ffd166','#7ee8a8','#6fc3ff','#c39bff'].forEach((c, i, a) => gr.addColorStop(i/(a.length-1), c)); g.fillStyle = gr; }
+      g.fillText(gl.ch, 0, 0); });
+    return;
+  }
+  if(st.style==='pop'){
+    sh(size*.12, size*.06);
+    eachGlyph(g, L, st, ox, oy, gl => { g.lineWidth = size*.18 + sw*2; g.strokeStyle = c2; g.strokeText(gl.ch, 0, 0); }); noSh();
+    eachGlyph(g, L, st, ox, oy, gl => { g.lineWidth = size*.09 + sw; g.strokeStyle = '#ffffff'; g.strokeText(gl.ch, 0, 0); });
+    eachGlyph(g, L, st, ox, oy, gl => { g.fillStyle = vGrad(g, size, [light(c1,.3), c1]); g.fillText(gl.ch, 0, 0); });
+    // きらり
+    g.fillStyle = 'rgba(255,255,255,.95)'; eachGlyph(g, L, st, ox, oy, (gl) => { if(gl.ch.trim()) sparkle(g, gl.w*.22, -size*.28, size*.06); });
+    return;
+  }
+  if(st.style==='puffy'){
+    sh(size*.14, size*.06);
+    eachGlyph(g, L, st, ox, oy, gl => { g.lineWidth = Math.max(sw, size*.06)*2; g.strokeStyle = c2; g.strokeText(gl.ch, 0, 0); }); noSh();
+    eachGlyph(g, L, st, ox, oy, gl => { g.fillStyle = vGrad(g, size, [light(c1,.55), c1, dark(c1,.12)]); g.fillText(gl.ch, 0, 0); });
+    // つや:文字の上半分に白いグラデーションを重ねる(文字の形の中だけ)
+    const T = document.createElement('canvas'); T.width = g.canvas.width; T.height = g.canvas.height; const tg = T.getContext('2d'); tg.setTransform(g.getTransform());
+    eachGlyph(tg, L, st, ox, oy, gl => { tg.fillStyle = '#000'; tg.fillText(gl.ch, 0, 0); });
+    tg.globalCompositeOperation = 'source-in';
+    eachGlyph(tg, L, st, ox, oy, gl => { const gr = tg.createLinearGradient(0, -size*.5, 0, 0); gr.addColorStop(0, 'rgba(255,255,255,.85)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); tg.fillStyle = gr; tg.fillRect(-gl.w, -size*.7, gl.w*2, size*.7); });
+    g.save(); g.setTransform(1,0,0,1,0,0); g.drawImage(T, 0, 0); g.restore();
+    return;
+  }
+  if(st.style==='retro'){
+    // 後ろにサブの色をずらして重ね、前の文字は細いフチにする(70〜80年代のポスター風)
+    const o = size*.09, lw = Math.max(2, sw*.7);
+    sh(size*.1, size*.04);
+    eachGlyph(g, L, st, ox + o, oy + o, gl => { if(sw>0){ g.lineWidth = lw*2; g.strokeStyle = '#1d1a24'; g.strokeText(gl.ch,0,0); } g.fillStyle = c2; g.fillText(gl.ch, 0, 0); }); noSh();
+    eachGlyph(g, L, st, ox, oy, gl => { if(sw>0){ g.lineWidth = lw*2; g.strokeStyle = '#1d1a24'; g.strokeText(gl.ch,0,0); } g.fillStyle = c1; g.fillText(gl.ch, 0, 0); });
+    eachGlyph(g, L, st, ox, oy, gl => { g.lineWidth = Math.max(1.5, size*.012); g.strokeStyle = 'rgba(255,255,255,.6)'; g.strokeText(gl.ch, -size*.01, -size*.01); });
+    return;
+  }
+}
+function background(g, W, H, st){
+  if(st.bg==='color'){ g.fillStyle = st.bgColor; g.fillRect(0,0,W,H); }
+  else if(st.bg==='grad'){ const gr = g.createLinearGradient(0,0,W,H); gr.addColorStop(0, light(st.c1,.6)); gr.addColorStop(1, light(st.c2,.4)); g.fillStyle = gr; g.fillRect(0,0,W,H); }
+  else if(st.bg==='wall'){ g.fillStyle = '#17131f'; g.fillRect(0,0,W,H); const bw = 120, bh = 46;
+    for(let y=0, r=0; y<H; y+=bh, r++) for(let x=-(r%2)*bw/2; x<W; x+=bw){ g.fillStyle = `rgb(${32+rnd(x,y)*14|0},${26+rnd(y,x)*10|0},${40+rnd(x+y,3)*14|0})`; g.fillRect(x+2, y+2, bw-4, bh-4); }
+    const vg = g.createRadialGradient(W/2, H/2, Math.min(W,H)*.2, W/2, H/2, Math.max(W,H)*.75); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,.6)'); g.fillStyle = vg; g.fillRect(0,0,W,H); }
+}
+function render(c, st, size, maxSide){
+  const g = c.getContext('2d'); const L = layout(g, st, size);
+  // 文字の外形から大きさを決める
+  let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity; const sk = Math.abs(Math.tan((st.skew||0)*Math.PI/180));
+  for(const gl of L.glyphs){ const hw = gl.w/2 + size*.5*sk, hh = size*.6; const r = Math.hypot(hw, hh); x0 = Math.min(x0, gl.x - r); x1 = Math.max(x1, gl.x + r); y0 = Math.min(y0, gl.yy - r*.85); y1 = Math.max(y1, gl.yy + r*.85); }
+  if(!L.glyphs.length){ x0 = -size; x1 = size; y0 = -size/2; y1 = size/2; }
+  if(st.style==='neon' && st.neonFrame){ const fw = L.maxW + size*.9, fh = L.lines*L.lh + size*.5; x0 = Math.min(x0, -fw/2); x1 = Math.max(x1, fw/2); y0 = Math.min(y0, -fh/2); y1 = Math.max(y1, fh/2); }
+  const e = extent(st, size), pad = +st.pad;
+  let W = Math.ceil(x1 - x0 + e*2 + pad*2), H = Math.ceil(y1 - y0 + e*2 + pad*2);
+  const k = maxSide ? Math.min(1, maxSide/Math.max(W, H)) : Math.min(1, 8000/Math.max(W, H));
+  c.width = Math.max(1, R(W*k)); c.height = Math.max(1, R(H*k));
+  g.setTransform(k,0,0,k,0,0); g.clearRect(0,0,W,H); background(g, W, H, st);
+  paint(g, L, st, -x0 + e + pad, -y0 + e + pad);
+  return {W, H};
+}
+
+/* ===== 画面 ===== */
+const cv = $('cv'); let rq = null;
+function redraw(){ if(rq) return; rq = requestAnimationFrame(() => { rq = null; const r = render(cv, S, +S.size, 1400);
+  $('board').style.width = `min(100%, calc(70vh * ${r.W/r.H}))`; $('sizeLabel').textContent = `保存する大きさ ${r.W}×${r.H}px`; }); }
+function buildStyles(){
+  const box = $('styles'); box.innerHTML = '';
+  for(const [k, name] of STYLES){ const b = document.createElement('button'); b.type = 'button'; b.setAttribute('aria-pressed', S.style===k);
+    const c = document.createElement('canvas'); const [c1, c2] = PRESET_COLORS[k]; render(c, {...S, style:k, text:'Aa', c1, c2, arch:0, skew:0, pad:10, bg:'clear', neonFrame:false, spacing:4, depth:16, angle:60, stroke:8, glow:60, metal:'gold'}, 60, 160);
+    const sp = document.createElement('span'); sp.textContent = name; b.append(c, sp);
+    b.onclick = () => { S.style = k; [S.c1, S.c2] = PRESET_COLORS[k]; if(k==='neon' && S.bg==='clear') S.bg = 'wall'; saveS(); syncUI(); redraw(); };
+    box.appendChild(b); }
+}
+function syncUI(){
+  $('text').value = S.text; fontOptions($('font'), S.font);
+  for(const id of ['spacing','arch','skew','glow','depth','angle','stroke','pad']){ $(id).value = S[id]; $(id).dispatchEvent(new Event('sync')); }
+  for(const id of ['c1','c2','metal','bg','bgColor','size']) $(id).value = S[id];
+  $('neonFrame').checked = !!S.neonFrame; $('shadow').checked = !!S.shadow;
+  $('neonBox').hidden = S.style!=='neon'; $('depthBox').hidden = S.style!=='three'; $('metalBox').hidden = S.style!=='metal'; $('bgColorBox').hidden = S.bg!=='color';
+  buildStyles();
+}
+const bind = (id, set, ev='input') => $(id).addEventListener(ev, () => { set($(id)); saveS(); redraw(); });
+bind('text', el => S.text = el.value); bind('font', el => { S.font = el.value; loadFont(fontOf(S.font), S.text).then(() => { buildStyles(); redraw(); }); }, 'change');
+for(const id of ['spacing','arch','skew','glow','depth','angle','stroke','pad']){ bind(id, el => S[id] = +el.value); const u = showVal($(id), ['skew','angle'].includes(id) ? v=>v+'°' : null); $(id).addEventListener('sync', u);
+  $(id).addEventListener('dblclick', () => { $(id).value = DEF[id]; $(id).dispatchEvent(new Event('input')); }); }
+for(const id of ['c1','c2','bgColor']) bind(id, el => S[id] = el.value);
+for(const id of ['metal','bg','size']) bind(id, el => { S[id] = el.value; syncUI(); }, 'change');
+bind('neonFrame', el => S.neonFrame = el.checked, 'change'); bind('shadow', el => S.shadow = el.checked, 'change');
+$('save').onclick = async () => { await loadFont(fontOf(S.font), S.text); const c = document.createElement('canvas'); const r = render(c, S, +S.size);
+  const name = `logo_${safeName(S.text.split('\n')[0]).slice(0,20)}.png`; const res = await saveFile(name, await toBlob(c)); msg(resultMsg(res, `${name} を保存しました(${c.width}×${c.height}px${S.bg==='clear' ? '・背景は透明' : ''})。`)); };
+syncUI(); redraw();
+loadFont(fontOf(S.font), S.text+'Aa').then(() => { buildStyles(); redraw(); }); if(document.fonts) document.fonts.ready.then(() => { buildStyles(); redraw(); });
+window.__tool = {get S(){ return S; }, render};   // 動作確認用
+</script>
+</body>
+</html>

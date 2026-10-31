@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>フォトデコ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700&family=M+PLUS+Rounded+1c:wght@500;800&family=Kiwi+Maru:wght@500&family=Yusei+Magic&family=Klee+One:wght@600&family=Hachi+Maru+Pop&family=Dela+Gothic+One&family=RocknRoll+One&family=Mochiy+Pop+One&family=Noto+Serif+JP:wght@600&display=swap">
+<style>
+:root{
+  --bg:#f6f3f7; --surface:#ffffff; --fg:#26222b; --muted:#6c6475; --line:#e3dde8; --field:#faf8fb; --chk:#ebe6ee; --sel:#ff4f8b;
+  --font-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#18161b; --surface:#221f26; --fg:#efebf3; --muted:#a9a1b3; --line:#38333f; --field:#2a2630; --chk:#2e2a33; --sel:#ff7aa8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#18161b; --surface:#221f26; --fg:#efebf3; --muted:#a9a1b3; --line:#38333f; --field:#2a2630; --chk:#2e2a33; --sel:#ff7aa8; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.6}
+.wrap{max-width:1320px;margin:0 auto;padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin-bottom:16px}
+header p{flex-basis:100%;margin:0;color:var(--muted);font-size:.85rem}
+h1{font-family:var(--font-display);font-weight:700;font-size:1.5rem;margin:0}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stage{display:flex;flex-direction:column;gap:10px;min-width:0;position:sticky;top:12px}
+@media (max-width:920px){.stage{position:static}}
+.board{margin:0 auto;max-width:100%;border-radius:6px;overflow:hidden;box-shadow:0 8px 28px rgba(30,20,50,.18);background:repeating-conic-gradient(var(--chk) 0 25%, var(--surface) 0 50%) 0 0/18px 18px}
+.board canvas{display:block;width:100%;height:auto}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 16px 16px;display:flex;flex-direction:column;min-width:0}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 8px;display:flex;flex-direction:column;gap:10px;min-width:0}
+fieldset:first-child{border-top:0}
+legend{font-family:var(--font-display);font-weight:700;font-size:.95rem;padding:0;margin-bottom:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row>label{flex:1 1 90px}
+input[type=text],input[type=number],input[type=date],input[type=datetime-local],input[type=time],textarea,select{font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 9px;width:100%}
+textarea{min-height:56px;resize:vertical;line-height:1.5}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:100%;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--field);padding:2px}
+input[type=file]{font-size:.78rem;color:var(--muted);max-width:100%}
+.check{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
+.btn{font:inherit;font-weight:700;border-radius:999px;padding:8px 16px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{font-size:.76rem;padding:4px 11px}
+.btn.danger{border-color:#d4405f;color:#d4405f;background:transparent}
+.btn:disabled{opacity:.5;cursor:default}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.mini{font:inherit;font-size:.75rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:2px 8px;cursor:pointer}
+.mini:disabled{opacity:.4;cursor:default}
+.tabs{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tabs button{flex:1 1 auto;font:inherit;font-size:.82rem;padding:8px 10px;border:0;background:var(--field);color:var(--fg);cursor:pointer}
+.tabs button+button{border-left:1px solid var(--line)}
+.tabs button[aria-pressed=true]{background:var(--accent);color:var(--accent-fg);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font:inherit;font-size:.76rem;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:999px;padding:3px 10px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:700}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:300px;overflow:auto}
+.list li{display:flex;align-items:center;gap:6px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--field);cursor:pointer}
+.list li.sel{border-color:var(--sel);box-shadow:inset 3px 0 0 var(--sel)}
+.list li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list li .sw{width:14px;height:14px;border-radius:50%;flex:none;border:1px solid rgba(0,0,0,.15)}
+.list li img{width:30px;height:30px;border-radius:6px;object-fit:cover;flex:none;background:var(--line)}
+.hint{color:var(--muted);font-size:.78rem;margin:0}
+.status{min-height:1.3em}
+.val{font-variant-numeric:tabular-nums;color:var(--fg);font-weight:700;margin-left:4px}
+.ver{font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 9px;text-decoration:none;white-space:nowrap;align-self:center}
+a.ver:hover{color:var(--accent);border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.progress{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+@media (prefers-reduced-motion: reduce){.progress i{transition:none}}
+.toplink{font-size:.8rem;color:var(--muted);text-decoration:none;flex-basis:100%}
+.toplink:hover{text-decoration:underline}
+details.more summary{cursor:pointer;font-size:.82rem;color:var(--fg);font-weight:700}
+details.more>div{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+
+/* Layout: 左に仕上がりの大きなプレビュー(チェキ風ではスタンプを動かしたり落書きしたりできる)、右にモードごとの設定 */
+:root{--accent:#e0457b; --accent-fg:#ffffff}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--accent:#ff8db3; --accent-fg:#2a0d17}}
+:root[data-theme="dark"]{--accent:#ff8db3; --accent-fg:#2a0d17}
+.board.draw{cursor:crosshair} .board.move{cursor:grab}
+.board{touch-action:none}
+.stamps{display:flex;flex-wrap:wrap;gap:6px}
+.stamps button{font:inherit;font-size:1.05rem;width:42px;height:38px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--fg);cursor:pointer}
+.panelbox{display:flex;flex-direction:column;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
+.panelbox b{font-size:.82rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="toplink" href="./">← ツール一覧</a>
+    <h1>フォトデコ</h1>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.0 ・ 2026-10-31 公開</a>
+    <p>写真をチェキ・プリ風にしたり、ステッカーやドット絵、雑誌の表紙風、漫画のコマ風にしたりできます。</p>
+  </header>
+  <div class="grid">
+    <div class="stage">
+      <div class="board" id="board"><canvas id="cv"></canvas></div>
+      <div class="actions">
+        <button class="btn" id="save" type="button">PNGで保存</button>
+        <span class="hint" id="sizeLabel"></span>
+      </div>
+      <p class="hint" id="stageHint"></p>
+      <p class="hint status" id="msg" role="status" aria-live="polite"></p>
+    </div>
+
+    <div class="panel">
+      <fieldset>
+        <legend>モード</legend>
+        <div class="tabs" id="modeTabs">
+          <button type="button" data-v="cheki">チェキ・プリ風</button>
+          <button type="button" data-v="sticker">ステッカー</button>
+          <button type="button" data-v="pixel">ドット絵</button>
+          <button type="button" data-v="mag">雑誌の表紙風</button>
+          <button type="button" data-v="manga">漫画のコマ風</button>
+        </div>
+      </fieldset>
+
+      <fieldset id="photoBox">
+        <legend>写真</legend>
+        <label>写真を選ぶ<input type="file" id="photo" accept="image/*"></label>
+        <div class="row"><label>大きさ<input type="range" id="pS" min="50" max="300" step="1"></label></div>
+        <div class="row"><label>横位置<input type="range" id="pX" min="-100" max="100" step="1"></label><label>縦位置<input type="range" id="pY" min="-100" max="100" step="1"></label></div>
+      </fieldset>
+
+      <!-- チェキ・プリ風 -->
+      <fieldset id="chekiBox">
+        <legend>チェキ・プリ風</legend>
+        <div class="row"><label>形<select id="chForm"><option value="square">正方形</option><option value="mini">縦長(ミニ)</option><option value="wide">横長(ワイド)</option></select></label>
+          <label>フチの色<select id="chFrame"><option value="white">白</option><option value="pink">ピンク</option><option value="mint">ミント</option><option value="black">黒</option><option value="pastel">パステルのしま</option><option value="dots">水玉</option></select></label></div>
+        <label>写真の色<select id="chFilter"><option value="none">そのまま</option><option value="soft">明るくふんわり(プリ風)</option><option value="retro">レトロ</option><option value="mono">モノクロ</option></select></label>
+        <label>下に書く文字<input type="text" id="chCaption"></label>
+        <div class="row"><label>文字のフォント<select id="chFont"></select></label><label style="flex:0 1 80px">文字の色<input type="color" id="chCapColor"></label></div>
+        <div class="row"><label class="check"><input type="checkbox" id="chDateOn"> 日付を入れる</label><label><input type="date" id="chDate"></label></div>
+        <p class="hint" style="margin-top:4px"><b>スタンプ</b>(押すと写真の真ん中に置かれます。ドラッグで動かす・ホイールか下のボタンで大きさ)</p>
+        <div class="stamps" id="stampBtns"></div>
+        <div class="row"><label>スタンプの文字<input type="text" id="stampText" placeholder="例:LOVE / BEST / ずっ友"></label><button class="btn ghost small" id="stampTextAdd" type="button" style="align-self:end">文字スタンプを置く</button></div>
+        <div class="row"><label style="flex:0 1 90px">スタンプ・ペンの色<input type="color" id="decoColor"></label><label>ペンの太さ<input type="range" id="penW" min="2" max="30" step="1"></label></div>
+        <div class="btns">
+          <button class="btn small" id="penMode" type="button" aria-pressed="false">✎ 落書きする</button>
+          <button class="mini" id="selBig" type="button">選んだスタンプを大きく</button><button class="mini" id="selSmall" type="button">小さく</button><button class="mini" id="selRot" type="button">回す</button><button class="mini" id="selDel" type="button">消す</button>
+        </div>
+        <div class="btns"><button class="mini" id="undo" type="button">ひとつ戻す</button><button class="btn danger small" id="clearDeco" type="button">スタンプと落書きを全部消す</button></div>
+        <label class="check"><input type="checkbox" id="chClear"> まわりを透明にして保存(フチの外)</label>
+      </fieldset>
+
+      <!-- ステッカー -->
+      <fieldset id="stickerBox">
+        <legend>ステッカー</legend>
+        <p class="hint">背景を透明にした画像(切り抜いたPNG)にフチと影を付けて、シールのようにします。背景が単色の画像なら「背景の色を消す」で消せます。</p>
+        <label class="check"><input type="checkbox" id="stRemove"> 背景の色を消す(画像のまわりと同じ色の部分)</label>
+        <div class="row" id="stTolBox"><label>消す色の幅<input type="range" id="stTol" min="2" max="120" step="1"></label></div>
+        <div class="row"><label>フチの太さ<input type="range" id="stBorder" min="0" max="80" step="1"></label><label style="flex:0 1 80px">フチの色<input type="color" id="stColor"></label></div>
+        <div class="row"><label>外側のフチ<input type="range" id="stBorder2" min="0" max="40" step="1"></label><label style="flex:0 1 80px">色<input type="color" id="stColor2"></label></div>
+        <div class="row"><label>影<input type="range" id="stShadow" min="0" max="100" step="1"></label><label>少し傾ける<input type="range" id="stRot" min="-20" max="20" step="1"></label></div>
+      </fieldset>
+
+      <!-- ドット絵 -->
+      <fieldset id="pixelBox">
+        <legend>ドット絵</legend>
+        <div class="row"><label>横のドット数<input type="range" id="pxN" min="16" max="160" step="1"></label></div>
+        <div class="row"><label>色の数<select id="pxPal"><option value="0">そのまま</option><option value="32">32色</option><option value="16">16色</option><option value="8">8色</option><option value="4">4色</option><option value="gb">ゲーム機風(緑4色)</option><option value="mono">白黒2色</option></select></label>
+          <label>あざやかさ<input type="range" id="pxSat" min="50" max="200" step="1"></label></div>
+        <div class="row"><label>保存する大きさ<select id="pxOut"><option value="1024">長い辺 約1024px</option><option value="2048">長い辺 約2048px</option><option value="512">長い辺 約512px</option><option value="1">ドット1つ=1px</option></select></label><label class="check" style="align-self:end"><input type="checkbox" id="pxGrid"> マス目を入れる</label></div>
+      </fieldset>
+
+      <!-- 雑誌の表紙風 -->
+      <fieldset id="magBox">
+        <legend>雑誌の表紙風</legend>
+        <div class="row"><label>雑誌の名前<input type="text" id="mgTitle"></label><label style="flex:0 1 80px">色<input type="color" id="mgColor"></label></div>
+        <div class="row"><label>号数など<input type="text" id="mgIssue"></label><label>フォント<select id="mgFont"></select></label></div>
+        <label>見出し(1行に1つ。1行目がいちばん大きくなります)<textarea id="mgLines" rows="4"></textarea></label>
+        <div class="row"><label>表紙の人の名前(下に大きく)<input type="text" id="mgName"></label><label>丸い飾りの文字<input type="text" id="mgBadge"></label></div>
+        <label class="check"><input type="checkbox" id="mgBar"> バーコード風の飾りを入れる</label>
+      </fieldset>
+
+      <!-- 漫画のコマ風 -->
+      <fieldset id="mangaBox">
+        <legend>漫画のコマ風</legend>
+        <div class="row"><label>コマ割り<select id="mnLayout"><option value="4koma">4コマ(たて)</option><option value="2x2">2×2</option><option value="3">3コマ(上・まん中で2つ・下)</option><option value="dyn">ななめ割り(4コマ)</option></select></label>
+          <label>吹き出しの文字<select id="mnVert"><option value="v">たて書き</option><option value="h">よこ書き</option></select></label></div>
+        <div class="row"><label class="check"><input type="checkbox" id="mnMono"> 白黒にする</label><label class="check"><input type="checkbox" id="mnTone"> 網点(スクリーントーン)</label></div>
+        <label>タイトル(上に入ります。省略可)<input type="text" id="mnTitle"></label>
+        <div id="mnPanels" style="display:flex;flex-direction:column;gap:8px"></div>
+      </fieldset>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 共通の部品(画像作成ツール) ===== */
+const $ = id => document.getElementById(id);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const R = Math.round;
+const FONTS = [
+  {name:"Zen Maru Gothic(丸ゴシック)", fam:"Zen Maru Gothic", w:700},
+  {name:"M PLUS Rounded 1c(丸ゴシック太)", fam:"M PLUS Rounded 1c", w:800},
+  {name:"Kiwi Maru(やわらか明朝)", fam:"Kiwi Maru", w:500},
+  {name:"Klee One(手書き風)", fam:"Klee One", w:600},
+  {name:"Yusei Magic(マーカー風)", fam:"Yusei Magic", w:400},
+  {name:"Hachi Maru Pop(まるもじ)", fam:"Hachi Maru Pop", w:400},
+  {name:"Mochiy Pop One(ポップ)", fam:"Mochiy Pop One", w:400},
+  {name:"RocknRoll One(太ゴシック)", fam:"RocknRoll One", w:400},
+  {name:"Dela Gothic One(極太)", fam:"Dela Gothic One", w:400},
+  {name:"Noto Serif JP(明朝)", fam:"Noto Serif JP", w:600},
+];
+const fontOf = fam => FONTS.find(f => f.fam===fam) || FONTS[0];
+const fontStr = (f, px, w) => `${w||f.w} ${Math.max(1,px)}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
+function fontOptions(sel, cur){ sel.innerHTML=''; for(const f of FONTS){ const o=document.createElement('option'); o.value=f.fam; o.textContent=f.name; if(f.fam===cur) o.selected=true; sel.appendChild(o); } }
+const loadFont = (f, text) => document.fonts ? document.fonts.load(fontStr(f, 40), text || 'あA1').catch(()=>{}) : Promise.resolve();
+
+/* 色 */
+function rgbOf(hex){ const n = parseInt(String(hex||'#888888').replace('#','').padEnd(6,'0').slice(0,6), 16); return [n>>16, (n>>8)&255, n&255]; }
+const hexOf = (r,g,b) => '#' + [r,g,b].map(v => clamp(R(v),0,255).toString(16).padStart(2,'0')).join('');
+function mix(a, b, t){ const A=rgbOf(a), B=rgbOf(b); return hexOf(A[0]+(B[0]-A[0])*t, A[1]+(B[1]-A[1])*t, A[2]+(B[2]-A[2])*t); }
+const light = (c, t) => mix(c, '#ffffff', t), dark = (c, t) => mix(c, '#000000', t);
+function rgba(hex, a){ const [r,g,b] = rgbOf(hex); return `rgba(${r},${g},${b},${clamp(a,0,1)})`; }
+function lum(hex){ const [r,g,b] = rgbOf(hex); return (r*.299 + g*.587 + b*.114)/255; }
+const onColor = hex => lum(hex) > .62 ? '#2a2230' : '#ffffff';   // 色の上にのせる文字の色
+
+/* 画像 */
+function loadImg(blob){ return new Promise((res, rej) => { if(!blob) return res(null); const u = URL.createObjectURL(blob), im = new Image();
+  im.onload = () => { im._blob = blob; im._url = u; res(im); }; im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('img')); }; im.src = u; }); }
+// 枠いっぱいに入れる(adj:大きさ%・位置-100〜100)
+function drawCover(g, im, x, y, w, h, adj){
+  if(!im) return; const iw = im.naturalWidth||im.width, ih = im.naturalHeight||im.height, a = adj||{};
+  const k = Math.max(w/iw, h/ih) * (a.s ?? 100)/100, dw = iw*k, dh = ih*k;
+  const ox = (a.x||0)/100*w*.5, oy = (a.y||0)/100*h*.5;   // 右・下へ動かす
+  g.drawImage(im, x + (w-dw)/2 + ox, y + (h-dh)/2 + oy, dw, dh);
+}
+function drawContain(g, im, x, y, w, h){ if(!im) return; const iw = im.naturalWidth||im.width, ih = im.naturalHeight||im.height, k = Math.min(w/iw, h/ih); g.drawImage(im, x+(w-iw*k)/2, y+(h-ih*k)/2, iw*k, ih*k); }
+
+/* 文字(日本語の行頭禁則つきで折り返す) */
+const NO_START = '、。，．,.！？!?）)」』】〉》ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ～〜…‥';
+function wrapText(g, text, maxW){
+  const out = [];
+  for(const para of String(text||'').split('\n')){
+    if(para===''){ out.push(''); continue; }
+    let line = '';
+    for(const ch of [...para]){
+      if(line && g.measureText(line+ch).width > maxW && !NO_START.includes(ch)){ out.push(line); line = ch; }
+      else line += ch;
+    }
+    out.push(line);
+  }
+  return out;
+}
+// 枠に収まる大きさを探す(はじめの大きさから小さくしていく)
+function fitText(g, text, f, maxW, maxH, size, lh=1.3, maxLines=99){
+  let lines = [];
+  for(let i=0;i<60;i++){
+    g.font = fontStr(f, size); lines = wrapText(g, text, maxW);
+    const wd = Math.max(0, ...lines.map(l => g.measureText(l).width));
+    if((lines.length*size*lh <= maxH && wd <= maxW*1.01 && lines.length <= maxLines) || size < 6) break;
+    size *= .94;
+  }
+  g.font = fontStr(f, size); return {size, lines};
+}
+// 1行に収める(長いときだけ小さくする)
+function fitLine(g, text, f, maxW, size, w){ g.font = fontStr(f, size, w); const tw = g.measureText(text).width; if(tw > maxW) size *= maxW/tw; g.font = fontStr(f, size, w); return size; }
+function drawTextLines(g, lines, x, y, size, lh, align='left', stroke=0, strokeColor='#000'){
+  g.textAlign = align; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.miterLimit = 2;
+  lines.forEach((l, i) => { const yy = y + size*lh*(i+.5); if(stroke>0){ g.lineWidth = stroke; g.strokeStyle = strokeColor; g.strokeText(l, x, yy); } g.fillText(l, x, yy); });
+}
+function star(g, x, y, r, n=5, inner=.45){ g.beginPath(); for(let i=0;i<n*2;i++){ const a = -Math.PI/2 + i*Math.PI/n, rr = i%2 ? r*inner : r; g.lineTo(x + Math.cos(a)*rr, y + Math.sin(a)*rr); } g.closePath(); }
+function sparkle(g, x, y, r){ g.beginPath(); g.moveTo(x, y-r); g.quadraticCurveTo(x, y, x+r, y); g.quadraticCurveTo(x, y, x, y+r); g.quadraticCurveTo(x, y, x-r, y); g.quadraticCurveTo(x, y, x, y-r); g.fill(); }
+function heart(g, x, y, s){ g.beginPath(); g.moveTo(x, y+s*.35); g.bezierCurveTo(x-s*.9, y-s*.25, x-s*.45, y-s*.95, x, y-s*.45); g.bezierCurveTo(x+s*.45, y-s*.95, x+s*.9, y-s*.25, x, y+s*.35); g.fill(); }
+function rnd(i, k){ const x = Math.sin(i*127.1 + k*311.7) * 43758.5453; return x - Math.floor(x); }
+
+/* 保存 */
+let downloadsP = null;
+try{ downloadsP = window.claude?.use ? window.claude.use('downloads') : null; }catch(e){}
+async function saveFile(filename, data){
+  const dl = downloadsP ? await Promise.resolve(downloadsP).catch(()=>null) : null;
+  if(dl){ try{ await dl.save({filename, data}); return 'saved'; } catch(err){ if(err?.code==='declined') return 'declined'; if(err?.code==='rate_limited') return 'busy'; return 'failed'; } }
+  const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data])); const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 8000); return 'saved';
+}
+const toBlob = (c, type='image/png', q) => new Promise(r => c.toBlob(r, type, q));
+const stamp = () => { const d=new Date(), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; };
+const safeName = s => (String(s||'').replace(/[\\/:*?"<>|\n\r]/g,'_').trim() || 'image').slice(0, 60);
+const tick = ms => new Promise(r => setTimeout(r, ms||0));
+const resultMsg = (r, ok) => r==='saved' ? ok : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。';
+async function saveZip(entries, zipName, onProgress){   // entries: [{name, blob}]
+  if(typeof JSZip==='undefined') throw new Error('nozip');
+  const zip = new JSZip(), used = new Set();
+  entries.forEach(e => { let n = e.name, k = 2; const m = n.replace(/(\.[^.]+)$/, ''), ext = n.slice(m.length); while(used.has(n)) n = `${m}(${k++})${ext}`; used.add(n); zip.file(n, e.blob); });
+  const z = await zip.generateAsync({type:'blob'}, m => onProgress && onProgress(m.percent/100));
+  return saveFile(zipName, z);
+}
+
+/* 作業の自動保存(IndexedDB。画像もそのまま入る) */
+function makeStore(dbName){
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => { try{ const r = indexedDB.open(dbName, 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }catch(e){ rej(e); } }));
+  const tx = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('kv', mode), st = t.objectStore('kv'), q = fn(st); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); }); };
+  return { get: k => tx('readonly', st => st.get(k)), put: (k, v) => tx('readwrite', st => st.put(v, k)) };
+}
+// 「もう一度押すと〜」の確認つきボタン
+function armButton(btn, label, armedLabel, fn){
+  let armed = false;
+  btn.onclick = () => { if(!armed){ armed = true; btn.textContent = armedLabel; setTimeout(() => { armed = false; btn.textContent = label; }, 3000); return; } armed = false; btn.textContent = label; fn(); };
+}
+// スライダーの値を表示する(label の中の .val に入れる)
+function showVal(input, fmt){ const lab = input.closest('label'); let v = lab && lab.querySelector('.val'); if(lab && !v){ v = document.createElement('span'); v.className = 'val'; const t = [...lab.childNodes].find(n => n.nodeType===3 && n.textContent.trim()); if(t) t.after(v); else lab.prepend(v); }
+  const upd = () => { if(v) v.textContent = fmt ? fmt(input.value) : input.value; }; input.addEventListener('input', upd); upd(); return upd; }
+
+const msg = t => { $('msg').textContent = t; };
+const DEF = {mode:'cheki', pS:100, pX:0, pY:0,
+  ch:{form:'square', frame:'white', filter:'soft', caption:'Happy Halloween!', font:'Yusei Magic', capColor:'#e0457b', dateOn:true, date:new Date().toISOString().slice(0,10), clear:true, penW:8, color:'#ff4f8b', deco:[]},
+  st:{remove:false, tol:30, border:28, color:'#ffffff', border2:0, color2:'#ff7eb3', shadow:45, rot:0},
+  px:{n:64, pal:'16', sat:120, out:'1024', grid:false},
+  mg:{title:'YUMECHIFFO', color:'#e0245e', issue:'2026 NOVEMBER  Vol.01', font:'Dela Gothic One', lines:'はじめてのワンマンライブ\n直前インタビュー\n衣装のひみつ、ぜんぶ見せます\n特別付録 ポスター', name:'メンバーA', badge:'特集', bar:true},
+  mn:{layout:'4koma', vert:'v', mono:true, tone:true, title:'', panels:[{text:'今日は\nライブ！', pos:'tr', lines:false, s:100, x:0, y:0},{text:'リハーサル\nがんばるぞ', pos:'tl', lines:false, s:100, x:0, y:0},{text:'えっ\n本番！？', pos:'tr', lines:true, s:100, x:0, y:0},{text:'大成功！', pos:'tl', lines:false, s:100, x:0, y:0}]}};
+const KEY = 'photo-deco:v1';
+let S = structuredClone(DEF);
+try{ const d = JSON.parse(localStorage.getItem(KEY)||'null'); if(d) for(const k of Object.keys(DEF)) if(d[k]!==undefined) S[k] = (typeof DEF[k]==='object' && !Array.isArray(DEF[k])) ? {...DEF[k], ...d[k]} : d[k]; }catch(e){}
+const saveS = () => { try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} };
+let photoImg = null; const panelImgs = [];
+const store = makeStore('photo-deco');
+async function saveImgs(){ try{ await store.put('imgs', {photo: photoImg?._blob||null, panels: panelImgs.map(i => i?._blob||null)}); }catch(e){} }
+const adj = () => ({s:S.pS, x:S.pX, y:S.pY});
+function samplePhoto(w, h){ const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0,0,0,h); gr.addColorStop(0,'#ffc6dc'); gr.addColorStop(1,'#ffe7bf'); g.fillStyle = gr; g.fillRect(0,0,w,h);
+  g.fillStyle = '#fff7f0'; g.beginPath(); g.arc(w/2, h*.42, Math.min(w,h)*.2, 0, Math.PI*2); g.fill(); g.beginPath(); g.ellipse(w/2, h*1.02, w*.36, h*.42, 0, Math.PI, 0); g.fill();
+  g.fillStyle = 'rgba(80,60,90,.35)'; g.font = `700 ${Math.min(w,h)*.06}px "Zen Maru Gothic", sans-serif`; g.textAlign = 'center'; g.fillText('写真を選んでください', w/2, h*.86); return c; }
+const SAMPLE = samplePhoto(800, 800);
+const src = () => photoImg || SAMPLE;
+
+/* ===== チェキ・プリ風 ===== */
+const FORMS = {square:{W:1000, H:1210, ph:[64,64,872,872]}, mini:{W:1000, H:1590, ph:[74,90,852,1150]}, wide:{W:1600, H:1270, ph:[70,70,1460,912]}};
+const STAMPS = [['heart','♥'],['star','★'],['spark','✦'],['flower','✿'],['note','♪'],['crown','👑'],['ribbon','🎀'],['circle','◎']];
+function frameFill(g, W, H){
+  const k = S.ch.frame;
+  if(k==='pastel'){ const cols = ['#ffd6e7','#fff1c1','#d4f5e9','#dbe7ff','#efdcff']; const sw = W/14; for(let i=-2;i<30;i++){ g.fillStyle = cols[((i%5)+5)%5]; g.beginPath(); g.moveTo(i*sw,0); g.lineTo(i*sw+sw,0); g.lineTo(i*sw+sw-H*.6,H); g.lineTo(i*sw-H*.6,H); g.fill(); } return; }
+  g.fillStyle = {white:'#fdfcfa', pink:'#ffd1e3', mint:'#cdf3e6', black:'#1d1b20', dots:'#fff0f5'}[k] || '#fff'; g.fillRect(0,0,W,H);
+  if(k==='dots'){ g.fillStyle = '#ffb3cf'; const s = W/20; for(let y=0;y<H+s;y+=s) for(let x=(y/s%2)*s/2; x<W+s; x+=s){ g.beginPath(); g.arc(x, y, s*.18, 0, Math.PI*2); g.fill(); } }
+}
+function drawStampShape(g, d, W){
+  const s = d.s*W, col = d.color;
+  g.save(); g.translate(d.x*W, d.y*W); g.rotate((d.rot||0)*Math.PI/180);
+  g.lineJoin = 'round'; g.shadowColor = 'rgba(0,0,0,.18)'; g.shadowBlur = s*.08; g.shadowOffsetY = s*.03;
+  const outline = () => { g.lineWidth = s*.1; g.strokeStyle = '#fff'; g.stroke(); g.fill(); };
+  g.fillStyle = col;
+  if(d.kind==='heart'){ g.beginPath(); g.moveTo(0, s*.35); g.bezierCurveTo(-s*.9, -s*.25, -s*.45, -s*.95, 0, -s*.45); g.bezierCurveTo(s*.45, -s*.95, s*.9, -s*.25, 0, s*.35); outline(); }
+  else if(d.kind==='star'){ star(g, 0, 0, s*.55); outline(); }
+  else if(d.kind==='spark'){ g.beginPath(); g.moveTo(0,-s*.6); g.quadraticCurveTo(0,0,s*.6,0); g.quadraticCurveTo(0,0,0,s*.6); g.quadraticCurveTo(0,0,-s*.6,0); g.quadraticCurveTo(0,0,0,-s*.6); outline(); }
+  else if(d.kind==='flower'){ g.beginPath(); for(let i=0;i<5;i++){ const a = i/5*Math.PI*2 - Math.PI/2; g.moveTo(0,0); g.arc(Math.cos(a)*s*.27, Math.sin(a)*s*.27, s*.23, 0, Math.PI*2); } outline(); g.shadowColor='transparent'; g.fillStyle = '#ffe680'; g.beginPath(); g.arc(0,0,s*.16,0,Math.PI*2); g.fill(); }
+  else if(d.kind==='note'){ g.beginPath(); g.ellipse(-s*.18, s*.28, s*.2, s*.15, -.4, 0, Math.PI*2); g.rect(-s*.02, -s*.48, s*.1, s*.78); g.moveTo(-s*.02,-s*.48); g.quadraticCurveTo(s*.3,-s*.4,s*.32,-s*.08); g.lineTo(s*.22,-s*.08); g.quadraticCurveTo(s*.2,-s*.3,s*.08,-s*.3); outline(); }
+  else if(d.kind==='crown'){ g.beginPath(); g.moveTo(-s*.5, s*.3); g.lineTo(-s*.5, -s*.25); g.lineTo(-s*.25, s*.02); g.lineTo(0, -s*.4); g.lineTo(s*.25, s*.02); g.lineTo(s*.5, -s*.25); g.lineTo(s*.5, s*.3); g.closePath(); g.fillStyle = '#ffd23f'; outline(); }
+  else if(d.kind==='ribbon'){ g.beginPath(); g.moveTo(0,0); g.bezierCurveTo(-s*.2,-s*.4,-s*.6,-s*.35,-s*.55,0); g.bezierCurveTo(-s*.6,s*.35,-s*.2,s*.4,0,0); g.bezierCurveTo(s*.2,-s*.4,s*.6,-s*.35,s*.55,0); g.bezierCurveTo(s*.6,s*.35,s*.2,s*.4,0,0); outline(); g.beginPath(); g.arc(0,0,s*.12,0,Math.PI*2); g.fill(); }
+  else if(d.kind==='circle'){ g.beginPath(); g.arc(0,0,s*.45,0,Math.PI*2); g.lineWidth = s*.12; g.strokeStyle = col; g.shadowColor='transparent'; g.stroke(); g.beginPath(); g.arc(0,0,s*.22,0,Math.PI*2); g.stroke(); }
+  else if(d.kind==='text'){ const f = fontOf('Mochiy Pop One'); g.font = fontStr(f, s*.42); const tw = g.measureText(d.text).width, ph = s*.7, pw = tw + s*.5;
+    g.beginPath(); g.roundRect(-pw/2, -ph/2, pw, ph, ph/2); g.lineWidth = s*.08; g.strokeStyle = '#fff'; g.stroke(); g.fill(); g.shadowColor='transparent'; g.fillStyle = onColor(col); g.textAlign='center'; g.textBaseline='middle'; g.fillText(d.text, 0, s*.02); }
+  g.restore();
+}
+function stampBox(d, W){ if(d.kind==='text'){ const g = $('cv').getContext('2d'); g.font = fontStr(fontOf('Mochiy Pop One'), d.s*W*.42); return {rx:(g.measureText(d.text).width + d.s*W*.5)/2, ry:d.s*W*.35}; } return {rx:d.s*W*.55, ry:d.s*W*.55}; }
+function drawCheki(g){
+  const F = FORMS[S.ch.form] || FORMS.square, W = F.W, H = F.H, m = S.ch.clear ? 30 : 0;
+  const CW = W + m*2, CH = H + m*2;
+  g.canvas.width = CW; g.canvas.height = CH;
+  if(!S.ch.clear){ g.fillStyle = '#f2ece8'; g.fillRect(0,0,CW,CH); }
+  g.save(); g.translate(m, m);
+  g.save(); g.shadowColor = 'rgba(30,10,30,.28)'; g.shadowBlur = 24; g.shadowOffsetY = 8; g.fillStyle = '#fff'; g.fillRect(0,0,W,H); g.restore();
+  g.save(); g.beginPath(); g.rect(0,0,W,H); g.clip(); frameFill(g, W, H); g.restore();
+  const [px, py, pw, ph] = F.ph;
+  g.save(); g.beginPath(); g.rect(px, py, pw, ph); g.clip();
+  g.filter = {none:'none', soft:'brightness(1.12) saturate(1.15) contrast(.92) blur(0.4px)', retro:'sepia(.45) saturate(.9) contrast(1.05) brightness(1.03)', mono:'grayscale(1) contrast(1.1)'}[S.ch.filter] || 'none';
+  drawCover(g, src(), px, py, pw, ph, adj()); g.filter = 'none';
+  if(S.ch.filter==='soft'){ const rg = g.createRadialGradient(px+pw/2, py+ph/2, Math.min(pw,ph)*.35, px+pw/2, py+ph/2, Math.max(pw,ph)*.75); rg.addColorStop(0,'rgba(255,255,255,0)'); rg.addColorStop(1,'rgba(255,230,240,.55)'); g.fillStyle = rg; g.fillRect(px,py,pw,ph); }
+  if(S.ch.filter==='retro'){ const rg = g.createRadialGradient(px+pw/2, py+ph/2, Math.min(pw,ph)*.3, px+pw/2, py+ph/2, Math.max(pw,ph)*.72); rg.addColorStop(0,'rgba(0,0,0,0)'); rg.addColorStop(1,'rgba(40,20,0,.45)'); g.fillStyle = rg; g.fillRect(px,py,pw,ph); }
+  // 日付(オレンジのデジタル数字風)
+  if(S.ch.dateOn && S.ch.date){ const [y, mo, d] = S.ch.date.split('-'); const t = `'${y.slice(2)} ${+mo} ${+d}`; const fs = pw*.055;
+    g.font = `700 ${fs}px "DejaVu Sans Mono", "Courier New", monospace`; g.textAlign = 'right'; g.textBaseline = 'alphabetic'; g.shadowColor = 'rgba(255,120,0,.9)'; g.shadowBlur = fs*.4; g.fillStyle = '#ff9a2e'; g.fillText(t, px+pw-fs*.7, py+ph-fs*.6); g.shadowColor = 'transparent'; }
+  g.restore();
+  // 落書きとスタンプ(写真の上・フチにもはみ出せる)
+  for(const d of S.ch.deco){
+    if(d.kind==='pen'){ g.save(); g.lineCap = 'round'; g.lineJoin = 'round'; const lw = d.w*W/1000;
+      const path = () => { g.beginPath(); d.pts.forEach(([x,y], i) => i ? g.lineTo(x*W, y*W) : g.moveTo(x*W, y*W)); };
+      path(); g.lineWidth = lw + W*.008; g.strokeStyle = '#fff'; g.stroke(); path(); g.lineWidth = lw; g.strokeStyle = d.color; g.stroke(); g.restore(); }
+    else drawStampShape(g, d, W);
+    if(d===selDeco && d.kind!=='pen'){ const b = stampBox(d, W); g.save(); g.setLineDash([10,8]); g.lineWidth = 3; g.strokeStyle = '#ff4f8b'; g.strokeRect(d.x*W - b.rx - 8, d.y*W - b.ry - 8, b.rx*2+16, b.ry*2+16); g.restore(); }
+  }
+  // 下の文字
+  if(S.ch.caption){ const f = fontOf(S.ch.font), bh = H - (py + ph); const s = fitLine(g, S.ch.caption, f, pw*.92, Math.min(bh*.42, W*.075)); g.fillStyle = S.ch.capColor; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(S.ch.caption, W/2, py + ph + bh*.5); }
+  g.restore();
+  return {W:CW, H:CH, m, artW:W};
+}
+
+/* ===== ステッカー ===== */
+let stCache = {key:'', cut:null};
+function stickerSource(){
+  const im = src(), iw = im.naturalWidth||im.width, ih = im.naturalHeight||im.height, k = Math.min(1, 1400/Math.max(iw,ih));
+  const w = Math.max(1, R(iw*k)), h = Math.max(1, R(ih*k)), key = [im._url||'s', w, h, S.st.remove, S.st.tol].join('|');
+  if(stCache.key===key) return stCache.cut;
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d', {willReadFrequently:true}); g.drawImage(im, 0, 0, w, h);
+  if(S.st.remove){
+    // 画像のふちから、ふちの色に近い部分を塗りつぶすように消す
+    const id = g.getImageData(0,0,w,h), d = id.data, seen = new Uint8Array(w*h), tol = S.st.tol, st = [];
+    const ref = (()=>{ const ps = [0, w-1, (h-1)*w, h*w-1]; let r=0,gg=0,b=0; for(const p of ps){ r+=d[p*4]; gg+=d[p*4+1]; b+=d[p*4+2]; } return [r/4, gg/4, b/4]; })();
+    const near = p => { const dr = d[p*4]-ref[0], dg = d[p*4+1]-ref[1], db = d[p*4+2]-ref[2]; return d[p*4+3] < 20 || Math.sqrt(dr*dr+dg*dg+db*db) <= tol; };
+    for(let x=0;x<w;x++){ st.push(x, (h-1)*w+x); } for(let y=0;y<h;y++){ st.push(y*w, y*w+w-1); }
+    while(st.length){ const p = st.pop(); if(seen[p] || !near(p)) continue; seen[p] = 1; d[p*4+3] = 0; const x = p%w, y = (p/w)|0;
+      if(x>0) st.push(p-1); if(x<w-1) st.push(p+1); if(y>0) st.push(p-w); if(y<h-1) st.push(p+w); }
+    // ふちを少しなじませる
+    for(let p=0;p<w*h;p++){ if(seen[p]) continue; const x = p%w, y = (p/w)|0; if((x>0&&seen[p-1])||(x<w-1&&seen[p+1])||(y>0&&seen[p-w])||(y<h-1&&seen[p+w])) d[p*4+3] = Math.min(d[p*4+3], 150); }
+    g.putImageData(id, 0, 0);
+  }
+  stCache = {key, cut:c}; return c;
+}
+function silhouette(c, color){ const t = document.createElement('canvas'); t.width = c.width; t.height = c.height; const g = t.getContext('2d'); g.drawImage(c,0,0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0,0,t.width,t.height); return t; }
+function drawSticker(g){
+  const cut = stickerSource(), b1 = S.st.border, b2 = S.st.border2, sh = S.st.shadow/100, pad = b1 + b2 + 40 + sh*40, w = cut.width, h = cut.height;
+  const rot = (S.st.rot||0)*Math.PI/180, CW = R(w + pad*2), CH = R(h + pad*2);
+  const ext = Math.abs(Math.sin(rot))*Math.max(w,h)*.5; g.canvas.width = CW + R(ext*2); g.canvas.height = CH + R(ext*2);
+  const L = document.createElement('canvas'); L.width = CW; L.height = CH; const lg = L.getContext('2d');
+  const ring = (sil, r) => { const n = Math.max(16, Math.min(64, R(r*1.2))); for(let i=0;i<n;i++){ const a = i/n*Math.PI*2; lg.drawImage(sil, pad + Math.cos(a)*r, pad + Math.sin(a)*r); } lg.drawImage(sil, pad, pad); };
+  if(b2 > 0) ring(silhouette(cut, S.st.color2), b1 + b2);
+  if(b1 > 0) ring(silhouette(cut, S.st.color), b1);
+  lg.drawImage(cut, pad, pad);
+  g.save(); g.translate(g.canvas.width/2, g.canvas.height/2); g.rotate(rot);
+  if(sh > 0){ g.shadowColor = `rgba(20,10,30,${.25 + sh*.35})`; g.shadowBlur = 10 + sh*30; g.shadowOffsetY = 4 + sh*14; }
+  g.drawImage(L, -CW/2, -CH/2); g.restore();
+  return {W:g.canvas.width, H:g.canvas.height};
+}
+
+/* ===== ドット絵 ===== */
+function kmeans(px, k){
+  const n = px.length/3, cent = []; for(let i=0;i<k;i++){ const p = Math.floor((i+.5)/k*n)*3; cent.push([px[p], px[p+1], px[p+2]]); }
+  const asg = new Uint16Array(n);
+  for(let it=0; it<8; it++){
+    for(let i=0;i<n;i++){ let best=0, bd=1e9; for(let c=0;c<k;c++){ const dr=px[i*3]-cent[c][0], dg=px[i*3+1]-cent[c][1], db=px[i*3+2]-cent[c][2], dd=dr*dr+dg*dg+db*db; if(dd<bd){ bd=dd; best=c; } } asg[i]=best; }
+    const sum = cent.map(()=>[0,0,0,0]); for(let i=0;i<n;i++){ const s = sum[asg[i]]; s[0]+=px[i*3]; s[1]+=px[i*3+1]; s[2]+=px[i*3+2]; s[3]++; }
+    sum.forEach((s, c) => { if(s[3]) cent[c] = [s[0]/s[3], s[1]/s[3], s[2]/s[3]]; });
+  }
+  return {cent, asg};
+}
+const GB = [[15,56,15],[48,98,48],[139,172,15],[155,188,15]];
+function drawPixel(g){
+  const im = src(), iw = im.naturalWidth||im.width, ih = im.naturalHeight||im.height, n = S.px.n, m = Math.max(1, R(n*ih/iw));
+  const small = document.createElement('canvas'); small.width = n; small.height = m; const sg = small.getContext('2d', {willReadFrequently:true});
+  sg.filter = `saturate(${S.px.sat/100})`; sg.imageSmoothingQuality = 'high'; sg.drawImage(im, 0, 0, n, m); sg.filter = 'none';
+  const id = sg.getImageData(0,0,n,m), d = id.data, pal = S.px.pal;
+  if(pal!=='0'){
+    if(pal==='gb' || pal==='mono'){ const P2 = pal==='gb' ? GB : [[20,20,24],[245,245,240]];
+      for(let i=0;i<n*m;i++){ const l = (d[i*4]*.299 + d[i*4+1]*.587 + d[i*4+2]*.114)/255; const c = P2[Math.min(P2.length-1, Math.floor(l*P2.length))]; d[i*4]=c[0]; d[i*4+1]=c[1]; d[i*4+2]=c[2]; } }
+    else { const k = +pal, px = new Float32Array(n*m*3); for(let i=0;i<n*m;i++){ px[i*3]=d[i*4]; px[i*3+1]=d[i*4+1]; px[i*3+2]=d[i*4+2]; }
+      const {cent, asg} = kmeans(px, k); for(let i=0;i<n*m;i++){ const c = cent[asg[i]]; d[i*4]=c[0]; d[i*4+1]=c[1]; d[i*4+2]=c[2]; } }
+    sg.putImageData(id, 0, 0);
+  }
+  const target = S.px.out==='1' ? 1 : Math.max(1, Math.floor(+S.px.out/Math.max(n, m)));
+  g.canvas.width = n*target; g.canvas.height = m*target; g.imageSmoothingEnabled = false; g.drawImage(small, 0, 0, n*target, m*target);
+  if(S.px.grid && target >= 4){ g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 1; for(let x=0;x<=n;x++){ g.beginPath(); g.moveTo(x*target+.5, 0); g.lineTo(x*target+.5, m*target); g.stroke(); } for(let y=0;y<=m;y++){ g.beginPath(); g.moveTo(0, y*target+.5); g.lineTo(n*target, y*target+.5); g.stroke(); } }
+  return {W:n*target, H:m*target, pixel:true};
+}
+
+/* ===== 雑誌の表紙風 ===== */
+function drawMag(g){
+  const W = 1000, H = 1414; g.canvas.width = W; g.canvas.height = H; const f = fontOf(S.mg.font), body = fontOf('M PLUS Rounded 1c'), col = S.mg.color;
+  drawCover(g, src(), 0, 0, W, H, adj());
+  const tg = g.createLinearGradient(0,0,0,H*.3); tg.addColorStop(0,'rgba(0,0,0,.28)'); tg.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle = tg; g.fillRect(0,0,W,H*.3);
+  const bg2 = g.createLinearGradient(0,H*.6,0,H); bg2.addColorStop(0,'rgba(0,0,0,0)'); bg2.addColorStop(1,'rgba(0,0,0,.5)'); g.fillStyle = bg2; g.fillRect(0,H*.6,W,H*.4);
+  // 雑誌の名前
+  const t = S.mg.title||''; let ts = 240; g.font = fontStr(f, ts); g.letterSpacing = '-4px'; const tw = g.measureText(t).width; if(tw > W*.92) ts *= W*.92/tw;
+  g.font = fontStr(f, ts); g.textAlign = 'center'; g.textBaseline = 'top'; g.fillStyle = col; g.shadowColor = 'rgba(0,0,0,.25)'; g.shadowBlur = 12; g.fillText(t, W/2, 40); g.shadowColor = 'transparent'; g.letterSpacing = '0px';
+  g.font = fontStr(body, 26); g.fillStyle = '#fff'; g.textAlign = 'center'; g.fillText(S.mg.issue||'', W/2, 40 + ts*.95 + 10);
+  // 見出し
+  const lines = String(S.mg.lines||'').split('\n').filter(l => l.trim()); let y = 40 + ts + 80;
+  lines.forEach((l, i) => { const s = i===0 ? 64 : 40, cc = i===0 ? '#ffffff' : ['#ffe066','#ffffff','#9ff0ff'][i%3];
+    const sz = fitLine(g, l, body, W*.5, s); g.textAlign = 'left'; g.textBaseline = 'top'; g.lineJoin = 'round'; g.lineWidth = sz*.22; g.strokeStyle = 'rgba(0,0,0,.6)';
+    const x = i%2 ? W - 50 : 50; g.textAlign = i%2 ? 'right' : 'left'; g.strokeText(l, x, y); g.fillStyle = i===0 ? col : cc; if(i===0){ g.fillStyle = '#fff'; } g.fillText(l, x, y);
+    if(i===0){ g.fillStyle = col; g.fillRect(i%2 ? x - g.measureText(l).width : x, y + sz*1.08, g.measureText(l).width, 8); }
+    y += sz*1.45 + (i===0 ? 20 : 8); });
+  // 丸い飾り
+  if(S.mg.badge){ const bx = W - 150, by = H*.56, r = 105; g.fillStyle = col; g.beginPath(); for(let i=0;i<32;i++){ const a = i/32*Math.PI*2, rr = i%2 ? r*.9 : r; g.lineTo(bx + Math.cos(a)*rr, by + Math.sin(a)*rr); } g.closePath(); g.fill();
+    g.fillStyle = '#fff'; const t2 = fitText(g, S.mg.badge, body, r*1.4, r*1.3, 52, 1.15); drawTextLines(g, t2.lines, bx, by - t2.lines.length*t2.size*1.15/2, t2.size, 1.15, 'center'); }
+  // 表紙の人の名前
+  if(S.mg.name){ const s = fitLine(g, S.mg.name, f, W*.66, 120); g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.lineWidth = s*.1; g.strokeStyle = 'rgba(0,0,0,.5)'; g.strokeText(S.mg.name, 50, H - 70); g.fillStyle = '#fff'; g.fillText(S.mg.name, 50, H - 70); }
+  // バーコード風の飾り(飾りなので読み取れません)
+  if(S.mg.bar){ const bw = 190, bh = 110, bx = W - bw - 40, by = H - bh - 40; g.fillStyle = '#fff'; g.fillRect(bx - 10, by - 10, bw + 20, bh + 34); g.fillStyle = '#111';
+    let x = bx; for(let i=0; x < bx + bw; i++){ const w = 1 + Math.floor(rnd(i, 99)*4); if(i%2===0) g.fillRect(x, by, w, bh); x += w; }
+    g.font = fontStr(body, 16, 500); g.textAlign = 'center'; g.textBaseline = 'top'; g.fillText(S.mg.issue ? S.mg.issue.replace(/\s+/g,' ').slice(0,22) : '', bx + bw/2, by + bh + 4); }
+  return {W, H};
+}
+
+/* ===== 漫画のコマ風 ===== */
+const LAYOUTS = {
+  '4koma': [[[0,0],[1,0],[1,.25],[0,.25]], [[0,.25],[1,.25],[1,.5],[0,.5]], [[0,.5],[1,.5],[1,.75],[0,.75]], [[0,.75],[1,.75],[1,1],[0,1]]],
+  '2x2': [[[0,0],[.5,0],[.5,.5],[0,.5]], [[.5,0],[1,0],[1,.5],[.5,.5]], [[0,.5],[.5,.5],[.5,1],[0,1]], [[.5,.5],[1,.5],[1,1],[.5,1]]],
+  '3': [[[0,0],[1,0],[1,.36],[0,.36]], [[0,.36],[.56,.36],[.46,.68],[0,.68]], [[.56,.36],[1,.36],[1,.68],[.46,.68]], [[0,.68],[1,.68],[1,1],[0,1]]],
+  'dyn': [[[0,0],[1,0],[1,.22],[0,.3]], [[0,.3],[1,.22],[1,.55],[0,.6]], [[0,.6],[.6,.57],[.48,1],[0,1]], [[.6,.57],[1,.55],[1,1],[.48,1]]],
+};
+const VROT = 'ー〜～…‥―-—()（）「」『』【】[]〈〉《》<>=＝';
+function vText(g, text, cx, cy, size){
+  const cols = String(text).split('\n'), lh = size*1.08, cw = size*1.25, total = (cols.length-1)*cw, maxLen = Math.max(...cols.map(c => [...c].length));
+  cols.forEach((col, ci) => { const x = cx + total/2 - ci*cw; [...col].forEach((ch, i) => { const y = cy - (maxLen-1)*lh/2 + i*lh;
+    if(VROT.includes(ch)){ g.save(); g.translate(x, y); g.rotate(Math.PI/2); g.fillText(ch, 0, 0); g.restore(); }
+    else if('、。'.includes(ch)) g.fillText(ch, x + size*.55, y - size*.5); else g.fillText(ch, x, y); }); });
+  return {w: total + size, h: maxLen*lh};
+}
+function bubble(g, text, cx, cy, size, vert, tailTo){
+  const f = fontOf('M PLUS Rounded 1c'); g.font = fontStr(f, size, 800); g.textAlign = 'center'; g.textBaseline = 'middle';
+  const cols = String(text).split('\n'); let bw, bh;
+  if(vert){ bw = cols.length*size*1.25 + size*.6; bh = Math.max(...cols.map(c => [...c].length))*size*1.08 + size*.4; }
+  else { bw = Math.max(...cols.map(c => g.measureText(c).width)) + size*.6; bh = cols.length*size*1.25 + size*.3; }
+  const rx = bw*.72, ry = bh*.72;
+  g.fillStyle = '#fff'; g.strokeStyle = '#111'; g.lineWidth = size*.14;
+  if(tailTo){ g.beginPath(); const a = Math.atan2(tailTo[1]-cy, tailTo[0]-cx); g.moveTo(cx + Math.cos(a+.25)*rx*.8, cy + Math.sin(a+.25)*ry*.8); g.lineTo(tailTo[0], tailTo[1]); g.lineTo(cx + Math.cos(a-.25)*rx*.8, cy + Math.sin(a-.25)*ry*.8); g.closePath(); g.fill(); g.stroke(); }
+  g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI*2); g.fill(); g.stroke();
+  if(tailTo){ g.beginPath(); const a = Math.atan2(tailTo[1]-cy, tailTo[0]-cx); g.moveTo(cx + Math.cos(a+.25)*(rx*.8-size*.1), cy + Math.sin(a+.25)*(ry*.8-size*.1)); g.lineTo(cx + Math.cos(a)*rx*.95, cy + Math.sin(a)*ry*.95); g.lineTo(cx + Math.cos(a-.25)*(rx*.8-size*.1), cy + Math.sin(a-.25)*(ry*.8-size*.1)); g.closePath(); g.fill(); }
+  g.fillStyle = '#111';
+  if(vert) vText(g, text, cx, cy, size); else cols.forEach((c, i) => g.fillText(c, cx, cy - (cols.length-1)*size*1.25/2 + i*size*1.25));
+  return {rx, ry};
+}
+function focusLines(g, x, y, w, h){
+  const cx = x + w/2, cy = y + h/2, R1 = Math.hypot(w, h)*.6; g.fillStyle = '#111';
+  for(let i=0;i<120;i++){ const a = rnd(i,51)*Math.PI*2, wd = .004 + rnd(i,52)*.012, r0 = Math.min(w,h)*(.32 + rnd(i,53)*.18);
+    g.beginPath(); g.moveTo(cx + Math.cos(a-wd)*R1, cy + Math.sin(a-wd)*R1); g.lineTo(cx + Math.cos(a)*r0, cy + Math.sin(a)*r0); g.lineTo(cx + Math.cos(a+wd)*R1, cy + Math.sin(a+wd)*R1); g.fill(); }
+}
+function tone(g, x, y, w, h){
+  const t = document.createElement('canvas'); t.width = 12; t.height = 12; const tg = t.getContext('2d'); tg.fillStyle = 'rgba(0,0,0,.28)'; tg.beginPath(); tg.arc(3,3,1.8,0,Math.PI*2); tg.arc(9,9,1.8,0,Math.PI*2); tg.fill();
+  g.save(); g.globalCompositeOperation = 'multiply'; g.fillStyle = g.createPattern(t, 'repeat'); g.fillRect(x, y, w, h); g.restore();
+}
+function drawManga(g){
+  const W = 1000, H = 1414; g.canvas.width = W; g.canvas.height = H; g.fillStyle = '#fff'; g.fillRect(0,0,W,H);
+  const top = S.mn.title ? 110 : 50, mg = 50, gut = 16, area = {x: mg, y: top, w: W - mg*2, h: H - top - mg};
+  if(S.mn.title){ const f = fontOf('Dela Gothic One'); const s = fitLine(g, S.mn.title, f, W*.8, 56); g.fillStyle = '#111'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(S.mn.title, W/2, 60); }
+  const L = LAYOUTS[S.mn.layout] || LAYOUTS['4koma'];
+  L.forEach((poly, i) => {
+    const p = S.mn.panels[i] || (S.mn.panels[i] = {text:'', pos:'tr', lines:false, s:100, x:0, y:0});
+    const inner = poly.map(([x, y]) => [area.x + x*area.w, area.y + y*area.h]);
+    const xs = inner.map(q=>q[0]), ys = inner.map(q=>q[1]), bx = Math.min(...xs), by = Math.min(...ys), bw = Math.max(...xs)-bx, bh = Math.max(...ys)-by;
+    const path = () => { g.beginPath(); inner.forEach(([x,y], k) => k ? g.lineTo(x,y) : g.moveTo(x,y)); g.closePath(); };
+    g.save(); path(); g.clip();
+    const im = panelImgs[i] || (i===0 ? photoImg : null) || SAMPLE;
+    g.filter = S.mn.mono ? 'grayscale(1) contrast(1.25) brightness(1.05)' : 'none'; drawCover(g, im, bx, by, bw, bh, p); g.filter = 'none';
+    if(S.mn.tone) tone(g, bx, by, bw, bh);
+    if(p.lines) focusLines(g, bx, by, bw, bh);
+    g.restore();
+    // コマのすき間と枠線:コマの中だけに太い線を引く(外側半分は切り取られる)
+    g.save(); path(); g.clip(); path(); g.lineWidth = gut + 12; g.strokeStyle = '#111'; g.stroke(); g.lineWidth = gut; g.strokeStyle = '#fff'; g.stroke(); g.restore();
+    if((p.text||'').trim()){
+      const size = Math.min(bw, bh)*(S.mn.vert==='v' ? .1 : .085), vert = S.mn.vert==='v';
+      const right = p.pos.includes('r'), topP = p.pos.includes('t');
+      g.save(); path(); g.clip();
+      const bxx = right ? bx + bw*.78 : bx + bw*.22, byy = topP ? by + bh*.3 : by + bh*.7;
+      bubble(g, p.text, bxx, byy, size, vert, [bx + bw*.5, by + bh*(topP ? .62 : .4)]);
+      g.restore();
+    }
+  });
+  return {W, H};
+}
+
+/* ===== まとめ ===== */
+const cv = $('cv'), board = $('board'); let lastInfo = null, rq = null;
+function renderTo(c){ const g = c.getContext('2d'); g.setTransform(1,0,0,1,0,0); g.imageSmoothingQuality = 'high';
+  const fn = {cheki:drawCheki, sticker:drawSticker, pixel:drawPixel, mag:drawMag, manga:drawManga}[S.mode] || drawCheki; return fn(g); }
+function redraw(){ if(rq) return; rq = requestAnimationFrame(() => { rq = null; lastInfo = renderTo(cv); const {W, H} = lastInfo;
+  cv.style.imageRendering = lastInfo.pixel ? 'pixelated' : 'auto'; board.style.width = `min(100%, calc(74vh * ${W/H}))`; $('sizeLabel').textContent = `${W}×${H}px`; }); }
+const HINTS = {cheki:'スタンプを押すと写真の真ん中に置かれます。プレビューの上でドラッグして動かし、ホイールで大きさを変えられます。「✎ 落書きする」を押すと、指やマウスで書けます。', sticker:'まわりが透明なPNGで保存されます。', pixel:'ドットはくっきりしたまま保存されます。', mag:'写真の位置は左の「写真」の大きさ・位置で調整できます。', manga:'コマごとに写真と吹き出しの文字を入れられます。'};
+
+/* ===== 入力欄 ===== */
+function syncUI(){
+  $('modeTabs').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v===S.mode));
+  for(const [id, m] of [['chekiBox','cheki'],['stickerBox','sticker'],['pixelBox','pixel'],['magBox','mag'],['mangaBox','manga']]) $(id).hidden = S.mode!==m;
+  $('photoBox').hidden = S.mode==='manga'; $('stageHint').textContent = HINTS[S.mode];
+  board.classList.toggle('draw', S.mode==='cheki' && penOn); board.classList.toggle('move', S.mode==='cheki' && !penOn);
+  for(const [id, v] of [['pS',S.pS],['pX',S.pX],['pY',S.pY]]){ $(id).value = v; $(id).dispatchEvent(new Event('sync')); }
+  $('chForm').value = S.ch.form; $('chFrame').value = S.ch.frame; $('chFilter').value = S.ch.filter; $('chCaption').value = S.ch.caption; fontOptions($('chFont'), S.ch.font); $('chCapColor').value = S.ch.capColor;
+  $('chDateOn').checked = S.ch.dateOn; $('chDate').value = S.ch.date; $('chClear').checked = S.ch.clear; $('decoColor').value = S.ch.color; $('penW').value = S.ch.penW;
+  $('stRemove').checked = S.st.remove; $('stTolBox').hidden = !S.st.remove; for(const k of ['tol','border','border2','shadow','rot']) $('st'+k[0].toUpperCase()+k.slice(1)).value = S.st[k]; $('stColor').value = S.st.color; $('stColor2').value = S.st.color2;
+  $('pxN').value = S.px.n; $('pxPal').value = S.px.pal; $('pxSat').value = S.px.sat; $('pxOut').value = S.px.out; $('pxGrid').checked = S.px.grid;
+  $('mgTitle').value = S.mg.title; $('mgColor').value = S.mg.color; $('mgIssue').value = S.mg.issue; fontOptions($('mgFont'), S.mg.font); $('mgLines').value = S.mg.lines; $('mgName').value = S.mg.name; $('mgBadge').value = S.mg.badge; $('mgBar').checked = S.mg.bar;
+  $('mnLayout').value = S.mn.layout; $('mnVert').value = S.mn.vert; $('mnMono').checked = S.mn.mono; $('mnTone').checked = S.mn.tone; $('mnTitle').value = S.mn.title; buildPanels();
+  document.querySelectorAll('.panel input[type=range]').forEach(el => el.dispatchEvent(new Event('sync')));
+}
+function buildPanels(){
+  const box = $('mnPanels'); box.innerHTML = ''; const n = (LAYOUTS[S.mn.layout]||[]).length;
+  for(let i=0;i<n;i++){ const p = S.mn.panels[i] = S.mn.panels[i] || {text:'', pos:'tr', lines:false, s:100, x:0, y:0};
+    const d = document.createElement('div'); d.className = 'panelbox';
+    d.innerHTML = `<b>${i+1}コマ目</b><label>写真<input type="file" accept="image/*"></label><label>吹き出しの文字(改行で次の行)<textarea rows="2"></textarea></label>
+      <div class="row"><label>吹き出しの場所<select><option value="tr">右上</option><option value="tl">左上</option><option value="br">右下</option><option value="bl">左下</option></select></label><label class="check" style="align-self:end"><input type="checkbox"> 集中線</label></div>
+      <div class="row"><label>写真の大きさ<input type="range" min="50" max="300" value="${p.s}"></label><label>横<input type="range" min="-100" max="100" value="${p.x}"></label><label>縦<input type="range" min="-100" max="100" value="${p.y}"></label></div>`;
+    const [file] = d.querySelectorAll('input[type=file]'), ta = d.querySelector('textarea'), sel = d.querySelector('select'), cb = d.querySelector('input[type=checkbox]'), rs = d.querySelectorAll('input[type=range]');
+    ta.value = p.text; sel.value = p.pos; cb.checked = !!p.lines;
+    file.addEventListener('change', async () => { const f = file.files[0]; file.value = ''; if(!f) return; try{ panelImgs[i] = await loadImg(f); saveImgs(); redraw(); }catch(e){ msg('画像を読み込めませんでした。'); } });
+    ta.addEventListener('input', () => { p.text = ta.value; saveS(); redraw(); }); sel.addEventListener('change', () => { p.pos = sel.value; saveS(); redraw(); }); cb.addEventListener('change', () => { p.lines = cb.checked; saveS(); redraw(); });
+    ['s','x','y'].forEach((k, j) => rs[j].addEventListener('input', () => { p[k] = +rs[j].value; saveS(); redraw(); }));
+    box.appendChild(d); }
+}
+$('modeTabs').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.mode = b.dataset.v; selDeco = null; saveS(); syncUI(); redraw(); });
+const bind = (id, set, ev='input', after) => $(id).addEventListener(ev, () => { set($(id)); saveS(); if(after) after(); redraw(); });
+bind('pS', el => S.pS = +el.value); bind('pX', el => S.pX = +el.value); bind('pY', el => S.pY = +el.value);
+for(const [id,f] of [['pS',v=>v+'%'],['pX',v=>v],['pY',v=>v]]){ const u = showVal($(id), f); $(id).addEventListener('sync', u); $(id).addEventListener('dblclick', () => { $(id).value = id==='pS'?100:0; $(id).dispatchEvent(new Event('input')); }); }
+$('photo').addEventListener('change', async e => { const f = e.target.files[0]; e.target.value = ''; if(!f) return; try{ photoImg = await loadImg(f); S.pS = 100; S.pX = 0; S.pY = 0; saveS(); saveImgs(); syncUI(); redraw(); msg(''); }catch(err){ msg('写真を読み込めませんでした。PNGかJPEGを選んでください。'); } });
+bind('chForm', el => S.ch.form = el.value, 'change'); bind('chFrame', el => S.ch.frame = el.value, 'change'); bind('chFilter', el => S.ch.filter = el.value, 'change');
+bind('chCaption', el => S.ch.caption = el.value); bind('chFont', el => { S.ch.font = el.value; loadFont(fontOf(S.ch.font), S.ch.caption).then(redraw); }, 'change'); bind('chCapColor', el => S.ch.capColor = el.value);
+bind('chDateOn', el => S.ch.dateOn = el.checked, 'change'); bind('chDate', el => S.ch.date = el.value); bind('chClear', el => S.ch.clear = el.checked, 'change');
+bind('decoColor', el => { S.ch.color = el.value; if(selDeco && selDeco.kind!=='pen') selDeco.color = el.value; }); bind('penW', el => S.ch.penW = +el.value); showVal($('penW'));
+bind('stRemove', el => S.st.remove = el.checked, 'change', syncUI);
+for(const k of ['tol','border','border2','shadow','rot']){ const id = 'st'+k[0].toUpperCase()+k.slice(1); bind(id, el => S.st[k] = +el.value); const u = showVal($(id), k==='rot' ? v=>v+'°' : null); $(id).addEventListener('sync', u); }
+bind('stColor', el => S.st.color = el.value); bind('stColor2', el => S.st.color2 = el.value);
+bind('pxN', el => S.px.n = +el.value); bind('pxPal', el => S.px.pal = el.value, 'change'); bind('pxSat', el => S.px.sat = +el.value); bind('pxOut', el => S.px.out = el.value, 'change'); bind('pxGrid', el => S.px.grid = el.checked, 'change');
+for(const [id,f] of [['pxN',v=>v+'ドット'],['pxSat',v=>v+'%']]){ const u = showVal($(id), f); $(id).addEventListener('sync', u); }
+bind('mgTitle', el => S.mg.title = el.value); bind('mgColor', el => S.mg.color = el.value); bind('mgIssue', el => S.mg.issue = el.value);
+bind('mgFont', el => { S.mg.font = el.value; loadFont(fontOf(S.mg.font), S.mg.title+S.mg.name).then(redraw); }, 'change');
+bind('mgLines', el => S.mg.lines = el.value); bind('mgName', el => S.mg.name = el.value); bind('mgBadge', el => S.mg.badge = el.value); bind('mgBar', el => S.mg.bar = el.checked, 'change');
+bind('mnLayout', el => S.mn.layout = el.value, 'change', buildPanels); bind('mnVert', el => S.mn.vert = el.value, 'change'); bind('mnMono', el => S.mn.mono = el.checked, 'change'); bind('mnTone', el => S.mn.tone = el.checked, 'change'); bind('mnTitle', el => S.mn.title = el.value);
+
+/* ===== スタンプと落書き(チェキ・プリ風) ===== */
+let selDeco = null, penOn = false, drag = null;
+const artW = () => (FORMS[S.ch.form] || FORMS.square).W;
+function toArt(e){ const r = cv.getBoundingClientRect(), k = cv.width/r.width, m = lastInfo?.m || 0; return [((e.clientX - r.left)*k - m)/artW(), ((e.clientY - r.top)*k - m)/artW()]; }
+function hit(x, y){ const W = artW(); for(let i=S.ch.deco.length-1;i>=0;i--){ const d = S.ch.deco[i]; if(d.kind==='pen') continue; const b = stampBox(d, W); if(Math.abs(x*W - d.x*W) <= b.rx+10 && Math.abs(y*W - d.y*W) <= b.ry+10) return d; } return null; }
+function addStamp(kind, text){ const F = FORMS[S.ch.form] || FORMS.square, [px,py,pw,ph] = F.ph; const d = {kind, text, color:S.ch.color, x:(px+pw/2)/F.W + (Math.random()-.5)*.1, y:(py+ph/2)/F.W + (Math.random()-.5)*.1, s:kind==='text' ? .16 : .14, rot:(Math.random()-.5)*24};
+  S.ch.deco.push(d); selDeco = d; setPen(false); saveS(); redraw(); }
+STAMPS.forEach(([k, label]) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.setAttribute('aria-label', label+'のスタンプ'); b.onclick = () => addStamp(k); $('stampBtns').appendChild(b); });
+$('stampTextAdd').onclick = () => { const t = $('stampText').value.trim(); if(!t){ msg('スタンプの文字を入れてください。'); return; } addStamp('text', t); };
+function setPen(on){ penOn = on; $('penMode').setAttribute('aria-pressed', on); $('penMode').textContent = on ? '✎ 落書き中(押すと終わる)' : '✎ 落書きする'; board.classList.toggle('draw', on); board.classList.toggle('move', !on); if(on) selDeco = null; redraw(); }
+$('penMode').onclick = () => setPen(!penOn);
+const scaleSel = k => { if(!selDeco) return msg('先にプレビューでスタンプを選んでください。'); selDeco.s = clamp(selDeco.s*k, .03, .8); saveS(); redraw(); };
+$('selBig').onclick = () => scaleSel(1.15); $('selSmall').onclick = () => scaleSel(1/1.15);
+$('selRot').onclick = () => { if(!selDeco) return msg('先にプレビューでスタンプを選んでください。'); selDeco.rot = ((selDeco.rot||0) + 15) % 360; saveS(); redraw(); };
+$('selDel').onclick = () => { if(!selDeco) return msg('先にプレビューでスタンプを選んでください。'); S.ch.deco = S.ch.deco.filter(d => d!==selDeco); selDeco = null; saveS(); redraw(); };
+$('undo').onclick = () => { S.ch.deco.pop(); selDeco = null; saveS(); redraw(); };
+armButton($('clearDeco'), 'スタンプと落書きを全部消す', 'もう一度押すと全部消す', () => { S.ch.deco = []; selDeco = null; saveS(); redraw(); });
+board.addEventListener('pointerdown', e => {
+  if(S.mode!=='cheki') return; e.preventDefault(); const [x, y] = toArt(e);
+  if(penOn){ const d = {kind:'pen', color:S.ch.color, w:S.ch.penW, pts:[[x,y]]}; S.ch.deco.push(d); drag = {pen:d}; }
+  else { const d = hit(x, y); selDeco = d; if(d){ drag = {d, ox:x - d.x, oy:y - d.y}; $('decoColor').value = d.color; } }
+  board.setPointerCapture(e.pointerId); redraw();
+});
+board.addEventListener('pointermove', e => { if(!drag) return; const [x, y] = toArt(e);
+  if(drag.pen){ const pts = drag.pen.pts, l = pts[pts.length-1]; if(Math.hypot(x-l[0], y-l[1]) > .002) pts.push([x, y]); }
+  else { drag.d.x = x - drag.ox; drag.d.y = y - drag.oy; } redraw(); });
+const endDrag = () => { if(drag){ drag = null; saveS(); } };
+board.addEventListener('pointerup', endDrag); board.addEventListener('pointercancel', endDrag);
+board.addEventListener('wheel', e => { if(S.mode!=='cheki' || !selDeco) return; e.preventDefault(); selDeco.s = clamp(selDeco.s*(e.deltaY<0 ? 1.08 : 1/1.08), .03, .8); saveS(); redraw(); }, {passive:false});
+addEventListener('keydown', e => { if(S.mode==='cheki' && selDeco && (e.key==='Delete' || e.key==='Backspace') && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)){ S.ch.deco = S.ch.deco.filter(d => d!==selDeco); selDeco = null; saveS(); redraw(); } });
+
+/* ===== 保存 ===== */
+const NAMES = {cheki:'cheki', sticker:'sticker', pixel:'pixel', mag:'magazine', manga:'manga'};
+$('save').onclick = async () => {
+  await Promise.all([loadFont(fontOf(S.ch.font), S.ch.caption), loadFont(fontOf(S.mg.font), S.mg.title+S.mg.name+S.mg.badge), loadFont(fontOf('M PLUS Rounded 1c'), S.mg.lines+S.mn.panels.map(p=>p.text).join('')+S.mg.issue+S.mg.badge), loadFont(fontOf('Mochiy Pop One'), S.ch.deco.map(d=>d.text||'').join('')), loadFont(fontOf('Dela Gothic One'), S.mn.title)]);
+  const keep = selDeco; selDeco = null; const c = document.createElement('canvas'); renderTo(c); selDeco = keep;
+  const name = `${NAMES[S.mode]}_${stamp()}.png`; const r = await saveFile(name, await toBlob(c)); msg(resultMsg(r, `${name} を保存しました(${c.width}×${c.height}px)。`));
+};
+
+/* ===== 起動 ===== */
+(async () => {
+  try{ const d = await store.get('imgs'); if(d){ if(d.photo) photoImg = await loadImg(d.photo).catch(()=>null); (d.panels||[]).forEach(async (b, i) => { if(b){ panelImgs[i] = await loadImg(b).catch(()=>null); redraw(); } }); } }catch(e){}
+  syncUI(); redraw(); if(document.fonts) document.fonts.ready.then(redraw);
+  Promise.all([loadFont(fontOf(S.ch.font)), loadFont(fontOf(S.mg.font)), loadFont(fontOf('Mochiy Pop One')), loadFont(fontOf('M PLUS Rounded 1c'))]).then(redraw);
+})();
+window.__tool = {get S(){ return S; }, renderTo};   // 動作確認用
+</script>
+</body>
+</html>

@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>告知画像メーカー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700&family=M+PLUS+Rounded+1c:wght@500;800&family=Kiwi+Maru:wght@500&family=Yusei+Magic&family=Klee+One:wght@600&family=Hachi+Maru+Pop&family=Dela+Gothic+One&family=RocknRoll+One&family=Mochiy+Pop+One&family=Noto+Serif+JP:wght@600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root{
+  --bg:#f6f3f7; --surface:#ffffff; --fg:#26222b; --muted:#6c6475; --line:#e3dde8; --field:#faf8fb; --chk:#ebe6ee; --sel:#ff4f8b;
+  --font-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#18161b; --surface:#221f26; --fg:#efebf3; --muted:#a9a1b3; --line:#38333f; --field:#2a2630; --chk:#2e2a33; --sel:#ff7aa8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#18161b; --surface:#221f26; --fg:#efebf3; --muted:#a9a1b3; --line:#38333f; --field:#2a2630; --chk:#2e2a33; --sel:#ff7aa8; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.6}
+.wrap{max-width:1320px;margin:0 auto;padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin-bottom:16px}
+header p{flex-basis:100%;margin:0;color:var(--muted);font-size:.85rem}
+h1{font-family:var(--font-display);font-weight:700;font-size:1.5rem;margin:0}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stage{display:flex;flex-direction:column;gap:10px;min-width:0;position:sticky;top:12px}
+@media (max-width:920px){.stage{position:static}}
+.board{margin:0 auto;max-width:100%;border-radius:6px;overflow:hidden;box-shadow:0 8px 28px rgba(30,20,50,.18);background:repeating-conic-gradient(var(--chk) 0 25%, var(--surface) 0 50%) 0 0/18px 18px}
+.board canvas{display:block;width:100%;height:auto}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 16px 16px;display:flex;flex-direction:column;min-width:0}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 8px;display:flex;flex-direction:column;gap:10px;min-width:0}
+fieldset:first-child{border-top:0}
+legend{font-family:var(--font-display);font-weight:700;font-size:.95rem;padding:0;margin-bottom:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row>label{flex:1 1 90px}
+input[type=text],input[type=number],input[type=date],input[type=datetime-local],input[type=time],textarea,select{font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 9px;width:100%}
+textarea{min-height:56px;resize:vertical;line-height:1.5}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:100%;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--field);padding:2px}
+input[type=file]{font-size:.78rem;color:var(--muted);max-width:100%}
+.check{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
+.btn{font:inherit;font-weight:700;border-radius:999px;padding:8px 16px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{font-size:.76rem;padding:4px 11px}
+.btn.danger{border-color:#d4405f;color:#d4405f;background:transparent}
+.btn:disabled{opacity:.5;cursor:default}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.mini{font:inherit;font-size:.75rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:2px 8px;cursor:pointer}
+.mini:disabled{opacity:.4;cursor:default}
+.tabs{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tabs button{flex:1 1 auto;font:inherit;font-size:.82rem;padding:8px 10px;border:0;background:var(--field);color:var(--fg);cursor:pointer}
+.tabs button+button{border-left:1px solid var(--line)}
+.tabs button[aria-pressed=true]{background:var(--accent);color:var(--accent-fg);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font:inherit;font-size:.76rem;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:999px;padding:3px 10px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:700}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:300px;overflow:auto}
+.list li{display:flex;align-items:center;gap:6px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--field);cursor:pointer}
+.list li.sel{border-color:var(--sel);box-shadow:inset 3px 0 0 var(--sel)}
+.list li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list li .sw{width:14px;height:14px;border-radius:50%;flex:none;border:1px solid rgba(0,0,0,.15)}
+.list li img{width:30px;height:30px;border-radius:6px;object-fit:cover;flex:none;background:var(--line)}
+.hint{color:var(--muted);font-size:.78rem;margin:0}
+.status{min-height:1.3em}
+.val{font-variant-numeric:tabular-nums;color:var(--fg);font-weight:700;margin-left:4px}
+.ver{font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 9px;text-decoration:none;white-space:nowrap;align-self:center}
+a.ver:hover{color:var(--accent);border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.progress{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+@media (prefers-reduced-motion: reduce){.progress i{transition:none}}
+.toplink{font-size:.8rem;color:var(--muted);text-decoration:none;flex-basis:100%}
+.toplink:hover{text-decoration:underline}
+details.more summary{cursor:pointer;font-size:.82rem;color:var(--fg);font-weight:700}
+details.more>div{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+
+/* Layout: 左に告知画像の大きなプレビューと保存、右に「作るもの」ごとの入力と見た目の設定 */
+:root{--accent:#2f6fd6; --accent-fg:#ffffff}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--accent:#8fb6ff; --accent-fg:#0d1a33}}
+:root[data-theme="dark"]{--accent:#8fb6ff; --accent-fg:#0d1a33}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="toplink" href="./">← ツール一覧</a>
+    <h1>告知画像メーカー</h1>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.0 ・ 2026-10-31 公開</a>
+    <p>カウントダウン・スケジュール・タイムテーブル・投稿カード風の告知画像を、文字を入れるだけで作れます。カウントダウンは毎日ぶんをまとめて作れます。</p>
+  </header>
+  <div class="grid">
+    <div class="stage">
+      <div class="board" id="board"><canvas id="cv"></canvas></div>
+      <div class="actions">
+        <button class="btn" id="saveOne" type="button">この画像を保存(PNG)</button>
+        <button class="btn ghost" id="saveAll" type="button">毎日ぶんをZIPで保存</button>
+        <span class="hint" id="sizeLabel"></span>
+      </div>
+      <div class="row" id="dayPick"><label>確かめる日<input type="range" id="cdDay" min="0" max="7" step="1"></label></div>
+      <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+      <p class="hint status" id="msg" role="status" aria-live="polite"></p>
+    </div>
+
+    <div class="panel">
+      <fieldset>
+        <legend>作るもの</legend>
+        <div class="tabs" id="modeTabs">
+          <button type="button" data-v="cd">カウントダウン</button>
+          <button type="button" data-v="sch">スケジュール</button>
+          <button type="button" data-v="tt">タイムテーブル</button>
+          <button type="button" data-v="post">投稿カード風</button>
+        </div>
+      </fieldset>
+
+      <fieldset id="cdBox">
+        <legend>カウントダウン</legend>
+        <label>イベント名<input type="text" id="cdTitle"></label>
+        <div class="row"><label>当日の日付<input type="date" id="cdDate"></label><label>何日前から作る<select id="cdFrom"></select></label></div>
+        <label>日付の下に入れる文字(時間・場所など)<input type="text" id="cdSub"></label>
+        <div class="row"><label>当日に出す文字<input type="text" id="cdToday"></label><label>数字の前<input type="text" id="cdPre"></label><label>数字の後<input type="text" id="cdPost"></label></div>
+        <p class="hint">「何日前から」の日から当日まで、毎日1枚ずつ作ります。下の「確かめる日」で見た目を切り替えられます。</p>
+      </fieldset>
+
+      <fieldset id="schBox">
+        <legend>スケジュール</legend>
+        <div class="tabs" id="schKind"><button type="button" data-v="week">1週間</button><button type="button" data-v="month">1か月(カレンダー)</button></div>
+        <label>見出し<input type="text" id="schTitle"></label>
+        <div id="schWeekBox" style="display:flex;flex-direction:column;gap:8px">
+          <label>週のはじめの日<input type="date" id="schStart"></label>
+          <div id="schWeek" style="display:flex;flex-direction:column;gap:6px"></div>
+          <p class="hint">空欄の日は「おやすみ」と表示します(下で変えられます)。</p>
+          <label>空欄の日の文字<input type="text" id="schOff"></label>
+        </div>
+        <div id="schMonthBox" style="display:flex;flex-direction:column;gap:8px">
+          <label>月<input type="month" id="schMonth"></label>
+          <label>予定(1行に1つ。「7 21:00 ライブ」や「11/7 ライブ」のように日にちから書きます)<textarea id="schEntries" rows="6"></textarea></label>
+        </div>
+      </fieldset>
+
+      <fieldset id="ttBox">
+        <legend>タイムテーブル</legend>
+        <div class="row"><label>見出し<input type="text" id="ttTitle"></label><label>日付など<input type="text" id="ttDate"></label></div>
+        <label>進行(1行に1つ。「21:00 名前 / 内容」のように時間から書きます)<textarea id="ttRows" rows="8"></textarea></label>
+      </fieldset>
+
+      <fieldset id="postBox">
+        <legend>投稿カード風</legend>
+        <div class="row"><label>表示名<input type="text" id="poName"></label><label>ID<input type="text" id="poHandle" placeholder="@example"></label></div>
+        <label>アイコン画像<input type="file" id="poAvatar" accept="image/*"></label>
+        <label>本文<textarea id="poText" rows="5"></textarea></label>
+        <div class="row"><label>日時の表示<input type="text" id="poDate"></label><label>いいね<input type="number" id="poLikes" min="0"></label><label>リポスト<input type="number" id="poReposts" min="0"></label></div>
+        <div class="row"><label>カードの色<select id="poTheme"><option value="light">白</option><option value="dark">黒</option></select></label><label class="check" style="align-self:end"><input type="checkbox" id="poImg"> 「メインの画像」を投稿の画像として入れる</label></div>
+        <p class="hint">実在のSNSのロゴやマークは入らない、オリジナルの投稿風デザインです。</p>
+      </fieldset>
+
+      <fieldset>
+        <legend>見た目</legend>
+        <div class="row"><label>大きさ<select id="size"><option value="4:5">縦長 1080×1350</option><option value="1:1">正方形 1080×1080</option><option value="16:9">横長 1600×900</option><option value="9:16">縦長 1080×1920</option></select></label><label>フォント<select id="font"></select></label></div>
+        <div class="row"><label>メインの色<input type="color" id="c1"></label><label>サブの色<input type="color" id="c2"></label><label>グループ名など<input type="text" id="group"></label></div>
+        <label>メインの画像(キービジュアル・写真。省略可)<input type="file" id="kv" accept="image/*"></label>
+        <div class="btns"><button class="mini" id="kvClear" type="button">メインの画像を外す</button></div>
+        <label>背景画像(省略可)<input type="file" id="bgIn" accept="image/*"></label>
+        <div class="btns"><button class="mini" id="bgClear" type="button">背景画像を外す</button></div>
+        <div class="row" id="bgDimBox"><label>背景画像に色を重ねる<input type="range" id="bgDim" min="0" max="90" step="1"></label></div>
+      </fieldset>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 共通の部品(画像作成ツール) ===== */
+const $ = id => document.getElementById(id);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const R = Math.round;
+const FONTS = [
+  {name:"Zen Maru Gothic(丸ゴシック)", fam:"Zen Maru Gothic", w:700},
+  {name:"M PLUS Rounded 1c(丸ゴシック太)", fam:"M PLUS Rounded 1c", w:800},
+  {name:"Kiwi Maru(やわらか明朝)", fam:"Kiwi Maru", w:500},
+  {name:"Klee One(手書き風)", fam:"Klee One", w:600},
+  {name:"Yusei Magic(マーカー風)", fam:"Yusei Magic", w:400},
+  {name:"Hachi Maru Pop(まるもじ)", fam:"Hachi Maru Pop", w:400},
+  {name:"Mochiy Pop One(ポップ)", fam:"Mochiy Pop One", w:400},
+  {name:"RocknRoll One(太ゴシック)", fam:"RocknRoll One", w:400},
+  {name:"Dela Gothic One(極太)", fam:"Dela Gothic One", w:400},
+  {name:"Noto Serif JP(明朝)", fam:"Noto Serif JP", w:600},
+];
+const fontOf = fam => FONTS.find(f => f.fam===fam) || FONTS[0];
+const fontStr = (f, px, w) => `${w||f.w} ${Math.max(1,px)}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
+function fontOptions(sel, cur){ sel.innerHTML=''; for(const f of FONTS){ const o=document.createElement('option'); o.value=f.fam; o.textContent=f.name; if(f.fam===cur) o.selected=true; sel.appendChild(o); } }
+const loadFont = (f, text) => document.fonts ? document.fonts.load(fontStr(f, 40), text || 'あA1').catch(()=>{}) : Promise.resolve();
+
+/* 色 */
+function rgbOf(hex){ const n = parseInt(String(hex||'#888888').replace('#','').padEnd(6,'0').slice(0,6), 16); return [n>>16, (n>>8)&255, n&255]; }
+const hexOf = (r,g,b) => '#' + [r,g,b].map(v => clamp(R(v),0,255).toString(16).padStart(2,'0')).join('');
+function mix(a, b, t){ const A=rgbOf(a), B=rgbOf(b); return hexOf(A[0]+(B[0]-A[0])*t, A[1]+(B[1]-A[1])*t, A[2]+(B[2]-A[2])*t); }
+const light = (c, t) => mix(c, '#ffffff', t), dark = (c, t) => mix(c, '#000000', t);
+function rgba(hex, a){ const [r,g,b] = rgbOf(hex); return `rgba(${r},${g},${b},${clamp(a,0,1)})`; }
+function lum(hex){ const [r,g,b] = rgbOf(hex); return (r*.299 + g*.587 + b*.114)/255; }
+const onColor = hex => lum(hex) > .62 ? '#2a2230' : '#ffffff';   // 色の上にのせる文字の色
+
+/* 画像 */
+function loadImg(blob){ return new Promise((res, rej) => { if(!blob) return res(null); const u = URL.createObjectURL(blob), im = new Image();
+  im.onload = () => { im._blob = blob; im._url = u; res(im); }; im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('img')); }; im.src = u; }); }
+// 枠いっぱいに入れる(adj:大きさ%・位置-100〜100)
+function drawCover(g, im, x, y, w, h, adj){
+  if(!im) return; const iw = im.naturalWidth||im.width, ih = im.naturalHeight||im.height, a = adj||{};
+  const k = Math.max(w/iw, h/ih) * (a.s ?? 100)/100, dw = iw*k, dh = ih*k;
+  const ox = (a.x||0)/100*w*.5, oy = (a.y||0)/100*h*.5;   // 右・下へ動かす
+  g.drawImage(im, x + (w-dw)/2 + ox, y + (h-dh)/2 + oy, dw, dh);
+}
+function drawContain(g, im, x, y, w, h){ if(!im) return; const iw = im.naturalWidth||im.width, ih = im.naturalHeight||im.height, k = Math.min(w/iw, h/ih); g.drawImage(im, x+(w-iw*k)/2, y+(h-ih*k)/2, iw*k, ih*k); }
+
+/* 文字(日本語の行頭禁則つきで折り返す) */
+const NO_START = '、。，．,.！？!?）)」』】〉》ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ～〜…‥';
+function wrapText(g, text, maxW){
+  const out = [];
+  for(const para of String(text||'').split('\n')){
+    if(para===''){ out.push(''); continue; }
+    let line = '';
+    for(const ch of [...para]){
+      if(line && g.measureText(line+ch).width > maxW && !NO_START.includes(ch)){ out.push(line); line = ch; }
+      else line += ch;
+    }
+    out.push(line);
+  }
+  return out;
+}
+// 枠に収まる大きさを探す(はじめの大きさから小さくしていく)
+function fitText(g, text, f, maxW, maxH, size, lh=1.3, maxLines=99){
+  let lines = [];
+  for(let i=0;i<60;i++){
+    g.font = fontStr(f, size); lines = wrapText(g, text, maxW);
+    const wd = Math.max(0, ...lines.map(l => g.measureText(l).width));
+    if((lines.length*size*lh <= maxH && wd <= maxW*1.01 && lines.length <= maxLines) || size < 6) break;
+    size *= .94;
+  }
+  g.font = fontStr(f, size); return {size, lines};
+}
+// 1行に収める(長いときだけ小さくする)
+function fitLine(g, text, f, maxW, size, w){ g.font = fontStr(f, size, w); const tw = g.measureText(text).width; if(tw > maxW) size *= maxW/tw; g.font = fontStr(f, size, w); return size; }
+function drawTextLines(g, lines, x, y, size, lh, align='left', stroke=0, strokeColor='#000'){
+  g.textAlign = align; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.miterLimit = 2;
+  lines.forEach((l, i) => { const yy = y + size*lh*(i+.5); if(stroke>0){ g.lineWidth = stroke; g.strokeStyle = strokeColor; g.strokeText(l, x, yy); } g.fillText(l, x, yy); });
+}
+function star(g, x, y, r, n=5, inner=.45){ g.beginPath(); for(let i=0;i<n*2;i++){ const a = -Math.PI/2 + i*Math.PI/n, rr = i%2 ? r*inner : r; g.lineTo(x + Math.cos(a)*rr, y + Math.sin(a)*rr); } g.closePath(); }
+function sparkle(g, x, y, r){ g.beginPath(); g.moveTo(x, y-r); g.quadraticCurveTo(x, y, x+r, y); g.quadraticCurveTo(x, y, x, y+r); g.quadraticCurveTo(x, y, x-r, y); g.quadraticCurveTo(x, y, x, y-r); g.fill(); }
+function heart(g, x, y, s){ g.beginPath(); g.moveTo(x, y+s*.35); g.bezierCurveTo(x-s*.9, y-s*.25, x-s*.45, y-s*.95, x, y-s*.45); g.bezierCurveTo(x+s*.45, y-s*.95, x+s*.9, y-s*.25, x, y+s*.35); g.fill(); }
+function rnd(i, k){ const x = Math.sin(i*127.1 + k*311.7) * 43758.5453; return x - Math.floor(x); }
+
+/* 保存 */
+let downloadsP = null;
+try{ downloadsP = window.claude?.use ? window.claude.use('downloads') : null; }catch(e){}
+async function saveFile(filename, data){
+  const dl = downloadsP ? await Promise.resolve(downloadsP).catch(()=>null) : null;
+  if(dl){ try{ await dl.save({filename, data}); return 'saved'; } catch(err){ if(err?.code==='declined') return 'declined'; if(err?.code==='rate_limited') return 'busy'; return 'failed'; } }
+  const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data])); const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 8000); return 'saved';
+}
+const toBlob = (c, type='image/png', q) => new Promise(r => c.toBlob(r, type, q));
+const stamp = () => { const d=new Date(), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; };
+const safeName = s => (String(s||'').replace(/[\\/:*?"<>|\n\r]/g,'_').trim() || 'image').slice(0, 60);
+const tick = ms => new Promise(r => setTimeout(r, ms||0));
+const resultMsg = (r, ok) => r==='saved' ? ok : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。';
+async function saveZip(entries, zipName, onProgress){   // entries: [{name, blob}]
+  if(typeof JSZip==='undefined') throw new Error('nozip');
+  const zip = new JSZip(), used = new Set();
+  entries.forEach(e => { let n = e.name, k = 2; const m = n.replace(/(\.[^.]+)$/, ''), ext = n.slice(m.length); while(used.has(n)) n = `${m}(${k++})${ext}`; used.add(n); zip.file(n, e.blob); });
+  const z = await zip.generateAsync({type:'blob'}, m => onProgress && onProgress(m.percent/100));
+  return saveFile(zipName, z);
+}
+
+/* 作業の自動保存(IndexedDB。画像もそのまま入る) */
+function makeStore(dbName){
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => { try{ const r = indexedDB.open(dbName, 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }catch(e){ rej(e); } }));
+  const tx = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('kv', mode), st = t.objectStore('kv'), q = fn(st); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); }); };
+  return { get: k => tx('readonly', st => st.get(k)), put: (k, v) => tx('readwrite', st => st.put(v, k)) };
+}
+// 「もう一度押すと〜」の確認つきボタン
+function armButton(btn, label, armedLabel, fn){
+  let armed = false;
+  btn.onclick = () => { if(!armed){ armed = true; btn.textContent = armedLabel; setTimeout(() => { armed = false; btn.textContent = label; }, 3000); return; } armed = false; btn.textContent = label; fn(); };
+}
+// スライダーの値を表示する(label の中の .val に入れる)
+function showVal(input, fmt){ const lab = input.closest('label'); let v = lab && lab.querySelector('.val'); if(lab && !v){ v = document.createElement('span'); v.className = 'val'; const t = [...lab.childNodes].find(n => n.nodeType===3 && n.textContent.trim()); if(t) t.after(v); else lab.prepend(v); }
+  const upd = () => { if(v) v.textContent = fmt ? fmt(input.value) : input.value; }; input.addEventListener('input', upd); upd(); return upd; }
+
+const msg = t => { $('msg').textContent = t; };
+const bar = p => { $('bar').style.width = (p*100).toFixed(1)+'%'; };
+const WD = ['日','月','火','水','木','金','土'], WDE = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const parseD = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s||''); return m ? new Date(+m[1], +m[2]-1, +m[3]) : new Date(); };
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate()+n);
+const today = new Date(), inWeek = addDays(today, 7);
+
+/* ===== 設定 ===== */
+const DEF = {mode:'cd', size:'4:5', font:'M PLUS Rounded 1c', c1:'#ff5fa2', c2:'#7c6cff', group:'', bgDim:45,
+  cd:{title:'ワンマンライブ', date: ymd(inWeek), from:7, sub:'21:00〜 オンラインワールドにて', today:'TODAY!', pre:'あと', post:'日', day:3},
+  sch:{kind:'week', title:'今週のスケジュール', mtitle:'今月のスケジュール', start: ymd(addDays(today, -today.getDay()+1)), week:[{t:'21:00',v:'雑談配信'},{t:'',v:''},{t:'22:00',v:'ゲーム配信'},{t:'',v:''},{t:'21:00',v:'歌枠'},{t:'20:00',v:'コラボ'},{t:'',v:''}], off:'おやすみ',
+    month: ymd(today).slice(0,7), entries:'3 21:00 雑談配信\n7 21:00 ワンマンライブ\n14 22:00 ゲーム配信\n21 20:00 コラボ\n28 21:00 歌枠'},
+  tt:{title:'タイムテーブル', date:'11.7 SAT', rows:'20:30 開場\n21:00 オープニング\n21:10 メンバーA / ソロ曲\n21:30 メンバーB / トーク\n21:50 全員 / ライブ\n22:30 エンディング'},
+  post:{name:'メンバーA', handle:'@member_a', text:'お知らせ！\n11月7日 21時から、はじめてのワンマンライブを開催します✨\nみんな来てね！', date:'21:00 · 2026年11月1日', likes:1234, reposts:321, theme:'light', img:false}};
+const KEY = 'announce-maker:v1';
+let S = structuredClone(DEF);
+try{ const d = JSON.parse(localStorage.getItem(KEY)||'null'); if(d) for(const k of Object.keys(DEF)) if(d[k]!==undefined) S[k] = (typeof DEF[k]==='object' && !Array.isArray(DEF[k])) ? {...DEF[k], ...d[k]} : d[k]; }catch(e){}
+const saveS = () => { try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} };
+const imgs = {kv:null, bg:null, avatar:null};
+const store = makeStore('announce-maker');
+async function saveImgs(){ try{ await store.put('imgs', {kv: imgs.kv?._blob||null, bg: imgs.bg?._blob||null, avatar: imgs.avatar?._blob||null}); }catch(e){} }
+
+/* ===== 共通の描画 ===== */
+const SIZES = {'4:5':[1080,1350], '1:1':[1080,1080], '16:9':[1600,900], '9:16':[1080,1920]};
+const dims = () => SIZES[S.size] || SIZES['4:5'];
+function background(g, W, H){
+  const c1 = S.c1, c2 = S.c2, u = Math.min(W,H)/1000;
+  if(imgs.bg){ drawCover(g, imgs.bg, 0, 0, W, H); const ov = g.createLinearGradient(0,0,W,H); ov.addColorStop(0, rgba(c1, S.bgDim/100)); ov.addColorStop(1, rgba(c2, S.bgDim/100)); g.fillStyle = ov; g.fillRect(0,0,W,H); return; }
+  const gr = g.createLinearGradient(0, 0, W, H); gr.addColorStop(0, light(c1,.15)); gr.addColorStop(1, c2); g.fillStyle = gr; g.fillRect(0,0,W,H);
+  for(let i=0;i<22;i++){ g.fillStyle = `rgba(255,255,255,${.06+rnd(i,3)*.12})`; g.beginPath(); g.arc(rnd(i,1)*W, rnd(i,2)*H, (30+rnd(i,4)*140)*u, 0, Math.PI*2); g.fill(); }
+  g.fillStyle = 'rgba(255,255,255,.75)'; for(let i=0;i<14;i++) sparkle(g, rnd(i,7)*W, rnd(i,8)*H, (8+rnd(i,9)*16)*u);
+}
+function outlined(g, text, x, y, size, f, fill, stroke, sw, align='center', w){
+  g.font = fontStr(f, size, w); g.textAlign = align; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.miterLimit = 2;
+  if(sw > 0){ g.lineWidth = sw; g.strokeStyle = stroke; g.strokeText(text, x, y); } g.fillStyle = fill; g.fillText(text, x, y);
+}
+function groupMark(g, W, H, f, col){ if(!S.group) return; const u = Math.min(W,H)/1000; g.font = fontStr(f, 26*u); g.fillStyle = col || 'rgba(255,255,255,.92)'; g.textAlign = 'right'; g.textBaseline = 'alphabetic'; g.fillText(S.group, W - 40*u, H - 34*u); }
+function panel(g, x, y, w, h, r, u){ g.save(); g.shadowColor = 'rgba(20,10,40,.25)'; g.shadowBlur = 30*u; g.shadowOffsetY = 10*u; g.fillStyle = 'rgba(255,255,255,.92)'; g.beginPath(); g.roundRect(x, y, w, h, r); g.fill(); g.restore(); }
+
+/* ===== カウントダウン ===== */
+function drawCountdown(g, W, H, n){
+  const f = fontOf(S.font), u = Math.min(W,H)/1000, c1 = S.c1, c2 = S.c2, ev = parseD(S.cd.date), wide = W/H > 1.2;
+  background(g, W, H);
+  // メインの画像(上半分・横長なら左半分)
+  let area = {x:0, y:0, w:W, h:H};
+  if(imgs.kv){
+    if(wide){ g.save(); g.beginPath(); g.rect(0,0,W*.5,H); g.clip(); drawCover(g, imgs.kv, 0, 0, W*.5, H); const fg = g.createLinearGradient(W*.32, 0, W*.5, 0); fg.addColorStop(0, rgba(c2,0)); fg.addColorStop(1, rgba(c2,.85)); g.fillStyle = fg; g.fillRect(W*.32,0,W*.18,H); g.restore(); area = {x:W*.5, y:0, w:W*.5, h:H}; }
+    else { const kh = H*.52; g.save(); g.beginPath(); g.rect(0,0,W,kh); g.clip(); drawCover(g, imgs.kv, 0, 0, W, kh); const fg = g.createLinearGradient(0, kh*.7, 0, kh); fg.addColorStop(0, rgba(c2,0)); fg.addColorStop(1, rgba(mix(c1,c2,.6),.9)); g.fillStyle = fg; g.fillRect(0,kh*.7,W,kh*.3); g.restore(); area = {x:0, y:kh*.82, w:W, h:H-kh*.82}; }
+  }
+  const cx = area.x + area.w/2, top = area.y + area.h*.06, bot = area.y + area.h - 60*u;
+  // イベント名
+  const ts = fitLine(g, S.cd.title||'', f, area.w*.86, (imgs.kv ? 70 : 86)*u);
+  const ty = top + ts*.9; outlined(g, S.cd.title||'', cx, ty, ts, f, '#fff', dark(c1,.25), ts*.18);
+  // 数字
+  const isToday = n <= 0, mid = (ty + ts + bot - 120*u)/2;
+  if(isToday){ const s = fitLine(g, S.cd.today||'TODAY!', f, area.w*.86, Math.min(area.h*.28, 300*u), 900);
+    outlined(g, S.cd.today||'TODAY!', cx, mid, s, f, '#fff', c1, s*.14, 'center', 900);
+    g.save(); g.fillStyle = 'rgba(255,255,255,.9)'; for(let i=0;i<8;i++){ const a = i/8*Math.PI*2; sparkle(g, cx + Math.cos(a)*area.w*.38, mid + Math.sin(a)*s*.8, (18+ (i%2)*14)*u); } g.restore(); }
+  else {
+    const num = String(n), big = Math.min(area.h*.36, area.w*.5/Math.max(1, num.length*.6), 420*u);
+    // 数字の後ろの丸
+    g.fillStyle = 'rgba(255,255,255,.18)'; g.beginPath(); g.arc(cx, mid, big*.78, 0, Math.PI*2); g.fill();
+    g.lineWidth = 6*u; g.strokeStyle = 'rgba(255,255,255,.6)'; g.setLineDash([4*u, 14*u]); g.beginPath(); g.arc(cx, mid, big*.88, 0, Math.PI*2); g.stroke(); g.setLineDash([]);
+    g.font = fontStr(f, big, 900); const nw = g.measureText(num).width;
+    const ps = big*.26; outlined(g, S.cd.pre||'', cx - nw/2 - ps*.2, mid + big*.18, ps, f, '#fff', dark(c1,.2), ps*.2, 'right');
+    outlined(g, num, cx, mid + big*.04, big, f, '#fff', dark(c1,.15), big*.08, 'center', 900);
+    outlined(g, S.cd.post||'', cx + nw/2 + ps*.2, mid + big*.18, ps, f, '#fff', dark(c1,.2), ps*.2, 'left');
+  }
+  // 日付と説明
+  const ds = `${ev.getFullYear()}.${ev.getMonth()+1}.${ev.getDate()} (${WDE[ev.getDay()]})`;
+  const dsz = fitLine(g, ds, f, area.w*.8, 58*u); g.fillStyle = 'rgba(255,255,255,.95)';
+  const pw = g.measureText(ds).width + dsz*1.4, py = bot - 110*u;
+  g.fillStyle = 'rgba(255,255,255,.95)'; g.beginPath(); g.roundRect(cx - pw/2, py - dsz*.8, pw, dsz*1.6, dsz*.8); g.fill();
+  g.fillStyle = dark(c1,.2); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ds, cx, py);
+  if(S.cd.sub){ const ss = fitLine(g, S.cd.sub, f, area.w*.88, 34*u); outlined(g, S.cd.sub, cx, py + dsz*.8 + ss*1.1, ss, f, '#fff', dark(c2,.3), ss*.2); }
+  groupMark(g, W, H, f);
+}
+
+/* ===== スケジュール ===== */
+const wdColor = (d, base) => d===0 ? '#e5486b' : d===6 ? '#3b7be0' : base;
+function drawWeek(g, W, H){
+  const f = fontOf(S.font), u = Math.min(W,H)/1000, c1 = S.c1, s0 = parseD(S.sch.start);
+  background(g, W, H);
+  const pad = 50*u, ts = fitLine(g, S.sch.title||'', f, W - pad*2, 80*u); outlined(g, S.sch.title||'', W/2, pad + ts*.75, ts, f, '#fff', dark(c1,.25), ts*.18);
+  const y0 = pad + ts*1.6, y1 = H - pad - (S.group ? 40*u : 0), rows = 7, gap = 14*u, rh = (y1 - y0 - gap*(rows-1))/rows;
+  const wide = W/H > 1.2, colW = wide ? (W - pad*2 - gap)/2 : W - pad*2;
+  for(let i=0;i<rows;i++){
+    const d = addDays(s0, i), e = (S.sch.week||[])[i] || {t:'', v:''}, empty = !(e.v||'').trim();
+    const col = wide ? (i < 4 ? 0 : 1) : 0, ri = wide ? (i < 4 ? i : i-4) : i, rh2 = wide ? (y1 - y0 - gap*3)/4 : rh;
+    const x = pad + col*(colW + gap), y = y0 + ri*(rh2 + gap);
+    g.fillStyle = empty ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.93)'; g.beginPath(); g.roundRect(x, y, colW, rh2, rh2*.25); g.fill();
+    const lw = Math.min(colW*.3, rh2*2.6); const wc = wdColor(d.getDay(), c1);
+    g.fillStyle = wc; g.beginPath(); g.roundRect(x, y, lw, rh2, rh2*.25); g.fill();
+    const ls = Math.min(rh2*.42, lw*.24); g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = fontStr(f, ls); g.fillText(`${d.getMonth()+1}/${d.getDate()}`, x + lw/2, y + rh2*.4); g.font = fontStr(f, ls*.62); g.fillText(`(${WD[d.getDay()]})`, x + lw/2, y + rh2*.74);
+    const tx = x + lw + rh2*.3, tw = colW - lw - rh2*.5;
+    if(empty){ g.fillStyle = 'rgba(80,70,90,.6)'; fitLine(g, S.sch.off||'', f, tw, rh2*.36); g.textAlign = 'left'; g.fillText(S.sch.off||'', tx, y + rh2/2); }
+    else { let x2 = tx; if(e.t){ g.font = fontStr(f, rh2*.3, 800); g.fillStyle = dark(wc,.1); g.textAlign = 'left'; g.fillText(e.t, x2, y + rh2/2); x2 += g.measureText(e.t).width + rh2*.25; }
+      g.fillStyle = '#2a2230'; fitLine(g, e.v, f, tx + tw - x2, rh2*.36); g.textAlign = 'left'; g.fillText(e.v, x2, y + rh2/2); }
+  }
+  groupMark(g, W, H, f);
+}
+function parseEntries(text, month){
+  const map = {};
+  for(const line of String(text||'').split('\n')){ const l = line.trim(); if(!l) continue;
+    let m = /^(\d{1,2})\/(\d{1,2})\s*(.*)$/.exec(l), day, rest;
+    if(m){ if(+m[1] !== month) continue; day = +m[2]; rest = m[3]; } else { m = /^(\d{1,2})日?\s*(.*)$/.exec(l); if(!m) continue; day = +m[1]; rest = m[2]; }
+    (map[day] = map[day] || []).push(rest.trim()); }
+  return map;
+}
+function drawMonth(g, W, H){
+  const f = fontOf(S.font), u = Math.min(W,H)/1000, c1 = S.c1, [yy, mm] = (S.sch.month||ymd(today).slice(0,7)).split('-').map(Number);
+  background(g, W, H);
+  const pad = 44*u, title = `${yy}年${mm}月`, ts = fitLine(g, title, f, W - pad*2, 84*u);
+  outlined(g, title, W/2, pad + ts*.7, ts, f, '#fff', dark(c1,.25), ts*.18);
+  let y = pad + ts*1.35; if(S.sch.mtitle){ const s2 = fitLine(g, S.sch.mtitle, f, W - pad*2, 38*u); outlined(g, S.sch.mtitle, W/2, y + s2*.5, s2, f, '#fff', dark(c1,.3), s2*.2); y += s2*1.3; }
+  const y1 = H - pad - (S.group ? 36*u : 0); panel(g, pad, y, W - pad*2, y1 - y, 26*u, u);
+  const ip = 16*u, gx = pad + ip, gw = W - pad*2 - ip*2, hh = 50*u, first = new Date(yy, mm-1, 1), days = new Date(yy, mm, 0).getDate();
+  const weeks = Math.ceil((first.getDay() + days)/7), cw = gw/7, ch = (y1 - y - ip*2 - hh)/weeks, ev = parseEntries(S.sch.entries, mm);
+  for(let i=0;i<7;i++){ g.fillStyle = wdColor(i, dark(c1,.2)); g.font = fontStr(f, 26*u); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(WD[i], gx + cw*(i+.5), y + ip + hh/2); }
+  const gy = y + ip + hh;
+  for(let d=1; d<=days; d++){
+    const k = first.getDay() + d - 1, cx = gx + (k%7)*cw, cy = gy + Math.floor(k/7)*ch, list = ev[d] || [];
+    if(list.length){ g.fillStyle = light(c1,.82); g.beginPath(); g.roundRect(cx + 3*u, cy + 3*u, cw - 6*u, ch - 6*u, 10*u); g.fill(); }
+    g.fillStyle = wdColor(k%7, '#3a3242'); g.font = fontStr(f, Math.min(30*u, ch*.24)); g.textAlign = 'left'; g.textBaseline = 'top'; g.fillText(String(d), cx + 10*u, cy + 8*u);
+    const es = Math.min(20*u, ch*.17), lines = []; g.font = fontStr(f, es);
+    list.forEach(t => lines.push(...wrapText(g, t, cw - 16*u)));
+    const maxL = Math.max(0, Math.floor((ch - 46*u)/(es*1.25)));
+    g.fillStyle = dark(c1,.35); lines.slice(0, maxL).forEach((l, i) => g.fillText(i===maxL-1 && lines.length>maxL ? l.slice(0, -1)+'…' : l, cx + 8*u, cy + 40*u + i*es*1.25));
+  }
+  g.strokeStyle = 'rgba(80,70,90,.12)'; g.lineWidth = 1.5*u; for(let w=1; w<weeks; w++){ g.beginPath(); g.moveTo(gx, gy + w*ch); g.lineTo(gx + gw, gy + w*ch); g.stroke(); }
+  groupMark(g, W, H, f);
+}
+
+/* ===== タイムテーブル ===== */
+function drawTimetable(g, W, H){
+  const f = fontOf(S.font), u = Math.min(W,H)/1000, c1 = S.c1, c2 = S.c2;
+  background(g, W, H);
+  const pad = 50*u; let y = pad;
+  const ts = fitLine(g, S.tt.title||'', f, W - pad*2, 86*u); outlined(g, S.tt.title||'', W/2, y + ts*.6, ts, f, '#fff', dark(c1,.25), ts*.18); y += ts*1.25;
+  if(S.tt.date){ const ds = fitLine(g, S.tt.date, f, W - pad*2, 40*u); outlined(g, S.tt.date, W/2, y + ds*.5, ds, f, '#fff', dark(c2,.3), ds*.2); y += ds*1.4; }
+  const rows = String(S.tt.rows||'').split('\n').map(l => l.trim()).filter(Boolean).map(l => { const m = /^(\S+)\s+(.*)$/.exec(l); const t = m ? m[1] : '', rest = m ? m[2] : l; const [a, b] = rest.split(/\s*\/\s*/); return {t, a: a||'', b: b||''}; });
+  if(!rows.length) return;
+  const y1 = H - pad - (S.group ? 36*u : 0), gap = 12*u, rh = Math.min(150*u, (y1 - y - gap*(rows.length-1))/rows.length), x = pad, w = W - pad*2;
+  y += Math.max(0, (y1 - y - (rh*rows.length + gap*(rows.length-1)))/2);
+  rows.forEach((r, i) => {
+    const col = mix(c1, c2, rows.length>1 ? i/(rows.length-1) : 0);
+    g.fillStyle = 'rgba(255,255,255,.93)'; g.beginPath(); g.roundRect(x, y, w, rh, rh*.24); g.fill();
+    const tw = Math.min(w*.26, rh*2.4); g.fillStyle = col; g.beginPath(); g.roundRect(x, y, tw, rh, rh*.24); g.fill();
+    g.fillStyle = onColor(col); fitLine(g, r.t, f, tw*.84, rh*.4, 800); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(r.t, x + tw/2, y + rh/2);
+    const tx = x + tw + rh*.3, aw = w - tw - rh*.5;
+    if(r.b){ g.fillStyle = '#2a2230'; fitLine(g, r.a, f, aw, rh*.36); g.textAlign = 'left'; g.fillText(r.a, tx, y + rh*.36); g.fillStyle = 'rgba(60,50,70,.75)'; fitLine(g, r.b, f, aw, rh*.26); g.fillText(r.b, tx, y + rh*.72); }
+    else { g.fillStyle = '#2a2230'; fitLine(g, r.a, f, aw, rh*.38); g.textAlign = 'left'; g.fillText(r.a, tx, y + rh/2); }
+    y += rh + gap;
+  });
+  groupMark(g, W, H, f);
+}
+
+/* ===== 投稿カード風 ===== */
+function iconHeart(g, x, y, s, c){ g.fillStyle = c; heart(g, x, y + s*.1, s); }
+function iconRepeat(g, x, y, s, c){ g.strokeStyle = c; g.lineWidth = s*.12; g.lineJoin = 'round'; g.lineCap = 'round';
+  g.beginPath(); g.moveTo(x - s*.45, y + s*.05); g.lineTo(x - s*.45, y - s*.25); g.lineTo(x + s*.3, y - s*.25); g.stroke();
+  g.beginPath(); g.moveTo(x + s*.15, y - s*.42); g.lineTo(x + s*.35, y - s*.25); g.lineTo(x + s*.15, y - s*.08); g.stroke();
+  g.beginPath(); g.moveTo(x + s*.45, y - s*.05); g.lineTo(x + s*.45, y + s*.25); g.lineTo(x - s*.3, y + s*.25); g.stroke();
+  g.beginPath(); g.moveTo(x - s*.15, y + s*.42); g.lineTo(x - s*.35, y + s*.25); g.lineTo(x - s*.15, y + s*.08); g.stroke(); }
+function iconBubble(g, x, y, s, c){ g.strokeStyle = c; g.lineWidth = s*.12; g.beginPath(); g.ellipse(x, y - s*.05, s*.45, s*.36, 0, 0, Math.PI*2); g.stroke(); g.beginPath(); g.moveTo(x - s*.25, y + s*.25); g.lineTo(x - s*.35, y + s*.48); g.lineTo(x - s*.05, y + s*.3); g.stroke(); }
+const fmtNum = n => { n = +n||0; return n >= 10000 ? (n/10000).toFixed(n>=100000?0:1)+'万' : n.toLocaleString('ja-JP'); };
+function drawPost(g, W, H){
+  const f = fontOf(S.font), u = Math.min(W,H)/1000, dk = S.post.theme==='dark', bgc = dk ? '#15141a' : '#ffffff', fg = dk ? '#f2eff6' : '#1d1b22', sub = dk ? '#9a94a6' : '#6e6878';
+  background(g, W, H);
+  const wide = W/H > 1.2, cw = wide ? W*.6 : W*.86, x = (W - cw)/2, ip = 40*u, av = 96*u;
+  const showImg = S.post.img && imgs.kv;
+  // 高さを先に計算する
+  g.font = fontStr(f, 44*u); let fs = 44*u, lines = wrapText(g, S.post.text||'', cw - ip*2);
+  const imgH = showImg ? Math.min((cw - ip*2)*.56, H*(wide ? .3 : .36)) : 0;
+  const maxText = H*.9 - (ip*2 + av + 30*u + imgH + 170*u);
+  for(let i=0; i<30 && lines.length*fs*1.45 > maxText && fs > 28*u; i++){ fs *= .93; g.font = fontStr(f, fs); lines = wrapText(g, S.post.text||'', cw - ip*2); }
+  const ch = ip + av + 26*u + lines.length*fs*1.45 + (imgH ? imgH + 24*u : 0) + 34*u + 40*u + 30*u + 50*u + ip*.6;
+  const y = Math.max(30*u, (H - ch)/2);
+  g.save(); g.shadowColor = 'rgba(10,5,30,.35)'; g.shadowBlur = 50*u; g.shadowOffsetY = 16*u; g.fillStyle = bgc; g.beginPath(); g.roundRect(x, y, cw, ch, 34*u); g.fill(); g.restore();
+  // アイコン・名前
+  const ax = x + ip, ay = y + ip;
+  g.save(); g.beginPath(); g.arc(ax + av/2, ay + av/2, av/2, 0, Math.PI*2); g.clip();
+  if(imgs.avatar) drawCover(g, imgs.avatar, ax, ay, av, av); else { g.fillStyle = S.c1; g.fillRect(ax, ay, av, av); g.fillStyle = 'rgba(255,255,255,.8)'; g.beginPath(); g.arc(ax+av/2, ay+av*.42, av*.2, 0, Math.PI*2); g.fill(); g.beginPath(); g.ellipse(ax+av/2, ay+av*1.02, av*.38, av*.36, 0, Math.PI, 0); g.fill(); }
+  g.restore();
+  const nx = ax + av + 22*u, nw = cw - ip*2 - av - 22*u;
+  g.fillStyle = fg; fitLine(g, S.post.name||'', f, nw - 50*u, 40*u, 800); g.textAlign = 'left'; g.textBaseline = 'middle'; g.fillText(S.post.name||'', nx, ay + av*.32);
+  const nmw = g.measureText(S.post.name||'').width;   // 名前の横の丸いチェック(オリジナルの飾り)
+  g.fillStyle = S.c1; g.beginPath(); g.arc(nx + nmw + 22*u, ay + av*.32, 15*u, 0, Math.PI*2); g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 4*u; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.beginPath(); g.moveTo(nx + nmw + 15*u, ay + av*.32); g.lineTo(nx + nmw + 20*u, ay + av*.32 + 5*u); g.lineTo(nx + nmw + 29*u, ay + av*.32 - 5*u); g.stroke();
+  g.fillStyle = sub; g.font = fontStr(f, 30*u, 500); g.fillText(S.post.handle||'', nx, ay + av*.74);
+  // 本文
+  let ty = ay + av + 26*u; g.fillStyle = fg; g.font = fontStr(f, fs, 500); g.textBaseline = 'top';
+  lines.forEach((l, i) => g.fillText(l, x + ip, ty + i*fs*1.45)); ty += lines.length*fs*1.45;
+  if(imgH){ ty += 12*u; g.save(); g.beginPath(); g.roundRect(x + ip, ty, cw - ip*2, imgH, 20*u); g.clip(); drawCover(g, imgs.kv, x + ip, ty, cw - ip*2, imgH); g.restore(); ty += imgH + 12*u; }
+  ty += 22*u; g.fillStyle = sub; g.font = fontStr(f, 28*u, 500); g.fillText(S.post.date||'', x + ip, ty); ty += 50*u;
+  g.fillStyle = dk ? '#2c2a33' : '#ebe8ef'; g.fillRect(x + ip, ty, cw - ip*2, 2*u); ty += 26*u;
+  // 反応
+  const iy = ty + 18*u, items = [[iconBubble, ''], [iconRepeat, fmtNum(S.post.reposts)], [iconHeart, fmtNum(S.post.likes)]];
+  items.forEach(([fn, t], i) => { const ix = x + ip + 20*u + i*(cw - ip*2)/3; fn(g, ix, iy, 36*u, i===2 ? '#f0457a' : sub); g.fillStyle = sub; g.font = fontStr(f, 28*u, 500); g.textBaseline = 'middle'; g.fillText(t, ix + 34*u, iy); });
+  groupMark(g, W, H, f);
+}
+
+/* ===== まとめ ===== */
+function render(c, opt={}){
+  const [W, H] = dims(), sc = opt.scale || 1; c.width = R(W*sc); c.height = R(H*sc); const g = c.getContext('2d'); g.setTransform(sc,0,0,sc,0,0); g.imageSmoothingQuality = 'high';
+  if(S.mode==='cd') drawCountdown(g, W, H, opt.day ?? S.cd.day);
+  else if(S.mode==='sch') (S.sch.kind==='month' ? drawMonth : drawWeek)(g, W, H);
+  else if(S.mode==='tt') drawTimetable(g, W, H);
+  else drawPost(g, W, H);
+  return c;
+}
+const cv = $('cv'); let rq = null;
+function redraw(){ if(rq) return; rq = requestAnimationFrame(() => { rq = null; const [W,H] = dims(); render(cv, {scale: Math.min(1, 900/Math.max(W,H))*Math.min(2, devicePixelRatio||1)});
+  $('board').style.width = `min(100%, calc(76vh * ${W/H}))`; $('sizeLabel').textContent = `${W}×${H}px`; }); }
+const allText = () => JSON.stringify([S.cd, S.sch, S.tt, S.post, S.group]) + '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ年月日()（）.:/@·';
+const prep = () => loadFont(fontOf(S.font), allText()).then(() => document.fonts && document.fonts.load(fontStr(fontOf(S.font), 40, 900), '0123456789').catch(()=>{}));
+
+/* ===== 入力欄 ===== */
+function syncUI(){
+  $('modeTabs').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v===S.mode));
+  for(const [id, m] of [['cdBox','cd'],['schBox','sch'],['ttBox','tt'],['postBox','post']]) $(id).hidden = S.mode!==m;
+  $('saveAll').hidden = S.mode!=='cd'; $('dayPick').hidden = S.mode!=='cd';
+  $('size').value = S.size; fontOptions($('font'), S.font); $('c1').value = S.c1; $('c2').value = S.c2; $('group').value = S.group; $('bgDim').value = S.bgDim; $('bgDimBox').hidden = !imgs.bg;
+  const cdFrom = $('cdFrom'); if(!cdFrom.options.length) for(let i=1;i<=30;i++){ const o = document.createElement('option'); o.value = i; o.textContent = i+'日前'; cdFrom.appendChild(o); }
+  $('cdTitle').value = S.cd.title; $('cdDate').value = S.cd.date; cdFrom.value = S.cd.from; $('cdSub').value = S.cd.sub; $('cdToday').value = S.cd.today; $('cdPre').value = S.cd.pre; $('cdPost').value = S.cd.post;
+  $('cdDay').max = S.cd.from; $('cdDay').value = clamp(S.cd.day, 0, S.cd.from); updDay();
+  $('schKind').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v===S.sch.kind)); $('schWeekBox').hidden = S.sch.kind!=='week'; $('schMonthBox').hidden = S.sch.kind!=='month';
+  $('schTitle').value = S.sch.kind==='month' ? (S.sch.mtitle||'') : S.sch.title; $('schStart').value = S.sch.start; $('schOff').value = S.sch.off; $('schMonth').value = S.sch.month; $('schEntries').value = S.sch.entries; buildWeek();
+  $('ttTitle').value = S.tt.title; $('ttDate').value = S.tt.date; $('ttRows').value = S.tt.rows;
+  for(const [id,k] of [['poName','name'],['poHandle','handle'],['poText','text'],['poDate','date'],['poLikes','likes'],['poReposts','reposts'],['poTheme','theme']]) $(id).value = S.post[k];
+  $('poImg').checked = !!S.post.img;
+}
+function updDay(){ const n = +$('cdDay').value, ev = parseD(S.cd.date), d = addDays(ev, -n); const lab = $('cdDay').closest('label'); lab.firstChild.textContent = `確かめる日:${n===0 ? '当日' : `あと${n}日`}(${d.getMonth()+1}/${d.getDate()} に投稿する画像) `; }
+function buildWeek(){
+  const box = $('schWeek'); box.innerHTML = ''; const s0 = parseD(S.sch.start);
+  for(let i=0;i<7;i++){ const d = addDays(s0, i), e = S.sch.week[i] = S.sch.week[i] || {t:'', v:''};
+    const row = document.createElement('div'); row.className = 'row'; row.style.alignItems = 'end';
+    const lab = document.createElement('span'); lab.className = 'hint'; lab.style.cssText = 'flex:0 0 64px;padding-bottom:8px'; lab.textContent = `${d.getMonth()+1}/${d.getDate()}(${WD[d.getDay()]})`;
+    const t = document.createElement('input'); t.type = 'text'; t.value = e.t; t.placeholder = '時間'; t.style.flex = '0 1 80px'; t.setAttribute('aria-label', lab.textContent+'の時間');
+    const v = document.createElement('input'); v.type = 'text'; v.value = e.v; v.placeholder = '予定'; v.style.flex = '1 1 120px'; v.setAttribute('aria-label', lab.textContent+'の予定');
+    t.addEventListener('input', () => { e.t = t.value; saveS(); redraw(); }); v.addEventListener('input', () => { e.v = v.value; saveS(); redraw(); });
+    row.append(lab, t, v); box.appendChild(row); }
+}
+$('modeTabs').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.mode = b.dataset.v; saveS(); syncUI(); redraw(); });
+$('schKind').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.sch.kind = b.dataset.v; saveS(); syncUI(); redraw(); });
+const bind = (id, set, ev='input', after) => $(id).addEventListener(ev, () => { set($(id)); saveS(); if(after) after(); redraw(); });
+bind('size', el => S.size = el.value, 'change'); bind('font', el => { S.font = el.value; prep().then(redraw); }, 'change');
+bind('c1', el => S.c1 = el.value); bind('c2', el => S.c2 = el.value); bind('group', el => S.group = el.value); bind('bgDim', el => S.bgDim = +el.value); showVal($('bgDim'), v => v+'%');
+bind('cdTitle', el => S.cd.title = el.value); bind('cdDate', el => S.cd.date = el.value, 'input', updDay); bind('cdSub', el => S.cd.sub = el.value);
+bind('cdFrom', el => { S.cd.from = +el.value; S.cd.day = Math.min(S.cd.day, S.cd.from); }, 'change', syncUI);
+bind('cdToday', el => S.cd.today = el.value); bind('cdPre', el => S.cd.pre = el.value); bind('cdPost', el => S.cd.post = el.value);
+bind('cdDay', el => S.cd.day = +el.value, 'input', updDay);
+bind('schTitle', el => { if(S.sch.kind==='month') S.sch.mtitle = el.value; else S.sch.title = el.value; }); bind('schStart', el => S.sch.start = el.value, 'change', buildWeek); bind('schOff', el => S.sch.off = el.value);
+bind('schMonth', el => S.sch.month = el.value, 'change'); bind('schEntries', el => S.sch.entries = el.value);
+bind('ttTitle', el => S.tt.title = el.value); bind('ttDate', el => S.tt.date = el.value); bind('ttRows', el => S.tt.rows = el.value);
+for(const [id,k,num] of [['poName','name'],['poHandle','handle'],['poText','text'],['poDate','date'],['poLikes','likes',1],['poReposts','reposts',1]]) bind(id, el => S.post[k] = num ? +el.value : el.value);
+bind('poTheme', el => S.post.theme = el.value, 'change'); bind('poImg', el => S.post.img = el.checked, 'change');
+async function setImg(key, f){ try{ imgs[key] = f ? await loadImg(f) : null; }catch(e){ msg('画像を読み込めませんでした。PNGかJPEGを選んでください。'); } saveImgs(); syncUI(); redraw(); }
+$('kv').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if(f) setImg('kv', f); });
+$('bgIn').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if(f) setImg('bg', f); });
+$('poAvatar').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if(f) setImg('avatar', f); });
+$('kvClear').onclick = () => setImg('kv', null); $('bgClear').onclick = () => setImg('bg', null);
+
+/* ===== 保存 ===== */
+const MODE_NAME = {cd:'カウントダウン', sch:'スケジュール', tt:'タイムテーブル', post:'投稿カード'};
+$('saveOne').onclick = async () => { await prep(); const c = render(document.createElement('canvas'));
+  const name = S.mode==='cd' ? `countdown_${String(S.cd.day).padStart(2,'0')}.png` : `${MODE_NAME[S.mode]}_${stamp()}.png`;
+  const r = await saveFile(name, await toBlob(c)); msg(resultMsg(r, `${name} を保存しました。`)); };
+$('saveAll').onclick = async () => {
+  $('saveAll').disabled = true; bar(0);
+  try{ await prep(); const entries = [], N = S.cd.from, ev = parseD(S.cd.date);
+    for(let n=N; n>=0; n--){ const d = addDays(ev, -n); entries.push({name: `countdown_${String(n).padStart(2,'0')}_${d.getMonth()+1}月${d.getDate()}日投稿.png`, blob: await toBlob(render(document.createElement('canvas'), {day:n}))}); bar((N-n+1)/(N+1)*.85); await tick(); }
+    const r = await saveZip(entries, `countdown_${safeName(S.cd.title)}.zip`, p => bar(.85 + p*.15));
+    msg(resultMsg(r, `${N+1}枚(あと${N}日〜当日)をZIPで保存しました。ファイル名の日付に投稿してください。`)); }
+  catch(e){ msg(e && e.message==='nozip' ? 'ZIPの作成機能を読み込めませんでした。ネットにつないだ状態でページを開き直してください。' : '保存できませんでした。'); }
+  finally{ $('saveAll').disabled = false; setTimeout(()=>bar(0), 1500); }
+};
+
+/* ===== 起動 ===== */
+(async () => {
+  try{ const d = await store.get('imgs'); if(d){ for(const k of ['kv','bg','avatar']) if(d[k]) imgs[k] = await loadImg(d[k]).catch(()=>null); } }catch(e){}
+  syncUI(); redraw(); prep().then(redraw); if(document.fonts) document.fonts.ready.then(redraw);
+})();
+window.__tool = {get S(){ return S; }, render};   // 動作確認用
+</script>
+</body>
+</html>

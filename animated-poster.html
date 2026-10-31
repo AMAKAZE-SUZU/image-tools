@@ -148,7 +148,7 @@ details.fxrow .row{display:flex}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>アニメポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v3.0 ・ 2026-10-25 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v3.1 ・ 2026-10-31 更新</a>
     <p>写真・画像・文字に登場の動きや揺れを付け、キラキラや紙吹雪やBGMを重ねて、動くポスターや短い動画をMP4かGIFで保存できます。最初はサンプルが入っています。</p>
   </header>
 
@@ -327,6 +327,8 @@ details.fxrow .row{display:flex}
           <button type="button" class="btn small" id="ioExport">ファイルに書き出す</button>
           <label class="btn ghost small" style="flex-direction:row;display:inline-flex;color:var(--accent)">ファイルから読み込む<input type="file" id="ioImport" accept=".json,application/json" hidden></label>
           <button type="button" class="btn ghost small" id="cineProj">映画風のサンプルで始める</button>
+          <button type="button" class="btn ghost small" id="bdayProj">誕生日のサンプルで始める</button>
+          <button type="button" class="btn ghost small" id="cdProj">カウントダウン動画のサンプルで始める</button>
           <button type="button" class="btn danger small" id="newProj">サンプルからやり直す</button>
         </div>
         <p class="hint status" id="ioMsg" role="status"></p>
@@ -1265,6 +1267,34 @@ function cinemaProject(){
   ];
   return p;
 }
+// 誕生日のお祝い(紙吹雪とハート、写真がぽよんと出て、名前がドン!)
+function birthdayProject(){
+  const p = sampleProject();
+  Object.assign(p, {duration:7, bgMotion:'breathe', bgDim:20, outro:false});
+  Object.assign(p.fx.confetti, {on:true, amount:90}); Object.assign(p.fx.hearts, {on:true, amount:14}); Object.assign(p.fx.sparkle, {on:true, amount:40});
+  p.cine = [ newCine('flash', {start:1.9, dur:.35, kind:'white'}), newCine('flare', {start:3.2, dur:2.4, size:1}) ];
+  p.layers = [
+    newLayer('image', {name:'写真', sample:true, shape:'circle', x:.07, y:.22, w:.3, h:.533, border:16, borderColor:'#ffffff', anim:{in:'pop', start:.8, dur:.7, loop:'float', loopAmt:30, loopPeriod:3, shine:'once', shineAt:2.4}}),
+    newLayer('text', {name:'タイトル', text:'HAPPY BIRTHDAY', font:'Mochiy Pop One', x:.41, y:.08, w:.55, h:.2, color:'#ffffff', strokeColor:'#ff5c8a', stroke:18, anim:{in:'charPop', start:.2, dur:1.2, order:'ltr', loop:'hop', loopAmt:55, loopPeriod:2.5}}),
+    newLayer('text', {name:'名前', text:'メンバーA', font:'Dela Gothic One', x:.41, y:.32, w:.55, h:.22, color:'#fff6c8', strokeColor:'#c2457a', stroke:16, glow:true, glowColor:'#ffd1e6', anim:{in:'stamp', start:1.9, dur:.5, shakeAmt:55, loop:'pulse', loopAmt:25, loopPeriod:2, shine:'repeat', shineAt:3, shineEvery:2.5}}),
+    newLayer('text', {name:'メッセージ', text:'お誕生日おめでとう！', font:'M PLUS Rounded 1c', x:.41, y:.6, w:.55, h:.14, color:'#ffffff', strokeColor:'#7a3a8c', stroke:14, anim:{in:'typeCursor', start:2.7, dur:1.4, loop:'none'}}),
+    newLayer('text', {name:'日付', text:'2026.11.7', font:'RocknRoll One', x:.41, y:.77, w:.55, h:.1, color:'#ffffff', strokeColor:'#ff5c8a', stroke:12, anim:{in:'fade', start:4.2, dur:.6, loop:'none'}}),
+  ];
+  return p;
+}
+// カウントダウン動画(3・2・1 とドン!と出て、最後に文字が飛び込む)
+function countdownProject(){
+  const p = sampleProject();
+  Object.assign(p, {duration:5.5, bgMotion:'zoomIn', bgDim:35, outro:false});
+  p.fx.sparkle.on = true;
+  p.cine = [ newCine('speed', {start:0, dur:3, amount:90}), newCine('vig', {start:0, dur:5.5, amount:50}), newCine('flash', {start:3, dur:.45, kind:'white'}), newCine('flare', {start:3.2, dur:2.2, size:1.1}) ];
+  const num = (n, i) => newLayer('text', {name:`数字 ${n}`, text:String(n), font:'Dela Gothic One', x:.3, y:.12, w:.4, h:.76, color:'#ffffff', strokeColor:'#ff4d6d', stroke:14, glow:true, glowColor:'#ffd1e6',
+    anim:{in:'stamp', start:i, dur:.3, shakeAmt:60, loop:'none', out:'grow', outStart:i+.72, outDur:.26, outTo:100}});
+  p.layers = [ num(3, 0), num(2, 1), num(1, 2),
+    newLayer('text', {name:'タイトル', text:'まもなく開演！', font:'Dela Gothic One', x:.1, y:.3, w:.8, h:.4, color:'#fff6c8', strokeColor:'#b3001b', stroke:16, glow:true, glowColor:'#ff8fb1',
+      anim:{in:'charZoom', start:3.05, dur:.8, order:'center', loop:'pulse', loopAmt:20, loopPeriod:1.5, shine:'repeat', shineAt:4, shineEvery:1.5}}) ];
+  return p;
+}
 let P = sampleProject();
 let selId = null;
 
@@ -2076,6 +2106,14 @@ $('ioImport').addEventListener('change', async e => {
 });
 let newArmed=false;
 let cineArmed=false;
+// サンプルの読み込みボタン(もう一度押すと読み込む)
+function sampleButton(id, label, make, note){
+  let armed = false; const b = $(id);
+  b.onclick = () => { if(!armed){ armed = true; b.textContent = 'もう一度押すと読み込みます'; setTimeout(()=>{ armed = false; b.textContent = label; }, 3000); return; }
+    armed = false; b.textContent = label; P = make(); afterLoad(); changed(); play(0); ioMsg(note); };
+}
+sampleButton('bdayProj', '誕生日のサンプルで始める', birthdayProject, '誕生日のサンプルを読み込みました。写真と名前・日付を差し替えて使ってください。');
+sampleButton('cdProj', 'カウントダウン動画のサンプルで始める', countdownProject, 'カウントダウン動画のサンプルを読み込みました(3・2・1 → タイトル)。数字やタイトルの文字は自由に変えられます。');
 $('cineProj').onclick = () => {
   if(!cineArmed){ cineArmed=true; $('cineProj').textContent='もう一度押すと読み込みます'; setTimeout(()=>{ cineArmed=false; $('cineProj').textContent='映画風のサンプルで始める'; },3000); return; }
   cineArmed=false; $('cineProj').textContent='映画風のサンプルで始める'; P = cinemaProject(); afterLoad(); changed(); play(0); ioMsg('映画風のサンプルを読み込みました(ワープ → 光の線 → スタンプ → グリッチ → ネオン)。');

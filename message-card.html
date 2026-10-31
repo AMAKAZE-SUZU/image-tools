@@ -36,6 +36,10 @@ header p{margin:0;color:var(--muted);font-size:.85rem}
 @media (max-width:900px){.stage{position:static}}
 .preview{width:100%;max-width:100%;display:block;border-radius:10px;box-shadow:0 6px 24px rgba(60,20,50,.18);background:var(--surface)}
 .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.yose{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:10px 12px}
+.yose summary{cursor:pointer;font-weight:700;font-size:.9rem}
+.yose .in{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.yose canvas{width:100%;height:auto;border-radius:6px;box-shadow:0 6px 20px rgba(40,20,60,.15)}
 .hint{color:var(--muted);font-size:.8rem;margin:0}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 16px 16px;display:flex;flex-direction:column;min-width:0}
 fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 4px;display:flex;flex-direction:column;gap:10px}
@@ -108,7 +112,7 @@ legend.is-indiv{box-shadow:none;padding-left:0}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>メッセージカードメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.4 ・ 2026-10-19 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.5 ・ 2026-10-31 更新</a>
     <p>背景・写真・メッセージ・フォントを選んで、Twitter向けの画像を作ります。複数枚まとめて作ることもできます</p>
   </header>
 
@@ -324,6 +328,18 @@ legend.is-indiv{box-shadow:none;padding-left:0}
       </fieldset>
     </form>
   </div>
+  <details class="yose" style="margin-top:20px" id="yoseBox">
+        <summary>寄せ書きにまとめる(全部のカードのメッセージを1枚に)</summary>
+        <div class="in">
+          <div class="row"><label>大きさ<select id="ysSize"><option value="16:9">横長 1600×900</option><option value="1:1">正方形 1200×1200</option><option value="4:5">縦長 1080×1350</option><option value="a4">A4縦 1240×1754</option></select></label>
+            <label>カードの形<select id="ysStyle"><option value="note">付箋</option><option value="bubble">吹き出し</option><option value="card">白いカード</option></select></label></div>
+          <div class="row"><label>見出し<input type="text" id="ysTitle" value="Happy Birthday!"></label><label>見出しの下(だれへ、など)<input type="text" id="ysSub" placeholder="例:○○さんへ"></label></div>
+          <label class="check"><input type="checkbox" id="ysPhoto" checked> 写真を小さく入れる(写真を選んだカードだけ)</label>
+          <canvas id="ysCv" aria-label="寄せ書きの見本"></canvas>
+          <div class="actions"><button class="btn" id="ysSave" type="button">寄せ書きをPNGで保存</button><span class="hint" id="ysInfo"></span></div>
+          <p class="hint">背景・フォントは1枚目のカードの設定、差出人は各カードの差出人を使います。カードの文字を直すと、こちらにも反映されます。</p>
+        </div>
+      </details>
 </div>
 
 <script>
@@ -840,6 +856,7 @@ function enqueue(fn){ const p = chain.then(fn, fn); chain = p.catch(()=>{}); ret
 const mainCv = document.createElement('canvas');
 let lastBlob = null, sharedV = 0, timer = null;
 function schedule(){
+  if($('yoseBox') && $('yoseBox').open) scheduleYose();
   clearTimeout(timer);
   timer = setTimeout(() => enqueue(async () => {
     const card = curCard(); if(!card) return;
@@ -963,6 +980,78 @@ async function saveFile(filename, data){
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
   return 'saved';
 }
+/* ---------- 寄せ書き(全部のカードのメッセージを1枚に並べる) ---------- */
+const YOSE_COLORS = ['#fff3a8','#ffd6e7','#d4f5e9','#dbe7ff','#efdcff','#ffe2c6'];
+function yRnd(i, k){ const x = Math.sin(i*127.1 + k*311.7)*43758.5453; return x - Math.floor(x); }
+function yWrap(g, text, maxW){
+  const out = [], NS = '、。，．,.！？!?）)」』】ーぁぃぅぇぉっゃゅょァィゥェォッャュョ～〜…';
+  for(const para of String(text||'').split('\n')){ if(!para){ out.push(''); continue; } let line = '';
+    for(const ch of [...para]){ if(line && g.measureText(line+ch).width > maxW && !NS.includes(ch)){ out.push(line); line = ch; } else line += ch; } out.push(line); }
+  return out;
+}
+async function renderYose(c){
+  const SZ = {'16:9':[1600,900], '1:1':[1200,1200], '4:5':[1080,1350], 'a4':[1240,1754]}[$('ysSize').value] || [1600,900];
+  const [W, H] = SZ; c.width = W; c.height = H; RC = cards[0]; ctx = c.getContext('2d'); const S = Math.min(W/1600, H/900)*1.0, u = Math.min(W, H)/1000;
+  const f = currentFont(); const all = cards.map(cd => cd.msg + (val(cd,'sign')||'')).join('') + $('ysTitle').value + $('ysSub').value;
+  try{ await document.fonts.load(`${f.w} 60px "${f.fam}"`, all + 'あ'); }catch(e){}
+  RC = cards[0]; ctx = c.getContext('2d');
+  // 背景(1枚目のカードの設定)
+  const bgImg = V('bgImage') || SAMPLE_BG; ctx.save(); const blur = V('bgBlur'); if(blur) ctx.filter = `blur(${blur*S}px)`;
+  if(V('bgMode')==='tile') drawTiles(W,H,S,blur,bgImg); else if(blur) drawCover(bgImg,-blur*2,-blur*2,W+blur*4,H+blur*4); else drawCover(bgImg,0,0,W,H);
+  ctx.filter = 'none'; ctx.restore();
+  const dim = V('bgDim')/100; if(dim){ ctx.fillStyle = `rgba(0,0,0,${dim})`; ctx.fillRect(0,0,W,H); }
+  const lt = V('bgLight')/100; if(lt){ ctx.fillStyle = `rgba(255,255,255,${lt})`; ctx.fillRect(0,0,W,H); }
+  const g = ctx, font = px => `${f.w} ${px}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
+  // 見出し
+  const pad = 40*u; let top = pad; const title = $('ysTitle').value.trim(), sub = $('ysSub').value.trim();
+  const fill = V('color') || '#ffffff', stroke = V('strokeColor') || '#c2457a';
+  if(title){ let ts = 92*u; g.font = font(ts); const tw = g.measureText(title).width; if(tw > W - pad*2) ts *= (W - pad*2)/tw; g.font = font(ts);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = ts*.2; g.strokeStyle = stroke; g.strokeText(title, W/2, top + ts*.6); g.fillStyle = fill; g.fillText(title, W/2, top + ts*.6); top += ts*1.25; }
+  if(sub){ let ss = 40*u; g.font = font(ss); const sw = g.measureText(sub).width; if(sw > W - pad*2) ss *= (W - pad*2)/sw; g.font = font(ss);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = ss*.22; g.strokeStyle = stroke; g.strokeText(sub, W/2, top + ss*.6); g.fillStyle = fill; g.fillText(sub, W/2, top + ss*.6); top += ss*1.5; }
+  // 並べ方:付箋の形が横長(約1.25)に近くなる列数を選ぶ
+  const n = cards.length, aw = W - pad*2, ah = H - top - pad; let best = null;
+  for(let cols=1; cols<=n; cols++){ const rows = Math.ceil(n/cols), cw = aw/cols, ch = ah/rows, sc = Math.min(cw, ch*1.25)*(1 - Math.abs(Math.log((cw/ch)/1.25))*.15); if(!best || sc > best.sc) best = {cols, rows, cw, ch, sc}; }
+  const {cols, rows, cw, ch} = best, gap = Math.min(cw, ch)*.07, style = $('ysStyle').value, withPhoto = $('ysPhoto').checked;
+  cards.forEach((cd, i) => {
+    const col = i % cols, row = Math.floor(i/cols), inRow = row===rows-1 ? n - row*cols : cols, offX = (cols - inRow)*cw/2;
+    const x = pad + offX + col*cw + gap/2, y = top + row*ch + gap/2, w = cw - gap, h = ch - gap, rot = style==='note' ? (yRnd(i, 3)-.5)*.09 : 0;
+    g.save(); g.translate(x + w/2, y + h/2); g.rotate(rot);
+    const bx = -w/2, by = -h/2, color = style==='note' ? YOSE_COLORS[i % YOSE_COLORS.length] : '#ffffff';
+    g.shadowColor = 'rgba(40,20,50,.22)'; g.shadowBlur = 18*u; g.shadowOffsetY = 6*u; g.fillStyle = color;
+    if(style==='bubble'){ g.beginPath(); g.roundRect(bx, by, w, h*.9, h*.12); g.moveTo(bx + w*.2, by + h*.88); g.lineTo(bx + w*.16, by + h); g.lineTo(bx + w*.32, by + h*.88); g.fill(); }
+    else { g.beginPath(); g.roundRect(bx, by, w, h, style==='note' ? 4*u : 18*u); g.fill(); }
+    g.shadowColor = 'transparent';
+    if(style==='note'){ g.fillStyle = 'rgba(255,255,255,.55)'; g.save(); g.rotate((yRnd(i,5)-.5)*.2); g.fillRect(-w*.16, by - h*.05, w*.32, h*.12); g.restore(); }
+    if(style==='card'){ g.lineWidth = 3*u; g.strokeStyle = stroke; g.beginPath(); g.roundRect(bx + 6*u, by + 6*u, w - 12*u, h - 12*u, 14*u); g.stroke(); }
+    const ip = Math.min(w, h)*.09, bodyH = (style==='bubble' ? h*.9 : h);
+    // 写真
+    let tx = bx + ip, tw = w - ip*2, ty = by + ip;
+    const ph = withPhoto && cd.photo ? Math.min(h*.34, w*.3) : 0;
+    if(ph){ g.save(); g.beginPath(); g.arc(bx + ip + ph/2, by + ip + ph/2, ph/2, 0, Math.PI*2); g.clip(); const im = cd.photo, iw = im.naturalWidth||im.width, ih = im.naturalHeight||im.height, k = Math.max(ph/iw, ph/ih);
+      g.drawImage(im, bx + ip + (ph - iw*k)/2, by + ip + (ph - ih*k)/2, iw*k, ih*k); g.restore(); g.lineWidth = 4*u; g.strokeStyle = '#fff'; g.beginPath(); g.arc(bx + ip + ph/2, by + ip + ph/2, ph/2, 0, Math.PI*2); g.stroke(); }
+    // 差出人
+    const sign = String(val(cd,'sign')||'').trim(); let signH = 0;
+    if(sign){ let ss = Math.min(h*.1, 30*u); g.font = font(ss); const sw = g.measureText(sign).width; if(sw > tw) { ss *= tw/sw; g.font = font(ss); }
+      g.fillStyle = '#6a5a70'; g.textAlign = 'right'; g.textBaseline = 'alphabetic'; g.fillText(sign, bx + w - ip, by + bodyH - ip*.8); signH = ss*1.4; }
+    // メッセージ(入るいちばん大きい文字)
+    const mx = ph ? tx + ph + ip*.6 : tx, mw = ph ? tw - ph - ip*.6 : tw, my = ty, mh = bodyH - ip*2 - signH;
+    let fs = Math.min(h*.2, 44*u), lines = [];
+    for(let t=0; t<40; t++){ g.font = font(fs); lines = yWrap(g, cd.msg, mw); if(lines.length*fs*1.35 <= mh || fs < 9*u) break; fs *= .93; }
+    // 写真の下にも文字を回す(行が多いとき)
+    g.fillStyle = '#3a3040'; g.textAlign = 'left'; g.textBaseline = 'top';
+    const off = Math.max(0, (mh - lines.length*fs*1.35)*.3);   // 余白が多いときは少し下げてバランスをとる
+    lines.forEach((l, k) => g.fillText(l, mx, my + off + k*fs*1.35));
+    g.restore();
+  });
+  $('ysInfo').textContent = `${n}枚分・${W}×${H}px`;
+}
+let ysT = null; function scheduleYose(){ clearTimeout(ysT); ysT = setTimeout(() => renderYose($('ysCv')), 250); }
+$('yoseBox').addEventListener('toggle', () => { if($('yoseBox').open) scheduleYose(); });
+for(const id of ['ysSize','ysStyle','ysTitle','ysSub','ysPhoto']) $(id).addEventListener(id==='ysTitle'||id==='ysSub' ? 'input' : 'change', scheduleYose);
+$('ysSave').addEventListener('click', async () => { const c = document.createElement('canvas'); await renderYose(c);
+  const blob = await new Promise(r => c.toBlob(r, 'image/png')); const r = await saveFile(`yosegaki_${cards.length}枚.png`, blob);
+  hint(r==='saved' ? `寄せ書きを保存しました(${cards.length}枚分)。` : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。'); });
 const stamp = () => { const d=new Date(), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; };
 function cardFileName(card, i){
   const head = card.photoName ? card.photoName.replace(/\.[^.]+$/,'') : (card.msg.split('\n')[0] || 'card').slice(0,14);
