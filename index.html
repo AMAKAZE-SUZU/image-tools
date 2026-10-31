@@ -33,13 +33,14 @@ h1{font-family:var(--font-display);font-size:clamp(1.7rem,4vw,2.3rem);margin:0 0
 .tool h2{font-family:var(--font-display);font-size:1.3rem;margin:0}
 .tool p{margin:0;color:var(--muted);font-size:.9rem}
 .tool .go{margin-top:auto;font-weight:700}
-.card .go{color:var(--pink)} .poster .go{color:var(--blue)} .anim .go{color:#6b4fd8} .resize .go{color:#13806f}
-@media (prefers-color-scheme: dark){.anim .go{color:#a48dff} .resize .go{color:#5fd3bf}}
+.card .go{color:var(--pink)} .poster .go{color:var(--blue)} .anim .go{color:#6b4fd8} .resize .go{color:#13806f} .split .go{color:#c4561f}
+@media (prefers-color-scheme: dark){.anim .go{color:#a48dff} .resize .go{color:#5fd3bf} .split .go{color:#ff9a62}}
 .thumb{height:92px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:10px}
 .card .thumb{background:linear-gradient(120deg,#ffd6e7,#e9d5ff 60%,#c7e3ff)}
 .poster .thumb{background:linear-gradient(160deg,#c9d2ff,#f3cfee 60%,#ffe1c4)}
 .anim .thumb{background:linear-gradient(120deg,#2b1d5c,#7a3a8c 55%,#f08aa8)}
 .resize .thumb{background:linear-gradient(135deg,#c9efe6,#e3f4d9 60%,#fff1c9)}
+.split .thumb{background:linear-gradient(135deg,#ffd9c2,#ffe9d6 55%,#f6d6ec);gap:0}
 .anim .thumb b{color:#fff;font-size:1.6rem;letter-spacing:.2em;text-shadow:0 0 12px #ffd6ea}
 .thumb i{display:block;background:#fff;border-radius:6px;box-shadow:0 3px 10px rgba(0,0,0,.12)}
 section{margin-top:36px}
@@ -88,6 +89,13 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
       <span class="ratio">PNG / JPEG / WebP ・ まとめて処理 ・ v1.0</span>
       <h2>リサイズ・トリミング</h2>
       <p>画像を好きな形に切り抜いて、大きさを変えて保存します。何枚もまとめて同じサイズにして、ZIPで保存することもできます。</p>
+      <span class="go">使ってみる →</span>
+    </a>
+    <a class="tool split" href="image-splitter.html">
+      <div class="thumb" aria-hidden="true"><i style="width:62px;height:62px;border-radius:6px 2px 2px 6px"></i><i style="width:62px;height:62px;border-radius:2px;margin-left:-6px"></i><i style="width:62px;height:62px;border-radius:2px 6px 6px 2px;margin-left:-6px"></i></div>
+      <span class="ratio">パノラマ / 4分割 / 自由に分ける ・ v1.0</span>
+      <h2>画像分割</h2>
+      <p>1枚の画像を何枚かに分けて保存します。まとめて投稿すると、タイムラインで大きな1枚の絵のように見せられます。</p>
       <span class="go">使ってみる →</span>
     </a>
   </div>
@@ -152,6 +160,16 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
       <li>形式(PNG・JPEG・WebP)を選び、「この画像を保存」か「全部まとめてZIPで保存」を押して完成です。</li>
     </ol>
     <p>切り抜く範囲は画像ごとに覚えます。「この切り抜きを全部の画像に使う」を押すと、ほかの画像も同じ割合の範囲にそろいます。サイズや形式などの設定はブラウザに保存されます(画像は保存されません)。</p>
+  </section>
+
+  <section>
+    <h2>画像分割の使い方</h2>
+    <ol>
+      <li>画像を読み込み、分け方を選びます。今のXでは複数の画像が横にスワイプして見る表示になっていることが多いので、「横につながるパノラマ」がおすすめです。4枚が田の字に並ぶ表示向けの「4分割」や、縦横の数を決める「自由に分ける」もあります。</li>
+      <li>元の画像の上で、明るい部分(使われる範囲)をドラッグして位置を決め、「大きさ」で広さを調整します。「投稿したときの見え方」で仕上がりを確認できます。</li>
+      <li>「全部まとめてZIPで保存」か、一覧の「保存」で1枚ずつ保存します。ファイル名の番号の順に投稿してください。</li>
+    </ol>
+    <p>「すき間の補正」をオンにすると、並んだときのすき間ぶんの細い帯を捨てて、すき間をまたいでも絵がずれないようにします。Xの表示のしかたはアプリや時期によって変わることがあるので、投稿前にプレビューで確かめてください。</p>
   </section>
 
   <section>
@@ -231,6 +249,8 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
     <div class="log"><b>v1.0(2026-10-19)</b><ul><li>公開</li><li>写真・画像・文字のレイヤーに、登場の動き(ふわっと・スライド・ズーム・ぽよん・くるっと・ぼかし・1文字ずつ)と続く動き(ふわふわ・ゆらゆら・どきどき・くるくる・ちかちか)を設定</li><li>背景の動き、キラキラ・紙吹雪・ハートのエフェクト、装飾フレーム</li><li>長さを自由に設定、MP4(最大1920px)・GIF・PNGで保存</li><li>作品の自動保存(画像を含む)とファイルへの書き出し・読み込み</li></ul></div>
     <h3>リサイズ・トリミング</h3>
     <div class="log"><b>v1.0(2026-10-25)</b><ul><li>公開</li><li>画像の切り抜き:縦横比(自由・元の比率・1:1・16:9・9:16・4:5 など、数字でも指定可)を選び、枠をドラッグして範囲を決める。px での入力、真ん中に寄せる、できるだけ大きく、も可能</li><li>回転(90度ずつ)・左右反転・上下反転</li><li>サイズ変更:幅・高さ・長い辺・倍率・幅と高さ(収める/はみ出しを切る/引き伸ばす)で指定。よく使うサイズのボタン、元より大きくしない設定</li><li>保存形式は PNG・JPEG・WebP(画質を調整可能)。書き出すサイズとファイルの大きさの目安を表示</li><li>何枚もまとめて読み込み、同じ切り抜きを全部の画像に使ったり、全部まとめてZIPで保存したりできる</li><li>設定(画像以外)をブラウザに保存</li></ul></div>
+    <h3>画像分割</h3>
+    <div class="log"><b>v1.0(2026-10-31)</b><ul><li>公開</li><li>分け方は3つ:横につながるパノラマ(今のXのスワイプ表示向け。2〜4枚、1枚は1:1・4:3・3:4)/4分割(田の字。1枚16:9)/自由に分ける(縦横1〜5、1枚の形を選ぶ)</li><li>並んだときのすき間ぶん絵がずれないようにする「すき間の補正」</li><li>分ける範囲をドラッグ・ホイール・矢印キーで調整。投稿したときの見え方を表示</li><li>全部まとめてZIPで保存、1枚ずつ続けて保存、1枚ずつ保存(番号付きのファイル名)。PNG・JPEG、1枚の大きさを選べる</li></ul></div>
     <h3>ポスターメーカー</h3>
     <div class="log"><b>v1.1(2026-10-31)</b><ul><li>背景の形に合わせて並べる機能を追加。丸・星・ハート・キャラの形など、背景が透明なPNGのとき、見えている部分の中にいちばん大きく入る範囲を自動で見つけて、写真や文字をその中に収める(テンプレートはそのままで、形の違う背景にも合う)</li><li>はみ出した部分を背景の形で切り取る設定を追加(保存したPNGも透明のまま)</li><li>写真・画像の枠に「背景の形いっぱいに入れる(形で切り抜く)」を追加</li><li>形のまわりの縁取り(太さ・色)を追加。形の内側の余白も調整できる</li><li>プレビューで透明な部分を市松模様で表示し、並べる範囲を点線で表示</li><li>選んでいない枠を最初にドラッグしたとき、動かなかった不具合を直した</li></ul></div>
     <div class="log"><b>v1.0(2026-10-16)</b><ul><li>公開</li><li>テンプレート(写真・画像・ロゴ・文字の枠、背景、装飾フレーム)の作成と自動保存、ファイルへの書き出し・読み込み</li><li>枠のドラッグ操作と実際のピクセルサイズの表示</li><li>レイアウト・枠を初期値に戻す機能</li><li>メンバーの写真をまとめて選んでポスターを一括作成(ZIP保存)</li></ul></div>

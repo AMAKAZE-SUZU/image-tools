@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>画像分割</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+/* Layout: 左に元の画像(分ける範囲をドラッグ)と投稿したときの見え方、右に分け方・保存の設定 */
+:root{
+  --bg:#f7f3ef; --surface:#ffffff; --fg:#272220; --muted:#6d625c;
+  --line:#e6ddd6; --accent:#c4561f; --accent-fg:#ffffff; --field:#fbf8f6; --sel:#ff4f8b; --chk:#ece6e1;
+  --font-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#1a1716; --surface:#24201e; --fg:#f2ece8; --muted:#b3a69e; --line:#3b3431; --accent:#ff9a62; --accent-fg:#2a1408; --field:#2c2725; --sel:#ff7aa8; --chk:#302a27; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#1a1716; --surface:#24201e; --fg:#f2ece8; --muted:#b3a69e; --line:#3b3431; --accent:#ff9a62; --accent-fg:#2a1408; --field:#2c2725; --sel:#ff7aa8; --chk:#302a27; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.6}
+.wrap{max-width:1320px;margin:0 auto;padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin-bottom:16px}
+header p{flex-basis:100%;margin:0;color:var(--muted);font-size:.85rem}
+h1{font-family:var(--font-display);font-weight:700;font-size:1.5rem;margin:0}
+h2{font-family:var(--font-display);font-size:1rem;margin:4px 0 0}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:20px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stage{display:flex;flex-direction:column;gap:10px;min-width:0}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:340px;border:2px dashed var(--line);border-radius:14px;background:var(--surface);color:var(--muted);text-align:center;padding:24px}
+.drop.over,.cvwrap.over{outline:3px solid var(--accent);outline-offset:3px}
+.drop b{font-family:var(--font-display);font-size:1.15rem;color:var(--fg)}
+.cvwrap{position:relative;margin:0 auto;max-width:100%;border-radius:4px;background:repeating-conic-gradient(var(--chk) 0 25%, var(--surface) 0 50%) 0 0/18px 18px;box-shadow:0 8px 28px rgba(40,20,10,.16);touch-action:none;cursor:grab}
+.cvwrap.dragging{cursor:grabbing}
+.cvwrap canvas{display:block}
+.pv{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.pv canvas{display:block;max-width:100%;margin:0 auto}
+.pieces{display:flex;flex-wrap:wrap;gap:10px}
+.piece{display:flex;flex-direction:column;gap:4px;align-items:center;width:132px}
+.piece canvas{width:132px;height:auto;border-radius:6px;border:1px solid var(--line);background:#000}
+.piece span{font-size:.72rem;color:var(--muted);text-align:center}
+.info{font-size:.82rem;color:var(--muted);font-variant-numeric:tabular-nums;margin:0}
+.info b{color:var(--fg)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 16px 16px;display:flex;flex-direction:column;min-width:0}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 8px;display:flex;flex-direction:column;gap:10px;min-width:0}
+fieldset:first-child{border-top:0}
+legend{font-family:var(--font-display);font-weight:700;font-size:.95rem;padding:0;margin-bottom:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row>label{flex:1 1 90px}
+input[type=text],input[type=number],select{font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 9px;width:100%}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=file]{font-size:.78rem;color:var(--muted);max-width:100%}
+.check{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
+.btn{font:inherit;font-weight:700;border-radius:999px;padding:8px 16px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{font-size:.76rem;padding:4px 11px}
+.btn:disabled{opacity:.5;cursor:default}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.mini{font:inherit;font-size:.75rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:2px 9px;cursor:pointer}
+.seg{display:flex;flex-direction:column;gap:6px}
+.seg button{font:inherit;text-align:left;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:10px;padding:8px 12px;cursor:pointer;display:flex;flex-direction:column;gap:1px}
+.seg button b{font-size:.88rem}
+.seg button span{font-size:.74rem;color:var(--muted)}
+.seg button[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--surface)}
+.hint{color:var(--muted);font-size:.78rem;margin:0}
+.note{background:var(--field);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:.78rem;color:var(--muted);margin:0}
+.status{min-height:1.3em}
+.out{font-variant-numeric:tabular-nums;color:var(--fg);font-weight:700}
+.ver{font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 9px;text-decoration:none;white-space:nowrap;align-self:center}
+a.ver:hover{color:var(--accent);border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,.cvwrap:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.progress{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+@media (prefers-reduced-motion: reduce){.progress i{transition:none}}
+.toplink{font-size:.8rem;color:var(--muted);text-decoration:none;flex-basis:100%}
+.toplink:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="toplink" href="./">← ツール一覧</a>
+    <h1>画像分割</h1>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.0 ・ 2026-10-31 公開</a>
+    <p>1枚の画像を何枚かに分けて保存します。まとめて投稿すると、タイムラインで大きな1枚の絵のように見せられます。画像はどこにも送信されません。</p>
+  </header>
+
+  <div class="grid">
+    <div class="stage">
+      <div class="drop" id="drop">
+        <b>ここに画像をドラッグ&ドロップ</b>
+        <span>または</span>
+        <label class="btn" style="display:inline-flex;flex-direction:row;color:var(--accent-fg)">画像を選ぶ<input type="file" id="fileIn" accept="image/*" hidden></label>
+      </div>
+      <div class="cvwrap" id="cvwrap" hidden tabindex="0" aria-label="分ける範囲。ドラッグか矢印キーで動かせます">
+        <canvas id="cv"></canvas>
+      </div>
+      <p class="info" id="info"></p>
+      <p class="hint" id="stageHint" hidden>明るい部分が使われる範囲です。ドラッグで動かし、右の「大きさ」で広げたり狭めたりできます。斜線の部分は、すき間の補正で捨てられる細い帯です。</p>
+      <div class="pv" id="pvBox" hidden>
+        <h2>投稿したときの見え方(目安)</h2>
+        <canvas id="pv"></canvas>
+        <p class="hint" id="pvHint"></p>
+      </div>
+      <div class="pv" id="piecesBox" hidden>
+        <h2>分けた画像(この順番で投稿します)</h2>
+        <div class="pieces" id="pieces"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <fieldset>
+        <legend>画像</legend>
+        <label>画像を選ぶ<input type="file" id="fileIn2" accept="image/*"></label>
+        <span class="hint" id="nameLabel">まだ画像がありません</span>
+      </fieldset>
+
+      <fieldset>
+        <legend>分け方</legend>
+        <div class="seg" id="modeSeg">
+          <button type="button" data-v="pano"><b>横につながるパノラマ(今のX向け)</b><span>横長の絵を2〜4枚に分けます。スワイプでめくると絵がつながります</span></button>
+          <button type="button" data-v="grid4"><b>4分割(田の字)</b><span>2×2に分けます。4枚が田の字に並ぶ表示で、1枚の大きな絵に見えます</span></button>
+          <button type="button" data-v="custom"><b>自由に分ける</b><span>縦と横の数、1枚の形を自分で決めます</span></button>
+        </div>
+        <div class="row" id="panoBox">
+          <label>枚数<select id="panoN"><option value="2">2枚</option><option value="3">3枚</option><option value="4">4枚</option></select></label>
+          <label>1枚の形<select id="panoAspect"><option value="1:1">正方形 1:1</option><option value="4:3">少し横長 4:3</option><option value="3:4">少し縦長 3:4</option></select></label>
+        </div>
+        <div class="row" id="customBox">
+          <label>横の数<select id="cols"></select></label>
+          <label>縦の数<select id="rows"></select></label>
+          <label>1枚の形<select id="cellAspect"><option value="1:1">1:1</option><option value="4:5">4:5</option><option value="3:4">3:4</option><option value="4:3">4:3</option><option value="16:9">16:9</option><option value="9:16">9:16</option></select></label>
+        </div>
+        <label class="check"><input type="checkbox" id="gapOn"> すき間の補正(並んだときのすき間ぶん、絵がずれないようにする)</label>
+        <div id="gapBox"><label>すき間の幅 <span class="out" id="gap_o"></span><input type="range" id="gap" min="0.2" max="6" step="0.1"></label></div>
+        <p class="note" id="modeNote"></p>
+      </fieldset>
+
+      <fieldset>
+        <legend>範囲</legend>
+        <label>大きさ <span class="out" id="zoom_o"></span><input type="range" id="zoom" min="100" max="500" step="1"></label>
+        <div class="btns"><button class="btn ghost small" id="center" type="button">真ん中に寄せる</button><button class="btn ghost small" id="fitMax" type="button">できるだけ大きく</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>保存</legend>
+        <div class="row">
+          <label>1枚の大きさ<select id="outSize"><option value="orig">元の画質のまま</option><option value="2048">長い辺 2048px</option><option value="1200">長い辺 1200px</option><option value="1080">長い辺 1080px</option></select></label>
+          <label>形式<select id="fmt"><option value="png">PNG</option><option value="jpeg">JPEG(軽い)</option></select></label>
+        </div>
+        <p class="info" id="outInfo"></p>
+        <div class="btns">
+          <button class="btn" id="saveZip" type="button" disabled>全部まとめてZIPで保存</button>
+          <button class="btn ghost" id="saveEach" type="button" disabled>1枚ずつ続けて保存</button>
+        </div>
+        <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+        <p class="hint status" id="msg" role="status" aria-live="polite"></p>
+        <p class="hint">スマホでは、下の一覧の「保存」から1枚ずつ保存すると、写真に入れやすくなります。ファイル名の番号の順に投稿してください。</p>
+      </fieldset>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const msg = t => { $('msg').textContent = t; };
+const bar = p => { $('bar').style.width = (p*100).toFixed(1)+'%'; };
+
+/* ===== 設定(ブラウザに覚える) ===== */
+const DEF = {mode:'pano', panoN:3, panoAspect:'1:1', cols:3, rows:3, cellAspect:'1:1', gapOn:{pano:false, grid4:true, custom:false}, gap:{pano:2, grid4:0.8, custom:1}, zoom:100, outSize:'orig', fmt:'png'};
+const KEY = 'image-splitter:v1';
+let S = structuredClone(DEF);
+try{ const d = JSON.parse(localStorage.getItem(KEY)||'null'); if(d) S = {...S, ...d, gapOn:{...DEF.gapOn, ...(d.gapOn||{})}, gap:{...DEF.gap, ...(d.gap||{})}}; }catch(e){}
+const saveS = () => { try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} };
+for(let i=1;i<=5;i++){ for(const id of ['cols','rows']){ const o=document.createElement('option'); o.value=i; o.textContent=i; $(id).appendChild(o); } }
+
+/* ===== 分け方 ===== */
+const ratio = s => { const [a,b] = s.split(':').map(Number); return a/b; };
+const POS4 = ['左上','右上','左下','右下'];
+function layout(){
+  if(S.mode==='grid4') return {cols:2, rows:2, ca:16/9};
+  if(S.mode==='pano') return {cols:+S.panoN, rows:1, ca:ratio(S.panoAspect)};
+  return {cols:+S.cols, rows:+S.rows, ca:ratio(S.cellAspect)};
+}
+const gapFrac = () => S.gapOn[S.mode] ? (S.gap[S.mode]||0)/100 : 0;   // 1枚の幅に対するすき間の割合
+// 1枚の幅を1としたときの、範囲全体の大きさ
+function unitDims(){ const {cols, rows, ca} = layout(), g = gapFrac(); return {W: cols + (cols-1)*g, H: rows/ca + (rows-1)*g}; }
+
+/* ===== 画像と範囲 ===== */
+let img = null, name = 'image', cx = 0, cy = 0;   // 範囲の中心(元画像のpx)
+function cropRect(){
+  const iw = img.naturalWidth, ih = img.naturalHeight, u = unitDims(), A = u.W/u.H;
+  let w, h; if(iw/ih > A){ h = ih; w = h*A; } else { w = iw; h = w/A; }
+  const z = (S.zoom||100)/100; w /= z; h /= z;
+  cx = clamp(cx, w/2, iw - w/2); cy = clamp(cy, h/2, ih - h/2);
+  return {x: cx - w/2, y: cy - h/2, w, h};
+}
+function cells(){
+  const r = cropRect(), {cols, rows, ca} = layout(), g = gapFrac(), u = unitDims();
+  const cw = r.w/u.W, ch = cw/ca, gp = g*cw, out = [];
+  for(let j=0;j<rows;j++) for(let i=0;i<cols;i++) out.push({x: r.x + i*(cw+gp), y: r.y + j*(ch+gp), w: cw, h: ch, i, j});
+  return out;
+}
+function loadFile(f){
+  if(!f) return;
+  const url = URL.createObjectURL(f), im = new Image();
+  im.onload = () => { if(img && img._url) URL.revokeObjectURL(img._url); im._url = url; img = im; name = f.name.replace(/\.[^.]+$/, '') || 'image';
+    cx = im.naturalWidth/2; cy = im.naturalHeight/2; $('nameLabel').textContent = `${f.name}(${im.naturalWidth}×${im.naturalHeight}px)`; msg(''); refresh(); };
+  im.onerror = () => { URL.revokeObjectURL(url); msg('画像を読み込めませんでした。PNGかJPEGを選んでください。'); };
+  im.src = url;
+}
+$('fileIn').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value=''; });
+$('fileIn2').addEventListener('change', e => { loadFile(e.target.files[0]); e.target.value=''; });
+document.body.addEventListener('dragover', e => { e.preventDefault(); (img ? $('cvwrap') : $('drop')).classList.add('over'); });
+document.body.addEventListener('dragleave', e => { if(!e.relatedTarget){ $('drop').classList.remove('over'); $('cvwrap').classList.remove('over'); } });
+document.body.addEventListener('drop', e => { e.preventDefault(); $('drop').classList.remove('over'); $('cvwrap').classList.remove('over'); const f = [...e.dataTransfer.files].find(x=>x.type.startsWith('image/')); if(f) loadFile(f); });
+
+/* ===== 元画像と範囲の表示 ===== */
+const cv = $('cv'), wrap = $('cvwrap'); let K = 1;
+function drawMain(){
+  const has = !!img; $('drop').hidden = has; wrap.hidden = !has; $('stageHint').hidden = !has; $('pvBox').hidden = !has; $('piecesBox').hidden = !has;
+  $('saveZip').disabled = !has; $('saveEach').disabled = !has;
+  if(!has){ $('info').textContent=''; $('outInfo').textContent=''; return; }
+  const iw = img.naturalWidth, ih = img.naturalHeight, maxW = wrap.parentElement.clientWidth, maxH = Math.max(240, Math.min(innerHeight*.6, 640));
+  K = Math.min(maxW/iw, maxH/ih, 3); const w = Math.round(iw*K), h = Math.round(ih*K), dpr = Math.min(2, devicePixelRatio||1);
+  cv.style.width = w+'px'; cv.style.height = h+'px'; wrap.style.width = w+'px';
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  const g = cv.getContext('2d'); const k = K*dpr; g.imageSmoothingQuality = 'high';
+  g.drawImage(img, 0, 0, iw*k, ih*k);
+  const r = cropRect(), cs = cells();
+  // 使わない部分を暗く
+  g.save(); g.fillStyle = 'rgba(0,0,0,.55)'; g.beginPath(); g.rect(0,0,cv.width,cv.height);
+  for(const c of cs) g.rect(c.x*k + c.w*k, c.y*k, -c.w*k, c.h*k);   // 逆回りで穴をあける
+  g.fill('evenodd'); g.restore();
+  // すき間の帯(斜線)
+  if(gapFrac() > 0){ g.save(); g.beginPath(); g.rect(r.x*k, r.y*k, r.w*k, r.h*k); for(const c of cs) g.rect(c.x*k + c.w*k, c.y*k, -c.w*k, c.h*k); g.clip('evenodd');
+    g.strokeStyle = 'rgba(255,255,255,.7)'; g.lineWidth = 1.2*dpr; for(let t=-cv.height; t<cv.width; t+=6*dpr){ g.beginPath(); g.moveTo(t,0); g.lineTo(t+cv.height,cv.height); g.stroke(); } g.restore(); }
+  // 枠と番号
+  g.lineWidth = 2*dpr; g.strokeStyle = '#fff'; g.font = `700 ${Math.max(12, Math.min(28, r.h*k*.12))}px "Zen Maru Gothic", sans-serif`; g.textAlign='center'; g.textBaseline='middle';
+  cs.forEach((c, n) => { g.strokeRect(c.x*k, c.y*k, c.w*k, c.h*k);
+    const t = String(n+1), fx = (c.x + c.w/2)*k, fy = (c.y + c.h/2)*k; g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.arc(fx, fy, Math.max(14, Math.min(30, r.h*k*.1)), 0, Math.PI*2); g.fill(); g.fillStyle = '#fff'; g.fillText(t, fx, fy+1); });
+  const c0 = cs[0];
+  $('info').innerHTML = `元の画像 <b>${iw}×${ih}px</b> → <b>${cs.length}枚</b>(1枚 ${Math.round(c0.w)}×${Math.round(c0.h)}px)`;
+  const [ow, oh] = outDims(c0); $('outInfo').innerHTML = `保存する1枚の大きさ: <b>${ow}×${oh}px</b> × ${cs.length}枚`;
+}
+
+/* ===== 投稿したときの見え方 ===== */
+const pv = $('pv');
+function drawPreview(){
+  if(!img) return; const cs = cells(), {cols, rows} = layout(), dpr = Math.min(2, devicePixelRatio||1);
+  const box = $('pvBox').clientWidth - 30, gapPx = 4;
+  if(S.mode==='pano'){
+    // スワイプ表示:1枚ずつカードで横に並ぶ(全部を並べた見え方)
+    const ch = Math.min(220, (box - gapPx*(cols-1))/cols / (cs[0].w/cs[0].h)), cw = ch*cs[0].w/cs[0].h, W = cols*cw + (cols-1)*gapPx;
+    pv.style.width = W+'px'; pv.style.height = ch+'px'; pv.width = Math.round(W*dpr); pv.height = Math.round(ch*dpr);
+    const g = pv.getContext('2d'); g.scale(dpr,dpr); g.imageSmoothingQuality='high';
+    cs.forEach((c, n) => { const x = n*(cw+gapPx); g.save(); g.beginPath(); g.roundRect(x, 0, cw, ch, 10); g.clip(); g.drawImage(img, c.x, c.y, c.w, c.h, x, 0, cw, ch); g.restore(); });
+    $('pvHint').textContent = 'スワイプでめくると、1枚ずつつながって見えます。1枚目だけでも目を引く絵になるように範囲を決めるのがおすすめです。';
+  } else {
+    // 田の字・格子の表示:角の丸い枠の中に、細いすき間をあけて並ぶ
+    const u = unitDims(), A = (cols*cs[0].w)/(rows*cs[0].h), W = Math.min(box, 520), Hh = W/A, gp = 2;
+    pv.style.width = W+'px'; pv.style.height = Hh+'px'; pv.width = Math.round(W*dpr); pv.height = Math.round(Hh*dpr);
+    const g = pv.getContext('2d'); g.scale(dpr,dpr); g.imageSmoothingQuality='high';
+    g.save(); g.beginPath(); g.roundRect(0,0,W,Hh,14); g.clip(); g.fillStyle = getComputedStyle(document.body).backgroundColor; g.fillRect(0,0,W,Hh);
+    const cw = (W - gp*(cols-1))/cols, chh = (Hh - gp*(rows-1))/rows;
+    cs.forEach(c => { const sx = c.i*(cw+gp), sy = c.j*(chh+gp); g.save(); g.beginPath(); g.rect(sx, sy, cw, chh); g.clip();
+      const k = Math.max(cw/c.w, chh/c.h); g.drawImage(img, c.x, c.y, c.w, c.h, sx + (cw - c.w*k)/2, sy + (chh - c.h*k)/2, c.w*k, c.h*k); g.restore(); });
+    g.restore();
+    $('pvHint').textContent = S.mode==='grid4' ? '4枚が田の字に並ぶ表示での見え方です。すき間の補正をオンにすると、すき間をまたいでも絵がずれにくくなります。' : '格子に並べたときの見え方です。';
+  }
+}
+
+/* ===== 分けた画像 ===== */
+function outDims(c){
+  let k = 1; if(S.outSize!=='orig') k = Math.min(1, +S.outSize/Math.max(c.w, c.h));
+  k = Math.min(k, 4096/Math.max(c.w, c.h));
+  return [Math.max(1, Math.round(c.w*k)), Math.max(1, Math.round(c.h*k))];
+}
+function renderPiece(c){
+  const [w, h] = outDims(c), o = document.createElement('canvas'); o.width = w; o.height = h; const g = o.getContext('2d');
+  if(S.fmt==='jpeg'){ g.fillStyle = '#fff'; g.fillRect(0,0,w,h); }
+  // 大きく縮めるときは半分ずつ縮めてギザギザを防ぐ
+  let src = img, sx = c.x, sy = c.y, sw = c.w, sh = c.h;
+  while(sw > w*2.2 && sh > h*2.2){ const t = document.createElement('canvas'); t.width = Math.round(sw/2); t.height = Math.round(sh/2);
+    const tg = t.getContext('2d'); tg.imageSmoothingQuality='high'; tg.drawImage(src, sx, sy, sw, sh, 0, 0, t.width, t.height); src = t; sx = 0; sy = 0; sw = t.width; sh = t.height; }
+  g.imageSmoothingQuality = 'high'; g.drawImage(src, sx, sy, sw, sh, 0, 0, w, h); return o;
+}
+const label = n => S.mode==='grid4' ? `${n+1}枚目(${POS4[n]})` : S.mode==='pano' ? `${n+1}枚目` : (() => { const {cols} = layout(); return `${n+1}枚目(${Math.floor(n/cols)+1}段目・左から${n%cols+1})`; })();
+const fileName = n => `${name}_${n+1}.${S.fmt==='jpeg'?'jpg':'png'}`;
+const encode = c => new Promise(r => c.toBlob(r, S.fmt==='jpeg' ? 'image/jpeg' : 'image/png', .92));
+let pieceT = null;
+function buildPieces(){
+  clearTimeout(pieceT); pieceT = setTimeout(() => {
+    const box = $('pieces'); box.innerHTML = ''; if(!img) return;
+    cells().forEach((c, n) => {
+      const d = document.createElement('div'); d.className = 'piece';
+      const t = document.createElement('canvas'), tw = 132*2, th = Math.round(tw*c.h/c.w); t.width = tw; t.height = th;
+      const g = t.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(img, c.x, c.y, c.w, c.h, 0, 0, tw, th);
+      const sp = document.createElement('span'); sp.textContent = label(n);
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'mini'; b.textContent = '保存'; b.setAttribute('aria-label', label(n)+'を保存');
+      b.onclick = async () => { const blob = await encode(renderPiece(c)); const r = await saveFile(fileName(n), blob); if(r==='saved') msg(`${fileName(n)} を保存しました。`); else if(r!=='declined') msg('保存できませんでした。'); };
+      d.append(t, sp, b); box.appendChild(d);
+    });
+  }, 120);
+}
+
+/* ===== 保存 ===== */
+let downloadsP = null;
+try{ downloadsP = window.claude?.use ? window.claude.use('downloads') : null; }catch(e){}
+async function saveFile(filename, data){
+  const dl = downloadsP ? await Promise.resolve(downloadsP).catch(()=>null) : null;
+  if(dl){ try{ await dl.save({filename, data}); return 'saved'; } catch(err){ if(err?.code==='declined') return 'declined'; if(err?.code==='rate_limited') return 'busy'; return 'failed'; } }
+  const url = URL.createObjectURL(data); const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 8000); return 'saved';
+}
+const tick = ms => new Promise(r => setTimeout(r, ms||0));
+$('saveZip').onclick = async () => {
+  if(!img) return; if(typeof JSZip==='undefined'){ msg('ZIPの作成機能を読み込めませんでした。ネットにつないだ状態でページを開き直してください。'); return; }
+  $('saveZip').disabled = true; bar(0);
+  try{ const zip = new JSZip(), cs = cells();
+    for(let n=0;n<cs.length;n++){ zip.file(fileName(n), await encode(renderPiece(cs[n]))); bar((n+1)/cs.length*.9); msg(`作成中… ${n+1} / ${cs.length} 枚`); await tick(); }
+    const z = await zip.generateAsync({type:'blob'}); bar(1);
+    const r = await saveFile(`${name}_${cs.length}split.zip`, z);
+    msg(r==='saved' ? `${cs.length}枚をZIPで保存しました。ファイル名の番号の順に投稿してください。` : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。');
+  }catch(e){ msg('保存できませんでした。「1枚の大きさ」を小さくしてもう一度試してください。'); }
+  finally{ $('saveZip').disabled = false; setTimeout(()=>bar(0), 1500); }
+};
+$('saveEach').onclick = async () => {
+  if(!img) return; $('saveEach').disabled = true;
+  try{ const cs = cells(); let ok = 0;
+    for(let n=0;n<cs.length;n++){ const r = await saveFile(fileName(n), await encode(renderPiece(cs[n]))); if(r==='declined') break; if(r==='saved') ok++; bar((n+1)/cs.length); await tick(350); }
+    msg(ok ? `${ok}枚を保存しました。ファイル名の番号の順に投稿してください。` : '保存を取り消しました。');
+  }finally{ $('saveEach').disabled = false; setTimeout(()=>bar(0), 1500); }
+};
+
+/* ===== 範囲のドラッグ ===== */
+let drag = null;
+wrap.addEventListener('pointerdown', e => { if(!img) return; e.preventDefault(); drag = {x:e.clientX, y:e.clientY, cx, cy}; wrap.setPointerCapture(e.pointerId); wrap.classList.add('dragging'); });
+wrap.addEventListener('pointermove', e => { if(!drag) return; cx = drag.cx + (e.clientX-drag.x)/K; cy = drag.cy + (e.clientY-drag.y)/K; drawMain(); drawPreview(); });
+const endDrag = () => { if(!drag) return; drag = null; wrap.classList.remove('dragging'); buildPieces(); };
+wrap.addEventListener('pointerup', endDrag); wrap.addEventListener('pointercancel', endDrag);
+wrap.addEventListener('wheel', e => { if(!img) return; e.preventDefault(); S.zoom = clamp((S.zoom||100) * (e.deltaY < 0 ? 1.06 : 1/1.06), 100, 500); saveS(); syncUI(); refresh(); }, {passive:false});
+wrap.addEventListener('keydown', e => { if(!img) return; const st = (e.shiftKey?10:1)/K; const mv = {ArrowLeft:[-st,0], ArrowRight:[st,0], ArrowUp:[0,-st], ArrowDown:[0,st]}[e.key]; if(!mv) return; e.preventDefault(); cx += mv[0]; cy += mv[1]; refresh(); });
+$('center').onclick = () => { if(!img) return; cx = img.naturalWidth/2; cy = img.naturalHeight/2; refresh(); };
+$('fitMax').onclick = () => { S.zoom = 100; saveS(); syncUI(); refresh(); };
+
+/* ===== 設定欄 ===== */
+const NOTES = {
+  pano: '今のXでは、複数の画像は横にスワイプして1枚ずつ見る表示になっていることが多いです。1枚ずつが3:4〜4:3の形なら欠けずに表示されるので、この形で分けます。',
+  grid4: '4枚が田の字に並ぶ表示向けです(1枚 16:9)。表示のしかたは X のアプリや時期によって変わります。最近はスワイプ表示になっていることも多いので、投稿前にプレビューで確かめてください。',
+  custom: 'Instagramのプロフィールの格子(横3)など、ほかの場所に並べるときに使えます。',
+};
+function syncUI(){
+  $('modeSeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v===S.mode));
+  $('panoBox').hidden = S.mode!=='pano'; $('customBox').hidden = S.mode!=='custom';
+  $('panoN').value = S.panoN; $('panoAspect').value = S.panoAspect; $('cols').value = S.cols; $('rows').value = S.rows; $('cellAspect').value = S.cellAspect;
+  $('gapOn').checked = !!S.gapOn[S.mode]; $('gapBox').hidden = !S.gapOn[S.mode]; $('gap').value = S.gap[S.mode]; $('gap_o').textContent = `1枚の幅の ${(+S.gap[S.mode]).toFixed(1)}%`;
+  $('zoom').value = S.zoom; $('zoom_o').textContent = S.zoom<=100 ? 'いちばん大きい' : `${Math.round(10000/S.zoom)}%`;
+  $('outSize').value = S.outSize; $('fmt').value = S.fmt; $('modeNote').textContent = NOTES[S.mode];
+}
+function refresh(){ drawMain(); drawPreview(); buildPieces(); }
+$('modeSeg').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.mode = b.dataset.v; saveS(); syncUI(); refresh(); });
+for(const [id, key] of [['panoN','panoN'],['panoAspect','panoAspect'],['cols','cols'],['rows','rows'],['cellAspect','cellAspect'],['outSize','outSize'],['fmt','fmt']])
+  $(id).addEventListener('change', () => { S[key] = $(id).value; saveS(); syncUI(); refresh(); });
+$('gapOn').addEventListener('change', () => { S.gapOn[S.mode] = $('gapOn').checked; saveS(); syncUI(); refresh(); });
+$('gap').addEventListener('input', () => { S.gap[S.mode] = +$('gap').value; saveS(); syncUI(); refresh(); });
+$('zoom').addEventListener('input', () => { S.zoom = +$('zoom').value; saveS(); syncUI(); refresh(); });
+let rz = null; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { drawMain(); drawPreview(); }, 120); });
+window.__splitter = {get S(){ return S; }, cells, renderPiece};   // 動作確認用
+syncUI(); refresh();
+</script>
+</body>
+</html>
