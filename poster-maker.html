@@ -41,6 +41,13 @@ h1{font-family:var(--font-display);font-weight:700;font-size:1.5rem;margin:0}
 .area span{position:absolute;right:0;bottom:0;font-size:11px;line-height:1;padding:3px 5px;background:rgba(19,128,111,.9);color:#fff;border-top-left-radius:4px;white-space:nowrap}
 .board canvas{display:block;width:100%;height:100%}
 .overlay{position:absolute;inset:0}
+.guides{position:absolute;inset:0;pointer-events:none;z-index:2}
+.guides .gl{position:absolute;background:#ff3d8b;box-shadow:0 0 0 1px rgba(255,255,255,.7)}
+.guides .gl.v{top:0;bottom:0;width:1.5px;margin-left:-.75px} .guides .gl.h{left:0;right:0;height:1.5px;margin-top:-.75px}
+.guides .gl.edge{background:#1ba3c6}
+.guides .cl{position:absolute;border:0 dashed rgba(255,61,139,.75)}
+.guides .cl.v{top:0;bottom:0;border-left-width:1.5px} .guides .cl.h{left:0;right:0;border-top-width:1.5px}
+.guides .cl.area{border-color:rgba(19,128,111,.8)}
 .box{position:absolute;border:1.5px dashed rgba(255,255,255,.9);outline:1.5px dashed rgba(30,30,60,.55);outline-offset:-3px;cursor:move;touch-action:none}
 .box.sel{border:2px solid var(--sel);outline:none;background:rgba(255,79,139,.08)}
 .box .tagl{position:absolute;left:0;top:0;font-size:11px;line-height:1;padding:3px 5px;background:rgba(30,30,60,.7);color:#fff;border-bottom-right-radius:4px;pointer-events:none;white-space:nowrap}
@@ -99,7 +106,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.1 ・ 2026-10-31 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.2 ・ 2026-11-01 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -111,12 +118,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
       <div class="board" id="board">
         <canvas id="cv"></canvas>
         <div class="overlay" id="overlay"></div>
+        <div class="guides" id="guides" aria-hidden="true"></div>
       </div>
       <div class="actions">
         <button class="btn" id="savePng" type="button" hidden>PNGで保存</button>
         <span class="hint" id="sizeLabel"></span>
       </div>
-      <p class="hint" id="stageHint">枠をドラッグで移動、右下の丸で大きさを変えられます。位置は背景に対する割合で記録されるので、背景画像の大きさや形が変わっても同じレイアウトになります。</p>
+      <p class="hint" id="stageHint">枠をドラッグで移動、右下の丸で大きさを変えられます。ドラッグ中はポスターの中心・端やほかの枠にぴったり合います(Altを押している間は合わせません)。選んだ枠は矢印キーで1px(Shiftで10px)ずつ動かせます。</p>
+      <label class="check" id="clineBox"><input type="checkbox" id="clineOn"> 中心線を表示</label>
     </div>
 
     <div class="panel">
@@ -507,7 +516,7 @@ function schedule(){
 /* ---------- オーバーレイ(枠のドラッグ) ---------- */
 const overlay=$('overlay');
 function buildOverlay(){
-  overlay.innerHTML='';
+  overlay.innerHTML=''; drawCenterLines(); $('clineBox').hidden = mode!=='edit';
   if(mode!=='edit') return;
   const T=cur(); if(!T) return;
   if(curInfo && curInfo.hasAlpha && T.shapeFit!==false){
@@ -559,14 +568,61 @@ function drag(el,slot,kind){
       const dx=(ev.clientX-sx)/(r.width*curArea.w), dy=(ev.clientY-sy)/(r.height*curArea.h);
       if(kind==='move'){ slot.x=o.x+dx; slot.y=o.y+dy; }
       else { slot.w=Math.max(.02,o.w+dx); slot.h=Math.max(.02,o.h+dy); }
+      snapSlot(slot, kind, r, ev.altKey);
       const box=overlay.querySelector(`[data-id="${slot.id}"]`); if(box) placeBox(box,slot);
       syncGeom(); schedule();
     };
-    const up=()=>{ dragKind=null; refreshTags(); el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up); changed(); };
+    const up=()=>{ dragKind=null; clearGuides(); refreshTags(); el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up); changed(); };
     el.addEventListener('pointermove',mv); el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
   });
 }
 overlay.addEventListener('pointerdown',e=>{ if(e.target===overlay){ select(null); } });
+
+/* ---------- 吸着とガイド線 ---------- */
+// 位置は「並べる範囲」(形に合わせないときはポスター全体)に対する割合。吸着先も同じ割合で考える
+const guides = $('guides');
+function snapTargets(slot){
+  const A = curArea, xs = [[0,'edge'],[.5,'center'],[1,'edge']], ys = [[0,'edge'],[.5,'center'],[1,'edge']];
+  if(A.w < .999 || A.h < .999){ xs.push([(0-A.x)/A.w,'edge'],[(.5-A.x)/A.w,'center'],[(1-A.x)/A.w,'edge']); ys.push([(0-A.y)/A.h,'edge'],[(.5-A.y)/A.h,'center'],[(1-A.y)/A.h,'edge']); }
+  for(const o of cur().slots){ if(o===slot || (o.fillShape && o.type!=='text')) continue;
+    xs.push([o.x,'edge'],[o.x+o.w/2,'center'],[o.x+o.w,'edge']); ys.push([o.y,'edge'],[o.y+o.h/2,'center'],[o.y+o.h,'edge']); }
+  return {xs, ys};
+}
+function snapSlot(slot, kind, r, off){
+  clearGuides(); if(off || (slot.rot||0)!==0) return;
+  const {xs, ys} = snapTargets(slot), tx = 7/(r.width*curArea.w), ty = 7/(r.height*curArea.h);
+  // いちばん近い吸着先を選ぶ。枠の中心どうし・中心線へは少し優先して合わせる
+  const best = (vals, targets, th) => { let b = null; for(const [v, isC] of vals) for(const [t, kind2] of targets){ const d = t - v; if(Math.abs(d) > th) continue; const sc = Math.abs(d) - (isC && kind2==='center' ? th*.6 : 0); if(!b || sc < b.sc) b = {d, t, kind:kind2, sc}; } return b; };
+  if(kind==='move'){
+    const bx = best([[slot.x,false],[slot.x+slot.w/2,true],[slot.x+slot.w,false]], xs, tx); if(bx){ slot.x += bx.d; showGuide('v', bx.t, bx.kind); }
+    const by = best([[slot.y,false],[slot.y+slot.h/2,true],[slot.y+slot.h,false]], ys, ty); if(by){ slot.y += by.d; showGuide('h', by.t, by.kind); }
+  } else {
+    const bx = best([[slot.x+slot.w,false]], xs, tx); if(bx && slot.w + bx.d > .02){ slot.w += bx.d; showGuide('v', bx.t, bx.kind); }
+    const by = best([[slot.y+slot.h,false]], ys, ty); if(by && slot.h + by.d > .02){ slot.h += by.d; showGuide('h', by.t, by.kind); }
+  }
+}
+function showGuide(dir, t, kind){ const A = curArea, d = document.createElement('div'); d.className = `gl ${dir} ${kind==='edge'?'edge':''}`;
+  if(dir==='v') d.style.left = (A.x + t*A.w)*100 + '%'; else d.style.top = (A.y + t*A.h)*100 + '%'; guides.appendChild(d); }
+function clearGuides(){ guides.querySelectorAll('.gl').forEach(x => x.remove()); }
+// 中心線
+let clineOn = false; try{ clineOn = localStorage.getItem('poster-maker-centerlines')==='1'; }catch(e){}
+function drawCenterLines(){
+  guides.querySelectorAll('.cl').forEach(x => x.remove());
+  if(!clineOn || mode!=='edit') return;
+  const add = (cls, prop, v) => { const d = document.createElement('div'); d.className = 'cl ' + cls; d.style[prop] = v*100 + '%'; guides.appendChild(d); };
+  add('v', 'left', .5); add('h', 'top', .5);
+  const A = curArea; if(A.w < .999 || A.h < .999){ add('v area', 'left', A.x + A.w/2); add('h area', 'top', A.y + A.h/2); }
+}
+$('clineOn').checked = clineOn;
+$('clineOn').addEventListener('change', e => { clineOn = e.target.checked; try{ localStorage.setItem('poster-maker-centerlines', clineOn ? '1' : '0'); }catch(_){} drawCenterLines(); });
+// 矢印キーで1px(Shiftで10px)ずつ動かす
+document.addEventListener('keydown', e => {
+  if(mode!=='edit' || !selId || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'')) return;
+  const mvv = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]}[e.key]; if(!mvv) return;
+  const slot = cur()?.slots.find(x => x.id===selId); if(!slot || !dimW) return; e.preventDefault();
+  const st = e.shiftKey ? 10 : 1; slot.x += mvv[0]*st/(dimW*curArea.w); slot.y += mvv[1]*st/(dimH*curArea.h);
+  const bx = overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, slot); syncGeom(); changed(); schedule();
+});
 
 /* ---------- 初期値 ---------- */
 function defaultSlotFor(slot){
@@ -626,6 +682,7 @@ function buildProps(){
     <label>左 (%)<input type="number" step="0.5" id="p_x"></label><label>上 (%)<input type="number" step="0.5" id="p_y"></label>
     <label>幅 (%)<input type="number" step="0.5" id="p_w"></label><label>高さ (%)<input type="number" step="0.5" id="p_h"></label></div>`);
   H.push(`<p class="hint" id="p_px"></p>`);
+  H.push(`<div class="btns"><button class="mini" type="button" data-al="cx">左右の中央にそろえる</button><button class="mini" type="button" data-al="cy">上下の中央にそろえる</button><button class="mini" type="button" data-al="c">ど真ん中</button></div>`);
   H.push(`<label>回転 (°)<input type="range" id="p_rot" min="-45" max="45"></label>`);
   if(slot.type==='text'){
     H.push(`<label>初期の文字(ポスター作成時に変更できます。{名前} はメンバー名に置き換わります)<textarea id="p_text"></textarea></label>`);
@@ -665,6 +722,9 @@ function buildProps(){
       const b=overlay.querySelector(`[data-id="${slot.id}"]`); if(b) placeBox(b,slot); syncGeom(); changed(); schedule(); });
   }
   bind('rot',Number); bind('above'); syncGeom();
+  box.querySelectorAll('[data-al]').forEach(b => b.onclick = () => { const a = b.dataset.al;
+    if(a==='cx'||a==='c') slot.x = .5 - slot.w/2; if(a==='cy'||a==='c') slot.y = .5 - slot.h/2;
+    const bx = overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, slot); syncGeom(); changed(); schedule(); });
   if(slot.type==='text'){ bind('text'); bind('font',Number); bind('size',Number); bind('color'); bind('strokeColor'); bind('stroke',Number); bind('align'); }
   else {
     bind('shape'); bind('fit'); bind('border',Number); bind('borderColor'); bind('shadow'); bind('fillShape');
