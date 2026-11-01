@@ -91,6 +91,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .mini{font:inherit;font-size:.75rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:1px 7px;cursor:pointer}
 .item{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
 .item.sel{border-color:var(--sel);box-shadow:inset 3px 0 0 var(--sel)}
+.mlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:260px;overflow:auto}
+.mlist li{display:flex;align-items:center;gap:6px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--field);cursor:pointer}
+.mlist li.sel{border-color:var(--sel);box-shadow:inset 3px 0 0 var(--sel)}
+.mlist li img,.mlist li .noimg{width:34px;height:34px;border-radius:6px;object-fit:cover;flex:none;background:var(--line)}
+.mlist li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .cols{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+.item .cols label{flex:1 1 80px}
 .item .adj{display:flex;flex-wrap:wrap;gap:8px}
 .item .adj label{flex:1 1 90px}
 .overlay.inner .box .h{display:none!important}
@@ -113,7 +120,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.5 ・ 2026-11-01 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.6 ・ 2026-11-01 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -219,8 +226,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
           <label>装飾フレーム(テンプレートのものを差し替えたいときだけ)<input type="file" id="mFrame" accept="image/png,image/webp,image/gif"></label>
         </fieldset>
         <fieldset>
-          <legend>名前</legend>
+          <legend>メンバー</legend>
+          <p class="hint">メンバーごとに名前・写真・文字の色・位置を調整できます。一覧で選んだ人のポスターがプレビューに出ます。</p>
+          <ul class="mlist" id="mList" aria-label="メンバーの一覧"></ul>
+          <div class="btns">
+            <button class="btn ghost small" id="mAdd" type="button">+ 追加</button>
+            <button class="btn ghost small" id="mDup" type="button">複製</button>
+            <button class="btn danger small" id="mDel" type="button">削除</button>
+          </div>
           <label>メンバー名(文字枠の {名前} に入ります)<input type="text" id="mName" placeholder="例:シフォン"></label>
+          <div class="btns"><button class="mini" id="mCopyAll" type="button">この人の位置・写り・文字の色を全員にそろえる</button></div>
         </fieldset>
         <fieldset>
           <legend>素材</legend>
@@ -228,10 +243,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
         </fieldset>
         <fieldset>
           <legend>まとめて作成</legend>
-          <p class="hint">メンバーの写真を複数選ぶと、1人1枚ずつポスターを作ってZIPで保存します。{名前} にはファイル名(拡張子なし)が入るので、「シフォン.png」のように名前を付けておくと便利です。ほかの素材は上で選んだものを共通で使います。</p>
-          <label>差し替える枠<select id="bTarget"></select></label>
-          <label>写真をまとめて選ぶ<input type="file" id="bFiles" accept="image/*" multiple></label>
-          <button class="btn" id="bRun" type="button" disabled>まとめて作成してZIPで保存</button>
+          <p class="hint">メンバーの写真を複数選ぶと、1人1人のメンバーとして一覧に入ります(名前はファイル名。「シフォン.png」のように付けておくと便利です)。そのあと一覧で1人ずつ選んで、文字の色や写真の写りを調整できます。背景・フレームは全員共通です。</p>
+          <label>写真を入れる枠<select id="bTarget"></select></label>
+          <label>写真をまとめて選ぶ(メンバーとして追加)<input type="file" id="bFiles" accept="image/*" multiple></label>
+          <label class="check"><input type="checkbox" id="bReplace"> 今の一覧と入れ替える(オフなら後ろに追加)</label>
+          <button class="btn" id="bRun" type="button">全員分をZIPで保存</button>
           <div class="progress" aria-hidden="true"><i id="bBar"></i></div>
           <p class="hint status" id="bMsg" role="status"></p>
         </fieldset>
@@ -286,8 +302,8 @@ const DB = {
     if(this.db) return Promise.resolve(this.db);
     return new Promise((res,rej)=>{
       try{
-        const r=indexedDB.open('poster-maker',1);
-        r.onupgradeneeded=()=>r.result.createObjectStore('templates',{keyPath:'id'});
+        const r=indexedDB.open('poster-maker',2);
+        r.onupgradeneeded=()=>{ const db=r.result; if(!db.objectStoreNames.contains('templates')) db.createObjectStore('templates',{keyPath:'id'}); if(!db.objectStoreNames.contains('work')) db.createObjectStore('work'); };
         r.onsuccess=()=>{ this.db=r.result; res(r.result); };
         r.onerror=()=>rej(r.error);
       }catch(e){ rej(e); }
@@ -303,14 +319,23 @@ const DB = {
   all(){ return this.tx('readonly', st=>st.getAll()); },
   put(v){ return this.tx('readwrite', st=>st.put(v)); },
   del(id){ return this.tx('readwrite', st=>st.delete(id)); },
+  async work(mode, fn){ const db=await this.open(); return new Promise((res,rej)=>{ const t=db.transaction('work',mode), st=t.objectStore('work'), r=fn(st); t.oncomplete=()=>res(r&&r.result); t.onerror=()=>rej(t.error); }); },
+  getWork(id){ return this.work('readonly', st=>st.get(id)); },
+  putWork(id, v){ return this.work('readwrite', st=>st.put(v, id)); },
 };
 
 let templates=[], curId=null, selId=null, mode='edit';
 const cur = () => templates.find(t=>t.id===curId);
-const prod = {bg:null, frame:null, img:{}, text:{}, name:'', geom:{}, adj:{}};   // geom:このポスターだけの枠の位置 / adj:中の画像の大きさ・位置
+// ポスター作成のデータ。背景・フレームは全員共通、それ以外はメンバーごと(img:画像URL / blobs:画像ファイル / text:文字 / style:文字の色 / geom:枠の位置 / adj:中の画像の写り)
+const newMember = (name='') => ({id:Math.random().toString(36).slice(2,10), name, img:{}, blobs:{}, text:{}, style:{}, geom:{}, adj:{}});
+let members = [newMember()], mi = 0;
+const M = () => members[Math.min(mi, members.length-1)];
+const prod = {bg:null, frame:null};
+for(const k of ['img','blobs','text','geom','adj','style']) Object.defineProperty(prod, k, {get:()=>M()[k], set:v=>{ M()[k]=v; }});
+Object.defineProperty(prod, 'name', {get:()=>M().name, set:v=>{ M().name=v; }});
 // このポスターだけの枠(テンプレートの枠を元に、位置と大きさだけ持つ。ほかの設定はテンプレートのまま)
 function ensureGeom(slot){ let g = prod.geom[slot.id]; if(!g){ g = Object.setPrototypeOf({x:slot.x, y:slot.y, w:slot.w, h:slot.h}, slot); prod.geom[slot.id] = g; } return g; }
-const effSlot = (slot, rmode) => rmode==='edit' ? slot : (prod.geom[slot.id] || slot);
+const effSlot = (slot, rmode) => { if(rmode==='edit') return slot; const b = prod.geom[slot.id] || slot, st = prod.style[slot.id]; return st ? Object.assign(Object.create(b), st) : b; };
 const slotAdj = (slot, rmode) => rmode==='edit' ? null : (prod.adj[slot.id] || null);
 let makeDrag = 'frame';
 
@@ -564,6 +589,7 @@ async function renderTo(c, rmode, maxSide, vars={name:prod.name}){
 const cv=$('cv');
 let timer=null, running=false, again=false;
 function schedule(){
+  if(mode==='make') saveWorkSoon();
   if(timer) return;
   timer=requestAnimationFrame(async()=>{
     timer=null;
@@ -876,7 +902,7 @@ function buildTplSel(){
 function useTemplate(id){
   curId=id; selId=null;
   try{ localStorage.setItem('poster-maker-last', id); }catch(e){}
-  resetProd(); buildTplSel(); buildSlotList(); buildProps(); buildOverlay(); buildMake(); syncShapeUI(); schedule();
+  resetProd(); buildTplSel(); buildSlotList(); buildProps(); buildOverlay(); buildMake(); syncShapeUI(); schedule(); loadWork();
 }
 $('tplSel').addEventListener('change',e=>useTemplate(e.target.value));
 $('tplName').addEventListener('input',e=>{ cur().name=e.target.value; const o=$('tplSel').selectedOptions[0]; if(o) o.textContent=e.target.value||'(名前なし)'; changed(); });
@@ -922,11 +948,12 @@ $('tplImport').addEventListener('change',async e=>{
 
 /* ---------- ポスター作成 ---------- */
 function resetProd(){
-  for(const k of Object.keys(prod.img)) if(prod.img[k]?.startsWith('blob:')) URL.revokeObjectURL(prod.img[k]);
-  prod.bg=null; prod.frame=null; prod.img={}; prod.text={}; prod.geom={}; prod.adj={};
+  for(const m of members) for(const k of Object.keys(m.img)) if(m.img[k]?.startsWith('blob:')) URL.revokeObjectURL(m.img[k]);
+  prod.bg=null; prod.frame=null; members=[newMember()]; mi=0;
   $('mBg').value=''; $('mFrame').value='';
 }
 function buildMake(){
+  buildMemberList(); $('mName').value = M().name || '';
   const T=cur(); const box=$('mSlots'); box.innerHTML='';
   if(!T) return;
   $('mBgNote').textContent = T.bg ? '未選択のときはテンプレートの背景を使います。' : 'テンプレートに背景がないので、ここで選んでください。';
@@ -937,16 +964,23 @@ function buildMake(){
     const kd=document.createElement('span'); kd.className='kind'; kd.textContent=KIND[slot.type];
     top.append(b,kd); d.appendChild(top);
     if(slot.type==='text'){
-      const ta=document.createElement('textarea'); ta.value=slot.text||''; ta.setAttribute('aria-label',slot.label);
+      const ta=document.createElement('textarea'); ta.value=(slot.id in prod.text) ? prod.text[slot.id] : (slot.text||''); ta.setAttribute('aria-label',slot.label);
       ta.placeholder='空欄ならこの文字は入りません';
       ta.addEventListener('input',()=>{ prod.text[slot.id]=ta.value; schedule(); });
       d.appendChild(ta);
+      // この人の文字の色
+      const st = prod.style[slot.id] || {}, cols=document.createElement('div'); cols.className='cols';
+      const cp=(k,lab)=>{ const l=document.createElement('label'); l.textContent=lab; const i=document.createElement('input'); i.type='color'; i.value=st[k] || slot[k] || '#ffffff';
+        i.addEventListener('input',()=>{ const o = prod.style[slot.id] = prod.style[slot.id] || {}; o[k]=i.value; schedule(); }); l.appendChild(i); cols.appendChild(l); };
+      cp('color','文字色'); cp('strokeColor','縁取り色');
+      const rc=document.createElement('button'); rc.type='button'; rc.className='mini'; rc.textContent='テンプレートの色に戻す'; rc.onclick=()=>{ delete prod.style[slot.id]; buildMake(); schedule(); };
+      cols.appendChild(rc); d.appendChild(cols);
     } else {
       const fi=document.createElement('input'); fi.type='file'; fi.accept='image/*'; fi.setAttribute('aria-label',slot.label+'の画像');
-      const note=document.createElement('span'); note.className='hint'; note.textContent = slot.fixed ? 'テンプレートの固定画像を使用中' : '';
+      const note=document.createElement('span'); note.className='hint'; note.textContent = prod.blobs[slot.id] ? `使用中:${prod.blobs[slot.id].name||'画像'}` : (slot.id in prod.img && !prod.img[slot.id]) ? '空にしました(画像なし)' : slot.fixed ? 'テンプレートの固定画像を使用中' : '';
       const clr=document.createElement('button'); clr.type='button'; clr.className='mini'; clr.textContent='この枠を空にする';
-      fi.addEventListener('change',()=>{ const f=fi.files[0]; if(!f) return; if(prod.img[slot.id]?.startsWith('blob:')) URL.revokeObjectURL(prod.img[slot.id]); prod.img[slot.id]=URL.createObjectURL(f); note.textContent=''; schedule(); });
-      clr.onclick=()=>{ prod.img[slot.id]=null; fi.value=''; note.textContent='空にしました(画像なし)'; schedule(); };
+      fi.addEventListener('change',()=>{ const f=fi.files[0]; if(!f) return; setMemberImg(M(), slot.id, f); note.textContent=`使用中:${f.name}`; fi.value=''; buildMemberList(); schedule(); });
+      clr.onclick=()=>{ const m=M(); if(m.img[slot.id]?.startsWith('blob:')) URL.revokeObjectURL(m.img[slot.id]); m.img[slot.id]=null; delete m.blobs[slot.id]; fi.value=''; note.textContent='空にしました(画像なし)'; buildMemberList(); schedule(); };
       const row=document.createElement('div'); row.className='btns'; row.append(clr, note);
       d.append(fi,row);
       // 中の画像の大きさ・位置
@@ -976,7 +1010,48 @@ $('dragSeg').addEventListener('click', e => { const b=e.target.closest('button')
   $('stageHint').textContent = makeDrag==='inner' ? '枠の中の画像をドラッグで動かし、マウスホイールで拡大・縮小できます。枠そのものは動きません。' : MAKE_HINT; });
 $('mBg').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; prod.bg=URL.createObjectURL(f); schedule(); });
 $('mFrame').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; prod.frame=URL.createObjectURL(f); schedule(); });
-$('mName').addEventListener('input',e=>{ prod.name=e.target.value; schedule(); });
+$('mName').addEventListener('input',e=>{ prod.name=e.target.value; const li=document.querySelector(`#mList li[data-i="${mi}"] .nm`); if(li) li.textContent=e.target.value||`メンバー${mi+1}`; schedule(); });
+function setMemberImg(m, sid, file){ if(m.img[sid]?.startsWith('blob:')) URL.revokeObjectURL(m.img[sid]); m.img[sid]=URL.createObjectURL(file); m.blobs[sid]=file; }
+function thumbSlotId(){ const T=cur(); return $('bTarget').value || T?.slots.find(s=>s.type==='photo')?.id; }
+function buildMemberList(){
+  const ul=$('mList'); ul.innerHTML=''; const ts=thumbSlotId();
+  members.forEach((m,i)=>{ const li=document.createElement('li'); li.dataset.i=i; if(i===mi) li.className='sel';
+    const src = ts && m.img[ts]; let th; if(src){ th=document.createElement('img'); th.src=src; th.alt=''; } else { th=document.createElement('span'); th.className='noimg'; }
+    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=m.name||`メンバー${i+1}`;
+    const up=document.createElement('button'); up.type='button'; up.className='mini'; up.textContent='↑'; up.disabled=i===0; up.setAttribute('aria-label','上へ');
+    const dn=document.createElement('button'); dn.type='button'; dn.className='mini'; dn.textContent='↓'; dn.disabled=i===members.length-1; dn.setAttribute('aria-label','下へ');
+    up.onclick=e=>{ e.stopPropagation(); [members[i-1],members[i]]=[members[i],members[i-1]]; if(mi===i) mi--; else if(mi===i-1) mi++; buildMemberList(); saveWorkSoon(); };
+    dn.onclick=e=>{ e.stopPropagation(); [members[i+1],members[i]]=[members[i],members[i+1]]; if(mi===i) mi++; else if(mi===i+1) mi--; buildMemberList(); saveWorkSoon(); };
+    li.append(th,nm,up,dn); li.onclick=()=>selectMember(i); ul.appendChild(li); });
+  $('mDel').disabled = members.length<=1; $('bRun').textContent = `全員分(${members.length}人)をZIPで保存`;
+}
+function selectMember(i){ mi=clamp(i,0,members.length-1); buildMake(); buildOverlay(); schedule(); }
+$('mAdd').onclick=()=>{ members.push(newMember('')); selectMember(members.length-1); saveWorkSoon(); };
+$('mDup').onclick=()=>{ const s0=M(), c=newMember(s0.name ? s0.name+'のコピー' : ''); c.text={...s0.text}; c.style=JSON.parse(JSON.stringify(s0.style)); c.adj=JSON.parse(JSON.stringify(s0.adj));
+  for(const [k,g] of Object.entries(s0.geom)) c.geom[k]=Object.setPrototypeOf({x:g.x,y:g.y,w:g.w,h:g.h}, Object.getPrototypeOf(g));
+  for(const [k,b] of Object.entries(s0.blobs)) setMemberImg(c,k,b); members.splice(mi+1,0,c); selectMember(mi+1); saveWorkSoon(); };
+let mDelArmed=false;
+$('mDel').onclick=()=>{ if(members.length<=1) return; if(!mDelArmed){ mDelArmed=true; $('mDel').textContent='もう一度押すと削除'; setTimeout(()=>{ mDelArmed=false; $('mDel').textContent='削除'; },3000); return; }
+  mDelArmed=false; $('mDel').textContent='削除'; members.splice(mi,1); selectMember(Math.min(mi, members.length-1)); saveWorkSoon(); };
+$('mCopyAll').onclick=()=>{ const s0=M(); for(const m of members){ if(m===s0) continue;
+    m.style=JSON.parse(JSON.stringify(s0.style)); m.adj=JSON.parse(JSON.stringify(s0.adj)); m.geom={};
+    for(const [k,g] of Object.entries(s0.geom)) m.geom[k]=Object.setPrototypeOf({x:g.x,y:g.y,w:g.w,h:g.h}, Object.getPrototypeOf(g)); }
+  $('bMsg').textContent=`${members.length-1}人に、この人の枠の位置・写真の写り・文字の色をそろえました。`; saveWorkSoon(); };
+// 作業の自動保存(テンプレートごと。写真も保存)
+let workT=null, workLoading=false;   // 読み込み中は保存しない(空の状態で上書きしないように)
+function saveWorkSoon(){ clearTimeout(workT); workT=setTimeout(saveWork, 600); }
+async function saveWork(){ const T=cur(); if(!T || !DB.ok || workLoading) return;
+  const data={members: members.map(m=>({id:m.id, name:m.name, text:m.text, style:m.style, adj:m.adj, blobs:m.blobs, imgNull:Object.keys(m.img).filter(k=>m.img[k]===null),
+    geom:Object.fromEntries(Object.entries(m.geom).map(([k,g])=>[k,{x:g.x,y:g.y,w:g.w,h:g.h}]))})), mi};
+  try{ await DB.putWork(T.id, data); }catch(e){} }
+async function loadWork(){ const T=cur(); if(!T) return; let d=null; workLoading=true; clearTimeout(workT); try{ d=await DB.getWork(T.id); }catch(e){} workLoading=false;
+  if(cur()!==T || !d || !Array.isArray(d.members) || !d.members.length) return;
+  members = d.members.map(x=>{ const m={...newMember(x.name||''), id:x.id||newMember().id, text:x.text||{}, style:x.style||{}, adj:x.adj||{}};
+    for(const [k,b] of Object.entries(x.blobs||{})) if(b) setMemberImg(m,k,b);
+    for(const k of x.imgNull||[]) m.img[k]=null;
+    for(const [k,g] of Object.entries(x.geom||{})){ const sl=T.slots.find(s=>s.id===k); if(sl) m.geom[k]=Object.setPrototypeOf({...g}, sl); }
+    return m; });
+  mi = clamp(d.mi||0, 0, members.length-1); buildMake(); buildOverlay(); schedule(); }
 
 $('savePng').onclick=async()=>{
   const btn=$('savePng'); btn.disabled=true; btn.textContent='作成中…';
@@ -988,36 +1063,35 @@ $('savePng').onclick=async()=>{
   } finally { btn.disabled=false; btn.textContent='PNGで保存'; }
 };
 
-let batchFiles=[];
-$('bFiles').addEventListener('change',e=>{ batchFiles=[...e.target.files]; $('bRun').disabled=!batchFiles.length; $('bMsg').textContent = batchFiles.length ? `${batchFiles.length}人分の写真を選びました。` : ''; });
+$('bFiles').addEventListener('change',e=>{
+  const fs=[...e.target.files].sort((x,y)=>x.name.localeCompare(y.name,'ja',{numeric:true})); e.target.value=''; if(!fs.length) return;
+  const target=$('bTarget').value; if(!target){ $('bMsg').textContent='写真を入れる枠がありません。'; return; }
+  if($('bReplace').checked){ for(const m of members) for(const k of Object.keys(m.img)) if(m.img[k]?.startsWith('blob:')) URL.revokeObjectURL(m.img[k]); members=[]; }
+  else if(members.length===1 && !members[0].name && !Object.keys(members[0].blobs).length) members=[];   // 空の1人目は置きかえる
+  const start=members.length;
+  for(const f of fs){ const m=newMember(f.name.replace(/\.[^.]+$/,'')); setMemberImg(m,target,f); members.push(m); }
+  mi=start; buildMake(); buildOverlay(); schedule();
+  $('bMsg').textContent=`${fs.length}人をメンバーに追加しました。一覧で1人ずつ選んで、文字の色や写真の写りを調整できます。`;
+});
+$('bTarget').addEventListener('change', buildMemberList);
 $('bRun').onclick=async()=>{
   if(typeof JSZip==='undefined'){ $('bMsg').textContent='ZIPの作成機能を読み込めませんでした。ページを開き直してください。'; return; }
-  const target=$('bTarget').value; if(!target) return;
-  const btn=$('bRun'); btn.disabled=true;
-  const zip=new JSZip(); const prev=(target in prod.img)?prod.img[target]:undefined;
-  const used=new Set();
+  const btn=$('bRun'); btn.disabled=true; const keep=mi;
+  const zip=new JSZip(), used=new Set();
   try{
-    for(let i=0;i<batchFiles.length;i++){
-      const f=batchFiles[i]; const stem=f.name.replace(/\.[^.]+$/,'');
-      $('bMsg').textContent=`${i+1} / ${batchFiles.length} 人目を作成中…(${stem})`;
-      $('bBar').style.width=(i/batchFiles.length*100)+'%';
-      const url=URL.createObjectURL(f); prod.img[target]=url;
-      const c=document.createElement('canvas'); await renderTo(c,'export',null,{name:stem});
+    for(let i=0;i<members.length;i++){
+      mi=i; const nm=M().name || `メンバー${i+1}`;
+      $('bMsg').textContent=`${i+1} / ${members.length} 人目を作成中…(${nm})`; $('bBar').style.width=(i/members.length*100)+'%';
+      const c=document.createElement('canvas'); await renderTo(c,'export',null,{name:M().name});
       const blob=await new Promise(res=>c.toBlob(res,'image/png'));
-      let n=safeName(stem), k=2; while(used.has(n)) n=safeName(stem)+'_'+(k++); used.add(n);
-      zip.file(n+'.png', blob);
-      URL.revokeObjectURL(url); imgCache.delete(url);
-      await new Promise(r=>setTimeout(r,0));
+      let n=safeName(nm), k=2; while(used.has(n)) n=safeName(nm)+'_'+(k++); used.add(n);
+      zip.file(n+'.png', blob); await new Promise(r=>setTimeout(r,0));
     }
-    $('bBar').style.width='100%';
-    $('bMsg').textContent='ZIPにまとめています…';
+    $('bBar').style.width='100%'; $('bMsg').textContent='ZIPにまとめています…';
     const zblob=await zip.generateAsync({type:'blob'});
-    const res=await saveFile(safeName(cur().name)+'_'+batchFiles.length+'枚.zip', zblob);
-    $('bMsg').textContent = res==='saved' ? `${batchFiles.length}枚のポスターをZIPで保存しました。` : res==='declined' ? '保存を取り消しました。' : '保存できませんでした。もう一度試してください。';
-  } finally {
-    if(prev===undefined) delete prod.img[target]; else prod.img[target]=prev;
-    btn.disabled=false; schedule();
-  }
+    const res=await saveFile(safeName(cur().name)+'_'+members.length+'人.zip', zblob);
+    $('bMsg').textContent = res==='saved' ? `${members.length}人分のポスターをZIPで保存しました。` : res==='declined' ? '保存を取り消しました。' : '保存できませんでした。もう一度試してください。';
+  } finally { mi=keep; btn.disabled=false; buildMemberList(); schedule(); }
 };
 
 /* ---------- モード ---------- */
