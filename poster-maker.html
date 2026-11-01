@@ -124,7 +124,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.7 ・ 2026-11-01 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.8 ・ 2026-11-01 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -144,7 +144,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
       </div>
       <p class="hint" id="stageHint">枠をドラッグで移動、右下の丸で大きさを変えられます。ドラッグ中はポスターの中心・端やほかの枠にぴったり合います(Altを押している間は合わせません)。選んだ枠は矢印キーで1px(Shiftで10px)ずつ動かせます。</p>
       <div class="dragseg" id="dragBox" hidden>ドラッグで動かすもの
-        <div class="seg" id="dragSeg"><button type="button" data-v="frame" aria-pressed="true">枠ごと</button><button type="button" data-v="inner" aria-pressed="false">中の画像(写真の写り)</button></div>
+        <div class="seg" id="dragSeg"><button type="button" data-v="inner" aria-pressed="true">中の画像(写真の写り)</button><button type="button" data-v="frame" aria-pressed="false">枠ごと</button></div>
       </div>
       <label class="check" id="clineBox"><input type="checkbox" id="clineOn"> 中心線を表示</label>
     </div>
@@ -359,7 +359,7 @@ function retouch(g, f){
   }
   g.putImageData(id, 0, 0);
 }
-let makeDrag = 'frame';
+let makeDrag = 'inner';   // はじめは中の画像(写真の写り)を動かす
 
 function msg(t){ $('tplMsg').textContent=t; }
 let saveTimer=null;
