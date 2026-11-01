@@ -116,6 +116,67 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 @media (prefers-reduced-motion: reduce){.progress i{transition:none}}
 .toplink{font-size:.8rem;color:var(--muted);text-decoration:none;flex-basis:100%}
 .toplink:hover{text-decoration:underline}
+/* v2.0 初心者向け */
+:root{--warnbg:#fff6dd;--warnfg:#8a5a00;--warnline:#f1d48a;--ok:#1f9d6a}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--warnbg:#3a3020;--warnfg:#f3c86b;--warnline:#6b5527;--ok:#4cc794}}
+:root[data-theme="dark"]{--warnbg:#3a3020;--warnfg:#f3c86b;--warnline:#6b5527;--ok:#4cc794}
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.steps button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+.steps .no{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:.8rem;border:2px solid var(--line);color:var(--muted)}
+.steps li.ok .no{background:var(--ok);border-color:var(--ok);color:#fff}
+.steps li.next button{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.steps li.next .no{border-color:var(--accent);color:var(--accent)}
+.steps .tx{flex:1;min-width:0;display:flex;flex-direction:column;line-height:1.35}
+.steps .tx small{color:var(--muted);font-size:.74rem}
+.issues{display:flex;flex-direction:column;gap:4px}
+.issue{font-size:.8rem;border-radius:8px;padding:6px 10px;background:var(--warnbg);color:var(--warnfg);border:1px solid var(--warnline)}
+.issue.info{background:var(--field);color:var(--muted);border-color:var(--line)}
+.lnk{font:inherit;background:none;border:0;padding:0;margin:0 .45em 0 0;color:inherit;text-decoration:underline;cursor:pointer;font-weight:700}
+.warnline{color:var(--warnfg)}
+.warnline:empty{display:none}
+.dropping{outline:3px dashed var(--accent)!important;outline-offset:-3px;background-color:rgba(79,91,213,.14)!important}
+.swatches{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.swatches .hint{flex-basis:100%}
+.sw{width:26px;height:26px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}
+.sw:hover{box-shadow:0 0 0 2px var(--accent)}
+dialog{border:0;border-radius:14px;padding:0;background:var(--surface);color:var(--fg);width:min(560px,calc(100vw - 24px));max-width:none;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+dialog.wide{width:min(1100px,calc(100vw - 24px))}
+dialog::backdrop{background:rgba(15,15,30,.5)}
+.dlg{padding:18px 20px;display:flex;flex-direction:column;gap:12px;max-height:calc(100dvh - 40px);overflow:auto}
+.dlg h2{font-family:var(--font-display);font-size:1.1rem;margin:0}
+.dlghead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.btns.end{justify-content:flex-end}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.card{font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px;cursor:pointer;text-align:left}
+.card:hover{border-color:var(--accent)}
+.card.sel{border-color:var(--sel);box-shadow:inset 0 0 0 1px var(--sel)}
+.card canvas{width:100%;height:auto;border-radius:6px;background:repeating-conic-gradient(var(--chk) 0 25%, var(--surface) 0 50%) 0 0/14px 14px}
+.card .nm{font-weight:700;font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badges{display:flex;flex-wrap:wrap;gap:4px}
+.badge{font-size:.7rem;border-radius:999px;padding:0 8px;background:var(--warnbg);color:var(--warnfg);border:1px solid var(--warnline)}
+.badge.ok{background:transparent;color:var(--ok);border-color:var(--ok)}
+.gloss summary{cursor:pointer;font-size:.8rem;font-weight:700}
+.gloss dl{margin:6px 0 0;font-size:.8rem;display:grid;grid-template-columns:auto 1fr;gap:4px 10px}
+.gloss dt{font-weight:700}
+.gloss dd{margin:0;color:var(--muted)}
+.undo{display:inline-flex;gap:6px}
+.mini:disabled{opacity:.45;cursor:default}
+.mini.big{font-size:.82rem;padding:5px 10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+fieldset{scroll-margin-top:12px}
+fieldset.flash{animation:flash 1.4s ease-out}
+@keyframes flash{0%{background:rgba(79,91,213,.2)}100%{background:transparent}}
+@media (prefers-reduced-motion: reduce){fieldset.flash{animation:none}}
+@media (pointer:coarse){
+  .mini{padding:6px 10px;font-size:.82rem}
+  .btn.small{padding:7px 13px}
+  .seg button{padding:10px 8px}
+  .box .h{width:30px;height:30px;right:-13px;bottom:-13px}
+  input[type=range]{height:30px}
+  input[type=color]{height:40px}
+  .sw{width:34px;height:34px}
+  .steps button{padding:9px 10px}
+}
 </style>
 </head>
 <body>
@@ -124,7 +185,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.9 ・ 2026-11-01 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.0 ・ 2026-11-01 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -139,9 +200,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
         <div class="guides" id="guides" aria-hidden="true"></div>
       </div>
       <div class="actions">
-        <button class="btn" id="savePng" type="button" hidden>PNGで保存</button>
+        <button class="btn" id="savePng" type="button" hidden>画像を保存</button>
+        <button class="btn ghost small" id="saveSet" type="button" hidden>保存の設定</button>
+        <span class="undo" id="undoBox" hidden><button class="mini big" id="undoBtn" type="button" disabled>↶ 元に戻す</button><button class="mini big" id="redoBtn" type="button" disabled>↷ やり直す</button></span>
+        <button class="btn ghost small" id="gridBtn" type="button" hidden>全員を並べて確認</button>
         <span class="hint" id="sizeLabel"></span>
       </div>
+      <p class="hint status" id="stageMsg" role="status"></p>
       <p class="hint" id="stageHint">枠をドラッグで移動、右下の丸で大きさを変えられます。ドラッグ中はポスターの中心・端やほかの枠にぴったり合います(Altを押している間は合わせません)。選んだ枠は矢印キーで1px(Shiftで10px)ずつ動かせます。</p>
       <div class="dragseg" id="dragBox" hidden>ドラッグで動かすもの
         <div class="seg" id="dragSeg"><button type="button" data-v="inner" aria-pressed="true">中の画像(写真の写り)</button><button type="button" data-v="frame" aria-pressed="false">枠ごと</button></div>
@@ -223,16 +288,32 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 
       <!-- ポスター作成 -->
       <div id="makePanel" hidden>
-        <fieldset>
+        <fieldset id="guideBox">
+          <legend>かんたんガイド</legend>
+          <p class="hint">上から順に進めればポスターができます。押すとその場所へ移動します。</p>
+          <ol class="steps" id="steps"></ol>
+          <div class="issues" id="issues" role="status"></div>
+          <div class="btns"><button class="btn ghost small" id="sampleBtn" type="button">見本で試してみる</button></div>
+          <details class="gloss"><summary>ことばの説明</summary><dl>
+            <dt>テンプレート</dt><dd>ポスターのひな形(どこに写真や文字を置くか)。「テンプレートを作る」タブで作ります。</dd>
+            <dt>枠</dt><dd>写真・画像・ロゴ・文字を入れる場所。プレビューの点線の四角です。</dd>
+            <dt>中の画像</dt><dd>枠の中に入っている写真そのもの。動かすと「写り(どこを見せるか)」が変わります。</dd>
+            <dt>枠ごと</dt><dd>写真を入れる場所そのものを動かします(この人のポスターだけ)。</dd>
+            <dt>装飾フレーム</dt><dd>ポスター全体に重ねる、透明な部分のある飾りの画像(PNG)。</dd>
+            <dt>レタッチ</dt><dd>写真の明るさや色あいの調整。</dd>
+            <dt>透過(とうか)</dt><dd>画像の一部が透明になっていること。透明な部分には後ろの背景が見えます。</dd>
+          </dl></details>
+        </fieldset>
+        <fieldset id="fsBg">
           <legend>背景とフレーム</legend>
-          <label>背景画像(この画像の大きさでポスターを作ります)<input type="file" id="mBg" accept="image/*"></label>
+          <label id="mBgLab">背景画像(この画像の大きさでポスターを作ります。ここにドラッグ&ドロップでもOK)<input type="file" id="mBg" accept="image/*"></label>
           <p class="hint" id="mBgNote"></p>
           <div class="btns"><button class="mini" id="mBgClear" type="button" hidden>このタブで選んだ背景・フレームを外す</button></div>
-          <label>装飾フレーム(テンプレートのものを差し替えたいときだけ)<input type="file" id="mFrame" accept="image/png,image/webp,image/gif"></label>
+          <label id="mFrameLab">装飾フレーム(ポスター全体に重ねる飾りの透明PNG。テンプレートのものを差し替えたいときだけ)<input type="file" id="mFrame" accept="image/png,image/webp,image/gif"></label>
         </fieldset>
-        <fieldset>
+        <fieldset id="fsMembers">
           <legend>メンバー</legend>
-          <p class="hint">メンバーごとに名前・写真・文字の色・位置を調整できます。一覧で選んだ人のポスターがプレビューに出ます。</p>
+          <p class="hint">メンバーごとに名前・写真・文字の色・位置を調整できます。一覧で選んだ人のポスターがプレビューに出ます。写真を何枚かまとめてここへドラッグ&ドロップすると、1枚が1人として追加されます。</p>
           <ul class="mlist" id="mList" aria-label="メンバーの一覧"></ul>
           <div class="btns">
             <button class="btn ghost small" id="mAdd" type="button">+ 追加</button>
@@ -240,23 +321,24 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
             <button class="btn danger small" id="mDel" type="button">削除</button>
           </div>
           <label>メンバー名(文字枠の {名前} に入ります)<input type="text" id="mName" placeholder="例:シフォン"></label>
-          <div class="btns"><button class="mini" id="mCopyAll" type="button">この人の位置・写り・文字の色を全員にそろえる</button></div>
+          <div class="btns"><button class="mini" id="mCopyAll" type="button">この人の位置・写り・文字の色を全員にそろえる</button><button class="mini" id="mReset" type="button">この人の調整をリセット</button></div>
         </fieldset>
-        <fieldset>
+        <fieldset id="fsSlots">
           <legend>素材</legend>
+          <p class="hint">写真は、プレビューの枠やこの下の欄にドラッグ&ドロップでも入れられます。スライダーはダブルクリックで元の値に戻ります。</p>
           <div id="mSlots" style="display:flex;flex-direction:column;gap:8px"></div>
         </fieldset>
-        <fieldset>
+        <fieldset id="fsBatch">
           <legend>まとめて作成</legend>
           <p class="hint">メンバーの写真を複数選ぶと、1人1人のメンバーとして一覧に入ります(名前はファイル名。「シフォン.png」のように付けておくと便利です)。そのあと一覧で1人ずつ選んで、文字の色や写真の写りを調整できます。背景・フレームは全員共通です。</p>
           <label>写真を入れる枠<select id="bTarget"></select></label>
-          <label>写真をまとめて選ぶ(メンバーとして追加)<input type="file" id="bFiles" accept="image/*" multiple></label>
+          <label id="bFilesLab">写真をまとめて選ぶ(メンバーとして追加。ここにドラッグ&ドロップでもOK)<input type="file" id="bFiles" accept="image/*" multiple></label>
           <label class="check"><input type="checkbox" id="bReplace"> 今の一覧と入れ替える(オフなら後ろに追加)</label>
           <button class="btn" id="bRun" type="button">全員分をZIPで保存</button>
           <div class="progress" aria-hidden="true"><i id="bBar"></i></div>
           <p class="hint status" id="bMsg" role="status"></p>
         </fieldset>
-        <fieldset>
+        <fieldset id="fsWork">
           <legend>作業の保存</legend>
           <p class="hint">作業中のメンバー・写真・調整・このタブで選んだ背景とフレームは、テンプレートごとにこのブラウザへ自動で保存されます。別のPCに移すときや、残しておきたいときはファイルに書き出してください(テンプレートも一緒に入ります)。</p>
           <p class="hint" id="workStatus" role="status"></p>
@@ -271,6 +353,38 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
     </div>
   </div>
 </div>
+
+<dialog id="saveDlg" aria-labelledby="sdTitle">
+  <div class="dlg">
+    <div class="dlghead"><h2 id="sdTitle">保存の設定</h2><button class="btn ghost small" id="sdClose" type="button">閉じる</button></div>
+    <label>使いみち(大きさ)<select id="sdPreset">
+      <option value="orig">そのまま(元の大きさ・印刷にも)</option>
+      <option value="x">X(Twitter)向け:長い辺を 2048px まで</option>
+      <option value="insta">Instagram向け:幅 1080px</option>
+      <option value="small">Discord・LINE向け:長い辺を 1200px まで(軽い)</option>
+    </select></label>
+    <p class="hint" id="sdSize"></p>
+    <div class="dragseg">ファイルの形式
+      <div class="seg" id="sdFmt"><button type="button" data-v="png" aria-pressed="true">PNG(きれい・透明OK)</button><button type="button" data-v="jpeg" aria-pressed="false">JPEG(軽い)</button></div>
+    </div>
+    <label>ファイル名のルール({名前} {番号} {テンプレート} {日付} が使えます)<input type="text" id="sdRule" spellcheck="false"></label>
+    <div class="chips" id="sdChips"></div>
+    <p class="hint" id="sdEx"></p>
+    <div class="issues" id="sdIssues"></div>
+    <label class="check"><input type="checkbox" id="sdAsk"> 保存のたびにこの画面を出す(オフにすると「画像を保存」ですぐ保存します)</label>
+    <div class="progress" aria-hidden="true"><i id="sdBar"></i></div>
+    <p class="hint status" id="sdMsg" role="status"></p>
+    <div class="btns end"><button class="btn ghost" id="sdOne" type="button">この人だけ保存</button><button class="btn" id="sdAll" type="button">全員分をZIPで保存</button></div>
+  </div>
+</dialog>
+<dialog id="gridDlg" class="wide" aria-labelledby="gdTitle">
+  <div class="dlg">
+    <div class="dlghead"><h2 id="gdTitle">全員の一覧</h2><button class="btn ghost small" id="gdClose" type="button">閉じる</button></div>
+    <p class="hint">保存したときと同じ見た目で並べています。押すとその人を編集できます。黄色の印は確認が必要なところです。</p>
+    <div class="cards" id="gdCards"></div>
+    <p class="hint status" id="gdMsg" role="status"></p>
+  </div>
+</dialog>
 
 <script>
 (() => {
@@ -372,6 +486,9 @@ function retouch(g, f){
   g.putImageData(id, 0, 0);
 }
 let makeDrag = 'inner';   // はじめは中の画像(写真の写り)を動かす
+let swapping = false, schedAfterSwap = false, dragging = false;   // swapping:全員分を作る間だけ表示中の人を切り替えている
+const H = {undo:[], redo:[], base:null, key:'', t:null, busy:false, dirty:false};   // 元に戻す・やり直す
+const textNotes = new Map();   // メンバーごとの文字の縮み具合(はみ出しの確認用)
 
 function msg(t){ $('tplMsg').textContent=t; }
 let saveTimer=null;
@@ -541,6 +658,7 @@ async function drawSlot(c,slot,W,H,rmode,vars,A={x:0,y:0,w:1,h:1},info=null,bg=n
       if(lines.length*size*1.35<=h && Math.max(...lines.map(l=>c.measureText(l).width))<=w*1.01 || size<6) break;
       size*=.94;
     }
+    if(vars.notes && rmode!=='edit'){ const want=slot.size/100*H*A.h; vars.notes[slot.id]={ratio:size/want, fail: lines.length*size*1.35>h*1.03 || Math.max(...lines.map(l=>c.measureText(l).width))>w*1.03}; }
     c.textBaseline='middle'; c.lineJoin='round'; c.miterLimit=2;
     const ax = slot.align==='left'?0 : slot.align==='right'? w : w/2;
     c.textAlign = slot.align||'center';
@@ -588,6 +706,7 @@ function placeholder(c,slot,w,h,S){
 
 async function renderTo(c, rmode, maxSide, vars={name:prod.name}){
   const T=cur(); if(!T) return null;
+  vars = {...vars, notes:{}};
   const bgSrc = rmode==='edit' ? T.bg : (prod.bg || T.bg);
   const bg = (await getImg(bgSrc)) || sampleBg;
   const IW=bg.naturalWidth||bg.width, IH=bg.naturalHeight||bg.height;
@@ -620,12 +739,13 @@ async function renderTo(c, rmode, maxSide, vars={name:prod.name}){
       g.globalCompositeOperation='source-over';
     }
   }
-  return {W,H,BW,BH,scaled:s<1 && !maxSide, usingSample: bg===sampleBg, info, A};
+  return {W,H,BW,BH,scaled:s<1 && !maxSide, usingSample: bg===sampleBg, info, A, notes:vars.notes};
 }
 
 const cv=$('cv');
 let timer=null, running=false, again=false;
 function schedule(){
+  if(swapping){ schedAfterSwap=true; return; }
   if(mode==='make') saveWorkSoon();
   if(timer) return;
   timer=requestAnimationFrame(async()=>{
@@ -633,6 +753,7 @@ function schedule(){
     if(running){ again=true; return; }
     running=true;
     try{
+      const mid = M().id;
       const r = await renderTo(cv, mode, 1200);
       if(r){
         const board=$('board');
@@ -643,6 +764,7 @@ function schedule(){
         if(changedArea) buildOverlay();
         $('sizeLabel').textContent = (r.usingSample ? '背景未設定(サンプル表示)' : `出力サイズ ${r.BW}×${r.BH}px`) + (r.info.hasAlpha && cur().shapeFit!==false ? '・背景の形に合わせて配置中' : '');
         shapeNote(r.info);
+        if(mode==='make'){ textNotes.set(mid, r.notes); if(M().id===mid) showTextNotes(r.notes); updateGuide(); }
       }
     } finally { running=false; if(again){ again=false; schedule(); } }
   });
@@ -664,6 +786,7 @@ function buildOverlay(){
     const h=document.createElement('div'); h.className='h'; h.setAttribute('aria-label','大きさを変える');
     b.append(tg,h); overlay.appendChild(b); placeBox(b, mode==='make' ? effSlot(slot,'make') : slot);
     drag(b,slot,'move'); drag(h,slot,'resize');
+    if(mode==='make' && slot.type!=='text') dropZone(b, fs => dropToSlot(slot, fs));
     if(mode==='make') b.addEventListener('wheel', e => { if(makeDrag!=='inner' || slot.type==='text') return; e.preventDefault();   // 中の画像の拡大・縮小
       const a = prod.adj[slot.id] = prod.adj[slot.id] || {s:100,x:0,y:0}; a.s = clamp((a.s??100)*(e.deltaY<0?1.06:1/1.06), slot.fit==='contain'?20:100, 400); syncAdjUI(slot.id); schedule(); }, {passive:false});
   });
@@ -695,21 +818,18 @@ function placeBox(b,slot){
 function drag(el,tslot,kind){
   el.addEventListener('pointerdown',e=>{
     e.stopPropagation(); e.preventDefault();
+    const ae=document.activeElement; if(ae && ae!==document.body && overlay.contains(ae)===false && ae.blur) ae.blur();   // 入力欄から離れて、矢印キーが枠に効くようにする
     if(selId!==tslot.id){ selId=tslot.id; overlay.querySelectorAll('.box').forEach(x=>x.classList.toggle('sel', x.dataset.id===tslot.id)); buildSlotList(); buildProps(); refreshTags(); }   // 枠を作り直さずに選ぶ(作り直すとドラッグが途切れる)
     if(mode==='make') markMakeItem(tslot.id);
     const r=overlay.getBoundingClientRect(), sx=e.clientX, sy=e.clientY;
     if(mode==='make' && makeDrag==='inner'){
       // 中の画像を動かす(写真の写り具合)
       if(tslot.type==='text' || kind!=='move') return;
-      const a = prod.adj[tslot.id] = prod.adj[tslot.id] || {s:100,x:0,y:0}, ox=a.x||0, oy=a.y||0, br=el.getBoundingClientRect();
-      try{ el.setPointerCapture(e.pointerId); }catch(_){}
-      const mv2=ev=>{ a.x = clamp(ox+(ev.clientX-sx)/br.width, -1.5, 1.5); a.y = clamp(oy+(ev.clientY-sy)/br.height, -1.5, 1.5); syncAdjUI(tslot.id); schedule(); };
-      const up2=()=>{ el.removeEventListener('pointermove',mv2); el.removeEventListener('pointerup',up2); el.removeEventListener('pointercancel',up2); };
-      el.addEventListener('pointermove',mv2); el.addEventListener('pointerup',up2); el.addEventListener('pointercancel',up2); return;
+      innerDown(el, tslot, e); return;   // 1本指(マウス)で移動、2本指でつまんで拡大・縮小
     }
     const slot = mode==='make' ? ensureGeom(tslot) : tslot;
     const o={x:slot.x,y:slot.y,w:slot.w,h:slot.h};
-    dragKind=kind;
+    dragKind=kind; dragging=true;
     try{ el.setPointerCapture(e.pointerId); }catch(_){}
     const mv=ev=>{
       const dx=(ev.clientX-sx)/(r.width*curArea.w), dy=(ev.clientY-sy)/(r.height*curArea.h);
@@ -719,7 +839,7 @@ function drag(el,tslot,kind){
       const box=overlay.querySelector(`[data-id="${slot.id}"]`); if(box) placeBox(box,slot);
       syncGeom(); schedule();
     };
-    const up=()=>{ dragKind=null; clearGuides(); refreshTags(); el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up); changed(); };
+    const up=()=>{ dragKind=null; dragging=false; clearGuides(); refreshTags(); el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up); changed(); };
     el.addEventListener('pointermove',mv); el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
   });
 }
@@ -764,9 +884,23 @@ $('clineOn').checked = clineOn;
 $('clineOn').addEventListener('change', e => { clineOn = e.target.checked; try{ localStorage.setItem('poster-maker-centerlines', clineOn ? '1' : '0'); }catch(_){} drawCenterLines(); });
 // 矢印キーで1px(Shiftで10px)ずつ動かす
 document.addEventListener('keydown', e => {
-  if(!selId || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'') || (mode==='make' && makeDrag==='inner')) return;
-  const mvv = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]}[e.key]; if(!mvv) return;
-  const s0 = cur()?.slots.find(x => x.id===selId); if(!s0 || !dimW) return; e.preventDefault(); const slot = mode==='make' ? ensureGeom(s0) : s0;
+  const ae = document.activeElement, tag = ae?.tagName||'', isText = tag==='TEXTAREA' || (tag==='INPUT' && /^(text|number|search)$/.test(ae.type));
+  // 元に戻す(Ctrl+Z)・やり直す(Ctrl+Shift+Z / Ctrl+Y)。文字の入力中はふつうの取り消しにする
+  if(mode==='make' && (e.ctrlKey||e.metaKey) && !e.altKey && !isText && !document.querySelector('dialog[open]')){
+    const k = e.key.toLowerCase(); if(k==='z'){ e.preventDefault(); e.shiftKey ? redo() : undo(); return; } if(k==='y'){ e.preventDefault(); redo(); return; } }
+  if(!selId || /INPUT|TEXTAREA|SELECT/.test(tag) || document.querySelector('dialog[open]')) return;
+  const mvv = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]}[e.key];
+  const s0 = cur()?.slots.find(x => x.id===selId); if(!s0 || !dimW) return;
+  if(mode==='make' && makeDrag==='inner'){
+    // 中の画像:矢印キーで1px(Shiftで10px)、+ / - で拡大・縮小
+    const zoom = {'+':1.04, '=':1.04, ';':1.04, '-':1/1.04}[e.key];
+    if(s0.type==='text' || (!mvv && !zoom)) return; e.preventDefault();
+    const a = prod.adj[s0.id] = prod.adj[s0.id] || {s:100,x:0,y:0}, g = effSlot(s0,'make');
+    if(zoom) a.s = clamp((a.s??100)*zoom, s0.fit==='contain'?20:100, 400);
+    else { const st = e.shiftKey ? 10 : 1; a.x = clamp((a.x||0) + mvv[0]*st/Math.max(1, g.w*curArea.w*dimW), -1.5, 1.5); a.y = clamp((a.y||0) + mvv[1]*st/Math.max(1, g.h*curArea.h*dimH), -1.5, 1.5); }
+    syncAdjUI(s0.id); schedule(); return;
+  }
+  if(!mvv) return; e.preventDefault(); const slot = mode==='make' ? ensureGeom(s0) : s0;
   const st = e.shiftKey ? 10 : 1; slot.x += mvv[0]*st/(dimW*curArea.w); slot.y += mvv[1]*st/(dimH*curArea.h);
   const bx = overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, slot); syncGeom(); changed(); schedule();
 });
@@ -939,7 +1073,7 @@ function buildTplSel(){
 function useTemplate(id){
   curId=id; selId=null;
   try{ localStorage.setItem('poster-maker-last', id); }catch(e){}
-  resetProd(); buildTplSel(); buildSlotList(); buildProps(); buildOverlay(); buildMake(); syncShapeUI(); schedule(); loadWork();
+  resetProd(); textNotes.clear(); histReset(); buildTplSel(); buildSlotList(); buildProps(); buildOverlay(); buildMake(); syncShapeUI(); schedule(); loadWork();
 }
 $('tplSel').addEventListener('change',e=>useTemplate(e.target.value));
 $('tplName').addEventListener('input',e=>{ cur().name=e.target.value; const o=$('tplSel').selectedOptions[0]; if(o) o.textContent=e.target.value||'(名前なし)'; changed(); });
@@ -965,7 +1099,7 @@ async function saveFile(filename, data){
   }
   const blob = data instanceof Blob ? data : new Blob([data]);
   const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
+  (document.querySelector('dialog[open]')||document.body).appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),5000);
   return 'saved';
 }
 const safeName = s => (s||'poster').replace(/[\\/:*?"<>|]/g,'_').trim() || 'poster';
@@ -1007,19 +1141,22 @@ function buildMake(){
       d.appendChild(ta);
       // この人の文字の色
       const st = prod.style[slot.id] || {}, cols=document.createElement('div'); cols.className='cols';
-      const cp=(k,lab)=>{ const l=document.createElement('label'); l.textContent=lab; const i=document.createElement('input'); i.type='color'; i.value=st[k] || slot[k] || '#ffffff';
+      const cp=(k,lab)=>{ const l=document.createElement('label'); l.textContent=lab; const i=document.createElement('input'); i.type='color'; i.dataset.k=k; i.value=st[k] || slot[k] || '#ffffff';
         i.addEventListener('input',()=>{ const o = prod.style[slot.id] = prod.style[slot.id] || {}; o[k]=i.value; schedule(); }); l.appendChild(i); cols.appendChild(l); };
       cp('color','文字色'); cp('strokeColor','縁取り色');
       const rc=document.createElement('button'); rc.type='button'; rc.className='mini'; rc.textContent='テンプレートの色に戻す'; rc.onclick=()=>{ delete prod.style[slot.id]; buildMake(); schedule(); };
       cols.appendChild(rc); d.appendChild(cols);
+      const sw=document.createElement('div'); sw.className='swatches'; const swh=document.createElement('span'); swh.className='hint'; swh.textContent='おすすめの色(写真と背景から。押すと文字色になり、縁取りも見やすい色に合わせます)'; sw.appendChild(swh); d.appendChild(sw); fillSwatches(sw, slot, d);
+      const tn=document.createElement('p'); tn.className='hint warnline'; tn.dataset.tnote=slot.id; d.appendChild(tn);
     } else {
       const fi=document.createElement('input'); fi.type='file'; fi.accept='image/*'; fi.setAttribute('aria-label',slot.label+'の画像');
       const note=document.createElement('span'); note.className='hint'; note.textContent = prod.blobs[slot.id] ? `使用中:${prod.blobs[slot.id].name||'画像'}` : (slot.id in prod.img && !prod.img[slot.id]) ? '空にしました(画像なし)' : slot.fixed ? 'テンプレートの固定画像を使用中' : '';
       const clr=document.createElement('button'); clr.type='button'; clr.className='mini'; clr.textContent='この枠を空にする';
       fi.addEventListener('change',()=>{ const f=fi.files[0]; if(!f) return; setMemberImg(M(), slot.id, f); note.textContent=`使用中:${f.name}`; fi.value=''; buildMemberList(); schedule(); });
-      clr.onclick=()=>{ const m=M(); if(m.img[slot.id]?.startsWith('blob:')) URL.revokeObjectURL(m.img[slot.id]); m.img[slot.id]=null; delete m.blobs[slot.id]; fi.value=''; note.textContent='空にしました(画像なし)'; buildMemberList(); schedule(); };
+      clr.onclick=()=>{ const m=M(); m.img[slot.id]=null; delete m.blobs[slot.id]; fi.value=''; note.textContent='空にしました(画像なし)'; buildMemberList(); schedule(); };
       const row=document.createElement('div'); row.className='btns'; row.append(clr, note);
       d.append(fi,row);
+      dropZone(d, fs => dropToSlot(slot, fs));
       // 中の画像の大きさ・位置
       const adj=document.createElement('div'); adj.className='adj';
       const mk=(k,lab,min,max,def)=>{ const l=document.createElement('label'); l.textContent=lab; const r=document.createElement('input'); r.type='range'; r.min=min; r.max=max; r.dataset.adj=k; r.dataset.def=def;
@@ -1041,9 +1178,11 @@ function buildMake(){
       const all=document.createElement('button'); all.type='button'; all.className='mini'; all.textContent='このレタッチを全員にそろえる';
       all.onclick=()=>{ const f={...(prod.fx[slot.id]||{})}; for(const m of members){ m.fx=m.fx||{}; m.fx[slot.id]={...f}; } $('bMsg').textContent='このレタッチを全員にそろえました。'; schedule(); };
       rbt.appendChild(all); rb.appendChild(rbt); det.appendChild(rb); d.appendChild(det);
+      d.appendChild(bgRemoveUI(slot));
     }
-    const rs=document.createElement('button'); rs.type='button'; rs.className='mini'; rs.textContent='位置と大きさをテンプレートどおりに戻す';
-    rs.onclick=()=>{ delete prod.geom[slot.id]; delete prod.adj[slot.id]; syncAdjUI(slot.id); buildOverlay(); schedule(); };
+    const rs=document.createElement('button'); rs.type='button'; rs.className='mini'; rs.textContent='この枠の調整をリセット';
+    rs.title = slot.type==='text' ? '枠の位置・大きさと文字の色をテンプレートどおりに戻します' : '枠の位置・大きさ、写真の写り、レタッチをテンプレートどおりに戻します(写真はそのまま)';
+    rs.onclick=()=>{ delete prod.geom[slot.id]; delete prod.adj[slot.id]; delete prod.fx[slot.id]; delete prod.style[slot.id]; buildMake(); buildOverlay(); schedule(); toast(`「${slot.label}」の調整をリセットしました。「元に戻す」で戻せます。`); };
     const rsr=document.createElement('div'); rsr.className='btns'; rsr.appendChild(rs); d.appendChild(rsr);
     d.addEventListener('focusin',()=>{ if(selId!==slot.id){ selId=slot.id; markMakeItem(slot.id, true); overlay.querySelectorAll('.box').forEach(x=>x.classList.toggle('sel', x.dataset.id===slot.id)); refreshTags(); } });
     box.appendChild(d); syncAdjUI(slot.id);
@@ -1060,12 +1199,14 @@ function markMakeItem(id, noScroll){ document.querySelectorAll('#mSlots .item').
   const it=document.querySelector(`.item[data-sid="${id}"]`); if(it && !noScroll) it.scrollIntoView({block:'nearest', behavior:'smooth'}); }
 $('dragSeg').addEventListener('click', e => { const b=e.target.closest('button'); if(!b) return; makeDrag=b.dataset.v;
   $('dragSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b)); clearGuides(); buildOverlay();
-  $('stageHint').textContent = makeDrag==='inner' ? '枠の中の画像をドラッグで動かし、マウスホイールで拡大・縮小できます。枠そのものは動きません。' : MAKE_HINT; });
+  $('stageHint').textContent = makeDrag==='inner' ? INNER_HINT : MAKE_HINT; });
 $('mBgClear').onclick=()=>{ prod.bg=null; prod.bgBlob=null; prod.frame=null; prod.frameBlob=null; noteMakeBg(); schedule(); };
-$('mBg').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; prod.bg=URL.createObjectURL(f); prod.bgBlob=f; e.target.value=''; noteMakeBg(); schedule(); });
-$('mFrame').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; prod.frame=URL.createObjectURL(f); prod.frameBlob=f; e.target.value=''; noteMakeBg(); schedule(); });
+function setBgFile(f){ prod.bg=URL.createObjectURL(f); prod.bgBlob=f; noteMakeBg(); schedule(); toast(`背景に ${f.name||'画像'} を使います。`); }
+function setFrameFile(f){ prod.frame=URL.createObjectURL(f); prod.frameBlob=f; noteMakeBg(); schedule(); toast(`装飾フレームに ${f.name||'画像'} を使います。`); }
+$('mBg').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(f) setBgFile(f); });
+$('mFrame').addEventListener('change',e=>{ const f=e.target.files[0]; e.target.value=''; if(f) setFrameFile(f); });
 $('mName').addEventListener('input',e=>{ prod.name=e.target.value; const li=document.querySelector(`#mList li[data-i="${mi}"] .nm`); if(li) li.textContent=e.target.value||`メンバー${mi+1}`; schedule(); });
-function setMemberImg(m, sid, file){ if(m.img[sid]?.startsWith('blob:')) URL.revokeObjectURL(m.img[sid]); m.img[sid]=URL.createObjectURL(file); m.blobs[sid]=file; }
+function setMemberImg(m, sid, file){ m.img[sid]=URL.createObjectURL(file); m.blobs[sid]=file; }   // 前のURLは「元に戻す」で使うので残す
 function thumbSlotId(){ const T=cur(); return $('bTarget').value || T?.slots.find(s=>s.type==='photo')?.id; }
 function buildMemberList(){
   const ul=$('mList'); ul.innerHTML=''; const ts=thumbSlotId();
@@ -1093,8 +1234,8 @@ $('mCopyAll').onclick=()=>{ const s0=M(); for(const m of members){ if(m===s0) co
   $('bMsg').textContent=`${members.length-1}人に、この人の枠の位置・写真の写り・文字の色をそろえました。`; saveWorkSoon(); };
 // 作業の自動保存(テンプレートごと。写真も保存)
 let workT=null, workLoading=false;   // 読み込み中は保存しない(空の状態で上書きしないように)
-function saveWorkSoon(){ clearTimeout(workT); workT=setTimeout(saveWork, 600); }
-async function saveWork(){ const T=cur(); if(!T || !DB.ok || workLoading) return;
+function saveWorkSoon(){ clearTimeout(workT); workT=setTimeout(saveWork, 600); histTouch(); }
+async function saveWork(){ const T=cur(); if(!T || !DB.ok || workLoading) return; if(swapping){ saveWorkSoon(); return; }
   const data={members: members.map(m=>({id:m.id, name:m.name, text:m.text, style:m.style, adj:m.adj, fx:m.fx||{}, blobs:m.blobs, imgNull:Object.keys(m.img).filter(k=>m.img[k]===null),
     geom:Object.fromEntries(Object.entries(m.geom).map(([k,g])=>[k,{x:g.x,y:g.y,w:g.w,h:g.h}]))})), mi};
   data.bg = prod.bgBlob||null; data.frame = prod.frameBlob||null;
@@ -1109,7 +1250,7 @@ async function loadWork(){ const T=cur(); if(!T) return; let d=null; workLoading
     return m; });
   mi = clamp(d.mi||0, 0, members.length-1);
   if(d.bg){ prod.bg=URL.createObjectURL(d.bg); prod.bgBlob=d.bg; } if(d.frame){ prod.frame=URL.createObjectURL(d.frame); prod.frameBlob=d.frame; }
-  noteMakeBg(); buildMake(); buildOverlay(); schedule(); $('workStatus').textContent = `前回の作業を読み込みました(${members.length}人分)`; }
+  noteMakeBg(); buildMake(); buildOverlay(); schedule(); histReset(); $('workStatus').textContent = `前回の作業を読み込みました(${members.length}人分)`; }
 // このタブで選んだ背景・フレームを表示する(外すボタンつき)
 function noteMakeBg(){
   const T=cur(); let t = prod.bgBlob ? `背景:${prod.bgBlob.name||'選んだ画像'}を使用中` : (T&&T.bg ? '未選択のときはテンプレートの背景を使います。' : 'テンプレートに背景がないので、ここで選んでください。');
@@ -1144,58 +1285,403 @@ $('wImport').addEventListener('change', async e => {
   }catch(err){ $('wMsg').textContent='読み込めませんでした。「作業をファイルに書き出す」で作ったファイル(.json)を選んでください。'; }
 });
 
-$('savePng').onclick=async()=>{
-  const btn=$('savePng'); btn.disabled=true; btn.textContent='作成中…';
-  try{
-    const c=document.createElement('canvas'); const r=await renderTo(c,'export',null);
-    const blob=await new Promise(res=>c.toBlob(res,'image/png'));
-    const res=await saveFile(safeName(prod.name||cur().name)+'.png', blob);
-    $('bMsg').textContent = res==='saved' ? (r.scaled?'保存しました(背景が大きすぎたため縮小しています)。':'') : res==='declined' ? '' : '保存できませんでした。もう一度試してください。';
-  } finally { btn.disabled=false; btn.textContent='PNGで保存'; }
-};
+$('savePng').onclick=()=>openSave('one');
+$('saveSet').onclick=()=>openSave('one', true);
 
-$('bFiles').addEventListener('change',e=>{
-  const fs=[...e.target.files].sort((x,y)=>x.name.localeCompare(y.name,'ja',{numeric:true})); e.target.value=''; if(!fs.length) return;
-  const target=$('bTarget').value; if(!target){ $('bMsg').textContent='写真を入れる枠がありません。'; return; }
-  if($('bReplace').checked){ for(const m of members) for(const k of Object.keys(m.img)) if(m.img[k]?.startsWith('blob:')) URL.revokeObjectURL(m.img[k]); members=[]; }
+$('bFiles').addEventListener('change',e=>{ const fs=[...e.target.files]; e.target.value=''; if(fs.length) addMembersFromFiles(fs, $('bTarget').value); });
+function addMembersFromFiles(files, target){
+  const fs=[...files].sort((x,y)=>x.name.localeCompare(y.name,'ja',{numeric:true}));
+  if(!target){ toast('写真を入れる枠がありません。'); $('bMsg').textContent='写真を入れる枠がありません。'; return; }
+  if($('bReplace').checked) members=[];
   else if(members.length===1 && !members[0].name && !Object.keys(members[0].blobs).length) members=[];   // 空の1人目は置きかえる
   const start=members.length;
   for(const f of fs){ const m=newMember(f.name.replace(/\.[^.]+$/,'')); setMemberImg(m,target,f); members.push(m); }
   mi=start; buildMake(); buildOverlay(); schedule();
-  $('bMsg').textContent=`${fs.length}人をメンバーに追加しました。一覧で1人ずつ選んで、文字の色や写真の写りを調整できます。`;
-});
+  const t=`${fs.length}人をメンバーに追加しました。一覧で1人ずつ選んで、文字の色や写真の写りを調整できます。`; $('bMsg').textContent=t; toast(t);
+}
 $('bTarget').addEventListener('change', buildMemberList);
-$('bRun').onclick=async()=>{
-  if(typeof JSZip==='undefined'){ $('bMsg').textContent='ZIPの作成機能を読み込めませんでした。ページを開き直してください。'; return; }
-  const btn=$('bRun'); btn.disabled=true; const keep=mi;
-  const zip=new JSZip(), used=new Set();
+$('bRun').onclick=()=>openSave('all');
+
+/* ---------- 初心者向けの機能(v2.0) ---------- */
+const clone = o => JSON.parse(JSON.stringify(o||{}));
+const plainGeom = geom => Object.fromEntries(Object.entries(geom||{}).map(([k,g])=>[k,{x:g.x,y:g.y,w:g.w,h:g.h}]));
+function toast(t){ $('stageMsg').textContent = t; }
+function goTo(id){ const el=$(id); if(!el) return; el.scrollIntoView({behavior:'smooth', block:'start'}); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+
+// ── 元に戻す・やり直す(写真の差し替え・メンバーの追加や削除・背景の変更も戻せる) ──
+function snapState(){ return {mi, bg:prod.bg||null, bgBlob:prod.bgBlob||null, frame:prod.frame||null, frameBlob:prod.frameBlob||null,
+  members: members.map(m=>({id:m.id, name:m.name, img:{...m.img}, blobs:{...m.blobs}, text:{...m.text}, style:clone(m.style), adj:clone(m.adj), fx:clone(m.fx), geom:plainGeom(m.geom)}))}; }
+const snapKey = st => JSON.stringify([st.bg, st.frame, st.members.map(m=>[m.id, m.name, m.img, m.text, m.style, m.adj, m.fx, m.geom])]);
+function histReset(){ clearTimeout(H.t); H.undo=[]; H.redo=[]; H.base=snapState(); H.key=snapKey(H.base); H.dirty=false; updUndoUI(); }
+function histTouch(){ if(H.busy || mode!=='make' || !H.base) return; clearTimeout(H.t); H.dirty=true; H.t=setTimeout(()=>histCommit(), 450); updUndoUI(); }
+function histCommit(force){
+  clearTimeout(H.t); if(!H.base) return;
+  if(!force && (swapping || dragging)){ H.t=setTimeout(()=>histCommit(), 300); return; }
+  H.dirty=false; const st=snapState(), k=snapKey(st);
+  if(k!==H.key){ H.undo.push(H.base); if(H.undo.length>100) H.undo.shift(); H.redo=[]; H.key=k; }
+  H.base=st; updUndoUI();
+}
+function restoreState(st){ const T=cur();
+  members = st.members.map(x=>{ const m={...newMember(x.name), id:x.id, img:{...x.img}, blobs:{...x.blobs}, text:{...x.text}, style:clone(x.style), adj:clone(x.adj), fx:clone(x.fx), geom:{}};
+    for(const [k,g] of Object.entries(x.geom)){ const sl=T && T.slots.find(q=>q.id===k); if(sl) m.geom[k]=Object.setPrototypeOf({...g}, sl); }
+    return m; });
+  if(!members.length) members=[newMember()];
+  mi=clamp(st.mi,0,members.length-1); prod.bg=st.bg; prod.bgBlob=st.bgBlob; prod.frame=st.frame; prod.frameBlob=st.frameBlob;
+}
+function histApply(st){ H.busy=true; try{ restoreState(st); noteMakeBg(); buildMake(); buildOverlay(); schedule(); saveWorkSoon(); } finally { H.base=snapState(); H.key=snapKey(H.base); H.busy=false; updUndoUI(); } }
+function undo(){ if(swapping) return; histCommit(true); if(!H.undo.length){ toast('これ以上は戻せません。'); return; } H.redo.push(H.base); histApply(H.undo.pop()); toast('1つ前に戻しました(やり直すには Ctrl+Shift+Z)。'); }
+function redo(){ if(swapping) return; histCommit(true); if(!H.redo.length){ toast('やり直せる操作はありません。'); return; } H.undo.push(H.base); histApply(H.redo.pop()); toast('やり直しました。'); }
+function updUndoUI(){ $('undoBtn').disabled = !H.undo.length && !H.dirty; $('redoBtn').disabled = !H.redo.length || H.dirty; }
+$('undoBtn').onclick=undo; $('redoBtn').onclick=redo;
+
+// ── ドラッグ&ドロップ ──
+const isFileDrag = e => [...(e.dataTransfer?.types||[])].includes('Files');
+const isImageFile = f => /^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|avif|bmp)$/i.test(f.name||'');
+function dropZone(el, fn, when=()=>mode==='make'){
+  el.addEventListener('dragover', e=>{ if(!isFileDrag(e) || !when()) return; e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect='copy'; el.classList.add('dropping'); });
+  el.addEventListener('dragleave', e=>{ if(!el.contains(e.relatedTarget)) el.classList.remove('dropping'); });
+  el.addEventListener('drop', e=>{ if(!isFileDrag(e) || !when()) return; e.preventDefault(); e.stopPropagation(); el.classList.remove('dropping');
+    const fs=[...e.dataTransfer.files].filter(isImageFile); if(!fs.length){ toast('画像ファイル(PNG・JPEGなど)をドロップしてください。'); return; } fn(fs); });
+}
+// 決まった場所以外に落としたときに、ブラウザが画像を開いてページから離れないようにする
+window.addEventListener('dragover', e=>{ if(isFileDrag(e)) e.preventDefault(); });
+window.addEventListener('drop', e=>{ if(isFileDrag(e)){ e.preventDefault(); document.querySelectorAll('.dropping').forEach(x=>x.classList.remove('dropping')); } });
+function dropToSlot(slot, fs){
+  if(fs.length>1){ addMembersFromFiles(fs, slot.id); return; }
+  setMemberImg(M(), slot.id, fs[0]); selId=slot.id; buildMake(); buildOverlay(); schedule(); markMakeItem(slot.id, true);
+  toast(`「${slot.label}」に ${fs[0].name||'画像'} を入れました。`);
+}
+dropZone(overlay, fs=>{ const T=cur(), sl=T && T.slots.find(s=>s.id===thumbSlotId()); if(!sl){ toast('写真を入れる枠がありません。'); return; } dropToSlot(sl, fs); });
+dropZone($('fsMembers'), fs=>addMembersFromFiles(fs, thumbSlotId()));
+dropZone($('bFilesLab'), fs=>addMembersFromFiles(fs, thumbSlotId()));
+dropZone($('mBgLab'), fs=>setBgFile(fs[0]));
+dropZone($('mFrameLab'), fs=>setFrameFile(fs[0]));
+
+// ── 中の画像:1本指(マウス)で移動、2本指でつまんで拡大・縮小 ──
+function innerDown(el, tslot, e){
+  const st = el._pin || (el._pin = {pts:new Map(), on:false});
+  st.pts.set(e.pointerId, {x:e.clientX, y:e.clientY}); try{ el.setPointerCapture(e.pointerId); }catch(_){}
+  const minS = tslot.fit==='contain' ? 20 : 100;
+  const begin = () => { const a = prod.adj[tslot.id] = prod.adj[tslot.id] || {s:100,x:0,y:0}, P=[...st.pts.values()];
+    st.a=a; st.br=el.getBoundingClientRect(); st.ox=a.x||0; st.oy=a.y||0; st.os=a.s??100;
+    if(P.length>=2){ st.d0=Math.hypot(P[0].x-P[1].x, P[0].y-P[1].y)||1; st.cx=(P[0].x+P[1].x)/2; st.cy=(P[0].y+P[1].y)/2; st.pinch=true; }
+    else { st.cx=P[0].x; st.cy=P[0].y; st.pinch=false; } };
+  begin();
+  if(st.on) return; st.on=true; dragging=true;
+  const mv = ev => { if(!st.pts.has(ev.pointerId)) return; st.pts.set(ev.pointerId, {x:ev.clientX, y:ev.clientY});
+    const P=[...st.pts.values()], a=st.a; let cx=P[0].x, cy=P[0].y;
+    if(st.pinch && P.length>=2){ a.s = clamp(st.os*Math.hypot(P[0].x-P[1].x, P[0].y-P[1].y)/st.d0, minS, 400); cx=(P[0].x+P[1].x)/2; cy=(P[0].y+P[1].y)/2; }
+    a.x = clamp(st.ox+(cx-st.cx)/st.br.width, -1.5, 1.5); a.y = clamp(st.oy+(cy-st.cy)/st.br.height, -1.5, 1.5);
+    syncAdjUI(tslot.id); schedule(); };
+  const up = ev => { st.pts.delete(ev.pointerId); if(st.pts.size){ begin(); return; }
+    st.on=false; dragging=false; el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up); histTouch(); };
+  el.addEventListener('pointermove',mv); el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
+}
+
+// ── 文字のはみ出し ──
+function showTextNotes(notes){
+  document.querySelectorAll('#mSlots [data-tnote]').forEach(el=>{ const n=notes && notes[el.dataset.tnote];
+    el.textContent = !n ? '' : n.fail ? '⚠ 文字が長すぎて枠に入りきっていません。文字を減らすか、枠を大きくしてください。'
+      : n.ratio<.6 ? `⚠ 文字が長いので、小さく縮めて入れています(元の大きさの約${Math.round(n.ratio*100)}%)。` : ''; });
+}
+
+// ── かんたんガイドと「確認が必要なところ」 ──
+let savedOnce=false;
+function memberIssues(m, T){ const r=[]; if(!T) return r;
+  if(T.slots.some(s=>s.type==='photo' && !(s.id in m.img) && !s.fixed)) r.push('photo');
+  if(!(m.name||'').trim() && T.slots.some(s=>s.type==='text' && ((s.id in m.text) ? m.text[s.id] : (s.text||'')).includes('{名前}'))) r.push('name');
+  const n=textNotes.get(m.id); if(n && T.slots.some(s=>n[s.id] && (n[s.id].fail || n[s.id].ratio<.6))) r.push('small');
+  return r; }
+const ISSUE_LABEL = {photo:'写真なし', name:'名前なし', small:'文字が小さい'};
+function updateGuide(){
+  if(mode!=='make') return; const T=cur(); if(!T) return;
+  const all=members.map(m=>memberIssues(m,T)), who=k=>all.map((r,i)=>r.includes(k)?i:-1).filter(i=>i>=0);
+  const noPhoto=who('photo'), noName=who('name'), small=who('small'), n=members.length, hasPhotoSlot=T.slots.some(s=>s.type==='photo');
+  const hasBg=!!(prod.bg||T.bg), m0=members[0], hasMem = n>1 || !!(m0.name||'').trim() || Object.keys(m0.blobs).length>0;
+  const steps=[
+    {ok:hasBg, t:'背景を選ぶ', s: hasBg ? (prod.bgBlob ? 'このタブで選んだ背景を使用中' : 'テンプレートの背景を使用中') : 'まだ選んでいません', go:'fsBg'},
+    {ok:hasMem, t:'メンバーを用意する', s: `${n}人` + (hasMem ? '' : '(写真をまとめて選ぶと1人ずつ追加されます)'), go: hasMem ? 'fsMembers' : 'fsBatch'},
+    {ok: hasPhotoSlot ? !noPhoto.length : true, t:'写真を入れる', s: hasPhotoSlot ? `${n-noPhoto.length} / ${n}人 入っています` : '写真の枠はありません', go:'fsSlots'},
+    {ok: !noName.length && !small.length, t:'名前と文字を確かめる', s: noName.length||small.length ? '確認が必要なところがあります(下の黄色の欄)' : '問題は見つかっていません', go: noName.length ? 'fsMembers' : 'fsSlots'},
+    {ok:savedOnce, t:'保存する', s: savedOnce ? '保存しました' : 'この人だけ、または全員分をまとめて保存', go:'save'}];
+  const ol=$('steps'); ol.innerHTML=''; let nextSet=false;
+  steps.forEach((st,i)=>{ const li=document.createElement('li'); li.className = st.ok ? 'ok' : (!nextSet ? (nextSet=true, 'next') : '');
+    const b=document.createElement('button'); b.type='button';
+    const no=document.createElement('span'); no.className='no'; no.textContent = st.ok ? '✓' : i+1;
+    const tx=document.createElement('span'); tx.className='tx'; const bt=document.createElement('b'); bt.textContent=st.t; const sm=document.createElement('small'); sm.textContent=st.s; tx.append(bt,sm);
+    b.append(no,tx); b.onclick=()=>{ if(st.go==='save') openSave('one', true); else goTo(st.go); }; li.appendChild(b); ol.appendChild(li); });
+  const box=$('issues'); box.innerHTML='';
+  const add=(cls, lead, idxs, go)=>{ const d=document.createElement('div'); d.className='issue'+(cls?' '+cls:''); d.append(lead+' ');
+    if(idxs){ idxs.slice(0,15).forEach(i=>{ const a=document.createElement('button'); a.type='button'; a.className='lnk'; a.textContent=members[i].name||`メンバー${i+1}`; a.onclick=()=>{ selectMember(i); goTo(go); }; d.appendChild(a); });
+      if(idxs.length>15) d.append(`ほか${idxs.length-15}人`); }
+    box.appendChild(d); };
+  if(!hasBg) add('', '背景画像がまだありません。今は見本の背景で表示しています。');
+  if(noPhoto.length) add('', `写真が入っていない人(${noPhoto.length}人):`, noPhoto, 'fsSlots');
+  if(noName.length) add('', `名前が空の人(${noName.length}人。{名前} のところが空白になります):`, noName, 'fsMembers');
+  if(small.length) add('', `文字が長くて小さくなっている人(${small.length}人):`, small, 'fsSlots');
+  const empty=T.slots.filter(s=>s.type!=='text' && s.type!=='photo' && !(s.id in prod.img) && !s.fixed).map(s=>s.label);
+  if(empty.length) add('info', `この人の空の枠:${empty.join('・')}(空のままなら保存した画像には何も出ません)`);
+  if(n>1 && textNotes.size < n) add('info', '文字の長さは、プレビューに出した人と「全員を並べて確認」で見た人の分だけ確かめています。');
+  box.hidden = !box.childElementCount;
+}
+
+// ── 色のおすすめ(写真と背景からよく使われている色を拾う) ──
+const palCache=new Map();
+const hex2rgb = h => [1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+const rgb2hex = c => '#'+c.map(v=>Math.round(clamp(v,0,255)).toString(16).padStart(2,'0')).join('');
+const cdist = (a,b) => { const x=hex2rgb(a), y=hex2rgb(b); return Math.hypot(x[0]-y[0], x[1]-y[1], x[2]-y[2]); };
+function paletteOf(src){
+  if(!src) return Promise.resolve([]);
+  if(!palCache.has(src)) palCache.set(src, (async()=>{
+    const im=await getImg(src); if(!im) return [];
+    const n=48, c=document.createElement('canvas'); c.width=n; c.height=n; const g=c.getContext('2d',{willReadFrequently:true}); g.drawImage(im,0,0,n,n);
+    let d; try{ d=g.getImageData(0,0,n,n).data; }catch(e){ return []; }
+    const bins=new Map();
+    for(let i=0;i<d.length;i+=4){ if(d[i+3]<128) continue; const key=(d[i]>>5)<<6|(d[i+1]>>5)<<3|(d[i+2]>>5); const o=bins.get(key)||{n:0,r:0,g:0,b:0}; o.n++; o.r+=d[i]; o.g+=d[i+1]; o.b+=d[i+2]; bins.set(key,o); }
+    const arr=[...bins.values()].map(o=>{ const r=o.r/o.n, gg=o.g/o.n, b=o.b/o.n, mx=Math.max(r,gg,b), mn=Math.min(r,gg,b); return {hex:rgb2hex([r,gg,b]), sc:o.n*(.3+(mx?(mx-mn)/mx:0))}; }).sort((a,b)=>b.sc-a.sc);
+    const out=[]; for(const o of arr){ if(out.every(h=>cdist(h,o.hex)>70)) out.push(o.hex); if(out.length>=5) break; }
+    return out; })());
+  return palCache.get(src);
+}
+function contrastOf(hex){ const [r,g,b]=hex2rgb(hex), L=(.2126*r+.7152*g+.0722*b)/255;
+  return L>.55 ? rgb2hex([r*.28+30*.72, g*.28+22*.72, b*.28+48*.72]) : '#ffffff'; }
+async function fillSwatches(box, slot, item){
+  const T=cur(); if(!T) return; const srcs=[];
+  for(const s of T.slots){ if(s.type==='text') continue; const u=slotSrc(s,'make'); if(u && !srcs.includes(u)) srcs.push(u); if(srcs.length>=2) break; }
+  const bgs=prod.bg||T.bg; if(bgs) srcs.push(bgs);
+  const pals=await Promise.all(srcs.map(paletteOf)); let cols=[];
+  for(const p of pals) for(const c of p) if(cols.every(x=>cdist(x,c)>60)) cols.push(c);
+  cols=cols.slice(0,8); for(const c of ['#ffffff','#2b2540']) if(cols.every(x=>cdist(x,c)>40)) cols.push(c);
+  if(!box.isConnected) return;
+  for(const c of cols){ const b=document.createElement('button'); b.type='button'; b.className='sw'; b.style.background=c; b.title=`${c} を文字色にする`; b.setAttribute('aria-label', b.title);
+    b.onclick=()=>{ const o=prod.style[slot.id]=prod.style[slot.id]||{}; o.color=c; o.strokeColor=contrastOf(c);
+      item.querySelectorAll('input[type=color][data-k]').forEach(i=>{ if(o[i.dataset.k]) i.value=o[i.dataset.k]; }); schedule(); };
+    box.appendChild(b); }
+}
+
+// ── 写真の背景を透明にする(ふちから同じような色をたどって消す。単色・グラデーションの背景向け) ──
+async function removeBg(im, tol){
+  const IW=im.naturalWidth||im.width, IH=im.naturalHeight||im.height, k=Math.min(1, 2400/Math.max(IW,IH)), w=Math.max(1,Math.round(IW*k)), h=Math.max(1,Math.round(IH*k));
+  const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d',{willReadFrequently:true}); g.drawImage(im,0,0,w,h);
+  const id=g.getImageData(0,0,w,h), d=id.data, N=w*h, border=[];
+  for(let x=0;x<w;x++){ border.push(x); if(h>1) border.push((h-1)*w+x); } for(let y=1;y<h-1;y++){ border.push(y*w); if(w>1) border.push(y*w+w-1); }
+  // ふちの色をまとめて、多い色を背景の色とみなす
+  const cl=[]; for(const p of border){ if(p>=(h-1)*w && h>2) continue; const i=p*4; if(d[i+3]<16) continue; const r=d[i], gg=d[i+1], b=d[i+2]; let best=null, bd2=1e12;
+    for(const o of cl){ const dd=(o.r/o.n-r)**2+(o.g/o.n-gg)**2+(o.b/o.n-b)**2; if(dd<bd2){ bd2=dd; best=o; } }
+    if(best && bd2<(tol*.7)**2){ best.n++; best.r+=r; best.g+=gg; best.b+=b; } else if(cl.length<64) cl.push({n:1,r,g:gg,b}); }
+  const maxN=Math.max(0,...cl.map(o=>o.n)), refs=cl.filter(o=>o.n>=Math.max(4,border.length*.03,maxN*.15)).map(o=>[o.r/o.n,o.g/o.n,o.b/o.n]);
+  const near=p=>{ const i=p*4; let m=1e12; for(const [r,gg,b] of refs){ const dd=(d[i]-r)**2+(d[i+1]-gg)**2+(d[i+2]-b)**2; if(dd<m) m=dd; } return Math.sqrt(m); };
+  const mark=new Uint8Array(N), q=new Int32Array(N); let qh=0, qt=0;
+  const tryAdd=p=>{ if(mark[p]) return; if(d[p*4+3]<16 || near(p)<tol){ mark[p]=1; q[qt++]=p; } };
+  for(const p of border) tryAdd(p);
+  while(qh<qt){ const p=q[qh++], x=p%w; if(x>0) tryAdd(p-1); if(x<w-1) tryAdd(p+1); if(p>=w) tryAdd(p-w); if(p<N-w) tryAdd(p+w); }
+  let removed=0;
+  for(let p=0;p<N;p++){
+    if(mark[p]){ d[p*4+3]=0; removed++; continue; }
+    const x=p%w, edge=(x>0&&mark[p-1])||(x<w-1&&mark[p+1])||(p>=w&&mark[p-w])||(p<N-w&&mark[p+w]);
+    if(edge){ const t=clamp((near(p)-tol)/(tol*.9),0,1); d[p*4+3]=Math.round(d[p*4+3]*(.35+.65*t)); }   // 境目をなめらかに
+  }
+  if(!removed || removed>N*.97) return {ratio:removed/N};
+  g.putImageData(id,0,0);
+  const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+  return {blob, ratio:removed/N};
+}
+function bgRemoveUI(slot){
+  const det=document.createElement('details'); det.className='retouch'; const sm=document.createElement('summary'); sm.textContent='写真の背景を透明にする(単色の背景向け)'; det.appendChild(sm);
+  const w=document.createElement('div'); w.className='adj';
+  const l=document.createElement('label'); l.textContent='消す強さ(背景が残るときは右へ、人物まで消えるときは左へ)'; const r=document.createElement('input'); r.type='range'; r.min=10; r.max=110; r.value=40; l.appendChild(r);
+  const b=document.createElement('button'); b.type='button'; b.className='btn small'; b.textContent='背景を透明にする';
+  const p=document.createElement('p'); p.className='hint status'; p.setAttribute('role','status');
+  const nt=document.createElement('p'); nt.className='hint'; nt.textContent='写真のふちと同じような色を、つながっている所だけ消します。背景がごちゃごちゃした写真には向きません。うまくいかなければ「元に戻す」で戻せます。';
+  b.onclick=async()=>{ const src=prod.img[slot.id]; if(!src){ p.textContent='先にこの枠に写真を入れてください。'; return; }
+    b.disabled=true; p.textContent='処理しています…';
+    try{
+      const im=await getImg(src); if(!im){ p.textContent='写真を読み込めませんでした。'; return; }
+      const res=await removeBg(im, +r.value);
+      if(!res.blob){ p.textContent = res.ratio>.97 ? 'ほとんど全部が消えてしまうので、やめました。強さを左へ下げてください。' : '消せる背景が見つかりませんでした。強さを右へ上げると消えることもあります。'; return; }
+      if(res.ratio<.02){ p.textContent='消せる背景がほとんど見つかりませんでした。強さを右へ上げてみてください。'; return; }
+      const old=prod.blobs[slot.id], nm=((old && old.name)||'写真').replace(/\.[^.]+$/,'').replace(/_透過$/,'')+'_透過.png';
+      let f; try{ f=new File([res.blob], nm, {type:'image/png'}); }catch(_){ f=res.blob; }
+      setMemberImg(M(), slot.id, f); buildMake(); buildOverlay(); schedule();
+      toast(`「${slot.label}」の背景を透明にしました(写真の${Math.round(res.ratio*100)}%)。気に入らなければ「元に戻す」で戻せます。`);
+    } catch(e){ p.textContent='処理できませんでした。'; }
+    finally{ b.disabled=false; } };
+  w.append(l); det.append(w, b, p, nt); return det;
+}
+
+// ── この人の調整をリセット ──
+$('mReset').onclick=()=>{ const m=M(); m.style={}; m.adj={}; m.fx={}; m.geom={}; buildMake(); buildOverlay(); schedule();
+  toast('この人の枠の位置・写真の写り・レタッチ・文字の色をテンプレートどおりに戻しました(写真・名前・文字はそのまま)。「元に戻す」で戻せます。'); };
+
+// ── 見本で試す ──
+function sampleChara(i){
+  const pal=[['#bfeadb','#ff6f9f','#6a3d8f'],['#cfd8ff','#ffb23e','#24406b'],['#c8ecc0','#4aa8ff','#7a4a1f']][i%3];   // 背景は肌の色と離れた色にする(背景を消すとき顔まで消えないように)
+  const c=document.createElement('canvas'); c.width=900; c.height=1100; const g=c.getContext('2d');
+  g.fillStyle=pal[0]; g.fillRect(0,0,900,1100);   // 単色の背景(「背景を透明にする」を試せる)
+  g.fillStyle=pal[1]; g.beginPath(); g.roundRect(210,690,480,520,200); g.fill();
+  g.fillStyle='#ffe7d6'; g.beginPath(); g.arc(450,480,215,0,Math.PI*2); g.fill();
+  g.fillStyle=pal[2]; g.beginPath(); g.ellipse(450,360,232,150,0,Math.PI,0); g.fill();
+  g.beginPath(); g.ellipse(250,520,55,190,.12,0,Math.PI*2); g.fill(); g.beginPath(); g.ellipse(650,520,55,190,-.12,0,Math.PI*2); g.fill();
+  g.fillStyle='#2b2540'; for(const x of [375,525]){ g.beginPath(); g.ellipse(x,505,20,30,0,0,Math.PI*2); g.fill(); }
+  g.fillStyle='rgba(255,120,150,.4)'; for(const x of [335,565]){ g.beginPath(); g.ellipse(x,575,36,20,0,0,Math.PI*2); g.fill(); }
+  g.strokeStyle='#c94b6c'; g.lineWidth=9; g.lineCap='round'; g.beginPath(); g.arc(450,560,38,.18*Math.PI,.82*Math.PI); g.stroke();
+  return new Promise(res=>c.toBlob(b=>{ let f; try{ f=new File([b], `サンプル${'ABC'[i]}.png`, {type:'image/png'}); }catch(_){ f=b; } res(f); }, 'image/png'));
+}
+function sampleBgURL(){
+  const c=document.createElement('canvas'); c.width=1080; c.height=1350; const g=c.getContext('2d');
+  const gr=g.createLinearGradient(0,0,1080,1350); gr.addColorStop(0,'#6c63f0'); gr.addColorStop(1,'#ff8fc7'); g.fillStyle=gr; g.fillRect(0,0,1080,1350);
+  let sd=7; const rnd=()=>(sd=(sd*16807)%2147483647)/2147483647;
+  for(let i=0;i<26;i++){ g.fillStyle=`rgba(255,255,255,${.06+rnd()*.12})`; g.beginPath(); g.arc(rnd()*1080,rnd()*1350,30+rnd()*160,0,Math.PI*2); g.fill(); }
+  for(let i=0;i<90;i++){ g.fillStyle=`rgba(255,255,255,${.5+rnd()*.5})`; g.beginPath(); g.arc(rnd()*1080,rnd()*1350,1+rnd()*3,0,Math.PI*2); g.fill(); }
+  return c.toDataURL('image/png');
+}
+function sampleLogoURL(){
+  const c=document.createElement('canvas'); c.width=640; c.height=220; const g=c.getContext('2d');
+  g.font='800 120px "M PLUS Rounded 1c", "Zen Maru Gothic", sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.lineJoin='round';
+  g.lineWidth=22; g.strokeStyle='#4f3bb8'; g.strokeText('SAMPLE',320,115); g.fillStyle='#ffffff'; g.fillText('SAMPLE',320,115);
+  return c.toDataURL('image/png');
+}
+$('sampleBtn').onclick=async()=>{
+  const btn=$('sampleBtn'); btn.disabled=true;
+  try{
+    const old=templates.find(t=>t.sample); if(old){ templates=templates.filter(t=>t!==old); try{ await DB.del(old.id); }catch(e){} }
+    const t=defaultTemplate(); t.name='見本(お試し用)'; t.sample=true; t.bg=sampleBgURL();
+    const lg=t.slots.find(x=>x.type==='logo'); if(lg) lg.fixed=sampleLogoURL();
+    const dt=t.slots.find(x=>x.label==='日付など'); if(dt) dt.text='11/1(日) 21:00〜 配信';
+    templates.push(t); curId=t.id; changed(); useTemplate(t.id);
+    const fs=await Promise.all([0,1,2].map(sampleChara)), ph=t.slots.find(x=>x.type==='photo');
+    members=fs.map((f,i)=>{ const m=newMember(['サンプルA','サンプルB','サンプルC'][i]); setMemberImg(m, ph.id, f); return m; }); mi=0;
+    buildMake(); buildOverlay(); schedule(); histReset();
+    toast('見本のテンプレート「見本(お試し用)」に3人分を用意しました。写真を動かしたり、色を変えたり、保存してみてください。自分の作業には、いちばん上のテンプレートの選択で戻れます。');
+    goTo('guideBox');
+  } finally { btn.disabled=false; }
+};
+
+// ── 保存の設定(大きさ・形式・ファイル名) ──
+const OUT_DEF={preset:'orig', fmt:'png', rule:'{名前}', ask:true};
+let O={...OUT_DEF}; try{ Object.assign(O, JSON.parse(localStorage.getItem('poster-maker-out')||'{}')); }catch(e){}
+const saveO=()=>{ try{ localStorage.setItem('poster-maker-out', JSON.stringify(O)); }catch(e){} };
+function outSize(BW,BH,p){ let k=1; if(p==='x') k=Math.min(1,2048/Math.max(BW,BH)); else if(p==='insta') k=1080/BW; else if(p==='small') k=Math.min(1,1200/Math.max(BW,BH)); return [Math.max(1,Math.round(BW*k)), Math.max(1,Math.round(BH*k))]; }
+const pad2=n=>String(n).padStart(2,'0');
+function fileBase(m,i){ const d=new Date();
+  return safeName((O.rule||'{名前}').replaceAll('{名前}', (m.name||'').trim()||`メンバー${i+1}`).replaceAll('{番号}', pad2(i+1)).replaceAll('{テンプレート}', cur()?.name||'poster').replaceAll('{日付}', `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`)); }
+const ext=()=>O.fmt==='jpeg'?'.jpg':'.png';
+const CHIPS=['{名前}','{番号}_{名前}','Yumechiffo_{名前}','{テンプレート}_{名前}_{日付}'];
+CHIPS.forEach(c=>{ const b=document.createElement('button'); b.type='button'; b.className='mini'; b.textContent=c; b.onclick=()=>{ O.rule=c; saveO(); syncSaveDlg(); }; $('sdChips').appendChild(b); });
+function syncSaveDlg(){
+  $('sdPreset').value=O.preset; $('sdFmt').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.v===O.fmt));
+  if(document.activeElement!==$('sdRule')) $('sdRule').value=O.rule; $('sdAsk').checked=O.ask;
+  const [w,h]=outSize(dimW||1080, dimH||1350, O.preset); $('sdSize').textContent = dimW ? `保存する大きさ:${w}×${h}px` + (O.preset==='insta' && w>dimW ? '(元より大きく引きのばします)' : '') : '';
+  $('sdEx').textContent = `ファイル名の例:${fileBase(M(), mi)}${ext()}`;
+  $('sdAll').textContent = `全員分(${members.length}人)をZIPで保存`;
+  const T=cur(), me=memberIssues(M(),T), bad=members.filter(m=>memberIssues(m,T).length).length, box=$('sdIssues'); box.innerHTML='';
+  const add=t=>{ const d=document.createElement('div'); d.className='issue'; d.textContent=t; box.appendChild(d); };
+  if(me.includes('photo')) add('この人はまだ写真が入っていません。'); if(me.includes('name')) add('この人は名前が空です。'); if(me.includes('small')) add('この人は文字が長くて小さくなっています。');
+  if(bad && members.length>1) add(`全員のうち ${bad}人に確認が必要なところがあります(「全員を並べて確認」で見られます)。`);
+  if(O.fmt==='jpeg' && curInfo && curInfo.hasAlpha) add('JPEGは透明にできないので、透明な部分は白になります。');
+}
+$('sdPreset').addEventListener('change', e=>{ O.preset=e.target.value; saveO(); syncSaveDlg(); });
+$('sdFmt').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; O.fmt=b.dataset.v; saveO(); syncSaveDlg(); });
+$('sdRule').addEventListener('input', e=>{ O.rule=e.target.value; saveO(); syncSaveDlg(); });
+$('sdAsk').addEventListener('change', e=>{ O.ask=e.target.checked; saveO(); });
+$('sdClose').onclick=()=>{ if(!saveBusy) $('saveDlg').close(); };
+$('saveDlg').addEventListener('cancel', e=>{ if(saveBusy) e.preventDefault(); });
+$('sdOne').onclick=()=>saveOne(); $('sdAll').onclick=()=>saveAll();
+let saveBusy=false;
+function sMsg(t){ $('sdMsg').textContent=t; toast(t); }
+function sBar(v){ $('sdBar').style.width=v+'%'; $('bBar').style.width=v+'%'; }
+function setSaveBtns(dis){ for(const id of ['sdOne','sdAll','savePng','bRun','sdClose']) $(id).disabled=dis; }
+function openSave(kind, force){
+  if(saveBusy) return; syncSaveDlg(); $('sdMsg').textContent=''; sBar(0);
+  if(!O.ask && !force){ kind==='all' ? saveAll() : saveOne(); return; }
+  $('saveDlg').showModal(); (kind==='all' ? $('sdAll') : $('sdOne')).focus();
+}
+async function renderOut(vars){
+  const c=document.createElement('canvas'), r=await renderTo(c,'export',null,vars), [w,h]=outSize(r.BW,r.BH,O.preset); let src=c;
+  if(w!==c.width || h!==c.height){
+    while(src.width/2>=w && src.height/2>=h){ const t=document.createElement('canvas'); t.width=Math.round(src.width/2); t.height=Math.round(src.height/2); const tg=t.getContext('2d'); tg.imageSmoothingQuality='high'; tg.drawImage(src,0,0,t.width,t.height); src=t; }
+    const t=document.createElement('canvas'); t.width=w; t.height=h; const tg=t.getContext('2d'); tg.imageSmoothingQuality='high'; tg.drawImage(src,0,0,w,h); src=t; }
+  if(O.fmt==='jpeg'){ const t=document.createElement('canvas'); t.width=src.width; t.height=src.height; const tg=t.getContext('2d'); tg.fillStyle='#ffffff'; tg.fillRect(0,0,t.width,t.height); tg.drawImage(src,0,0); src=t; }
+  const blob=await new Promise(res=>src.toBlob(res, O.fmt==='jpeg'?'image/jpeg':'image/png', .92));
+  return {blob, r, w:src.width, h:src.height};
+}
+async function saveOne(){
+  if(saveBusy) return; saveBusy=true; setSaveBtns(true); sMsg('作成しています…');
+  try{
+    const {blob, r, w, h}=await renderOut({name:M().name}); textNotes.set(M().id, r.notes); const fn=fileBase(M(),mi)+ext();
+    const res=await saveFile(fn, blob);
+    if(res==='saved'){ savedOnce=true; sBar(100); sMsg(`保存しました(${fn}・${w}×${h}px)。` + (r.scaled && O.preset==='orig' ? '背景が大きすぎたため縮小しています。' : '')); }
+    else sMsg(res==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。');
+  } catch(e){ sMsg('保存できませんでした。'); }
+  finally { saveBusy=false; setSaveBtns(false); updateGuide(); if($('saveDlg').open) syncSaveDlg(); }
+}
+async function saveAll(){
+  if(saveBusy) return;
+  if(typeof JSZip==='undefined'){ sMsg('ZIPの作成機能を読み込めませんでした。ページを開き直してください。'); return; }
+  saveBusy=true; setSaveBtns(true); const keep=mi, zip=new JSZip(), used=new Set(); swapping=true;
   try{
     for(let i=0;i<members.length;i++){
-      mi=i; const nm=M().name || `メンバー${i+1}`;
-      $('bMsg').textContent=`${i+1} / ${members.length} 人目を作成中…(${nm})`; $('bBar').style.width=(i/members.length*100)+'%';
-      const c=document.createElement('canvas'); await renderTo(c,'export',null,{name:M().name});
-      const blob=await new Promise(res=>c.toBlob(res,'image/png'));
-      let n=safeName(nm), k=2; while(used.has(n)) n=safeName(nm)+'_'+(k++); used.add(n);
-      zip.file(n+'.png', blob); await new Promise(r=>setTimeout(r,0));
+      mi=i; const nm=M().name||`メンバー${i+1}`; sMsg(`${i+1} / ${members.length} 人目を作成中…(${nm})`); sBar(i/members.length*100);
+      const {blob, r}=await renderOut({name:M().name}); textNotes.set(M().id, r.notes);
+      let n=fileBase(M(),i), k=2; while(used.has(n)) n=fileBase(M(),i)+'_'+(k++); used.add(n);
+      zip.file(n+ext(), blob); await new Promise(res=>setTimeout(res,0));
     }
-    $('bBar').style.width='100%'; $('bMsg').textContent='ZIPにまとめています…';
+    sBar(100); sMsg('ZIPにまとめています…');
     const zblob=await zip.generateAsync({type:'blob'});
     const res=await saveFile(safeName(cur().name)+'_'+members.length+'人.zip', zblob);
-    $('bMsg').textContent = res==='saved' ? `${members.length}人分のポスターをZIPで保存しました。` : res==='declined' ? '保存を取り消しました。' : '保存できませんでした。もう一度試してください。';
-  } finally { mi=keep; btn.disabled=false; buildMemberList(); schedule(); }
-};
+    if(res==='saved'){ savedOnce=true; sMsg(`${members.length}人分のポスターをZIPで保存しました。`); $('bMsg').textContent=`${members.length}人分のポスターをZIPで保存しました。`; }
+    else sMsg(res==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。');
+  } catch(e){ sMsg('保存できませんでした。'); }
+  finally { mi=keep; swapping=false; schedAfterSwap=false; saveBusy=false; setSaveBtns(false); buildMemberList(); schedule(); updateGuide(); if($('saveDlg').open) syncSaveDlg(); }
+}
+
+// ── 全員を並べて確認 ──
+let gridRun=0;
+$('gridBtn').onclick=openGrid;
+$('gdClose').onclick=()=>$('gridDlg').close();
+async function openGrid(){
+  if(saveBusy) return;
+  const dlg=$('gridDlg'), box=$('gdCards'), run=++gridRun; box.innerHTML=''; dlg.showModal();
+  const cards=members.map((m,i)=>{ const b=document.createElement('button'); b.type='button'; b.className='card'+(i===mi?' sel':'');
+    const c=document.createElement('canvas'); c.width=150; c.height=190; const nm=document.createElement('span'); nm.className='nm'; nm.textContent=m.name||`メンバー${i+1}`;
+    const bd=document.createElement('div'); bd.className='badges'; b.append(c,nm,bd); b.onclick=()=>{ dlg.close(); selectMember(i); toast(`${nm.textContent} を表示しています。`); }; box.appendChild(b); return {c,bd}; });
+  $('gdMsg').textContent='作成しています…';
+  const keep=mi; swapping=true; let done=0;
+  try{ for(let i=0;i<members.length;i++){ if(run!==gridRun || !dlg.open) break; mi=i; const r=await renderTo(cards[i].c,'export',320,{name:M().name}); textNotes.set(M().id, r.notes); done++; $('gdMsg').textContent=`作成しています…(${done} / ${members.length})`; await new Promise(res=>setTimeout(res,0)); } }
+  finally { mi=keep; swapping=false; schedAfterSwap=false; schedule(); }
+  if(run!==gridRun) return;
+  const T=cur(); let bad=0;
+  members.forEach((m,i)=>{ if(i>=done) return; const iss=memberIssues(m,T), bd=cards[i].bd; if(iss.length) bad++;
+    if(!iss.length){ const s=document.createElement('span'); s.className='badge ok'; s.textContent='OK'; bd.appendChild(s); }
+    iss.forEach(k=>{ const s=document.createElement('span'); s.className='badge'; s.textContent=ISSUE_LABEL[k]; bd.appendChild(s); }); });
+  $('gdMsg').textContent = done<members.length ? '途中で閉じました。' : bad ? `${members.length}人のうち ${bad}人に確認が必要なところがあります。` : `${members.length}人とも問題は見つかりませんでした。`;
+  updateGuide();
+}
+
+// ── ボタンの説明(マウスを乗せると出る) ──
+const TIPS={mAdd:'空のメンバーを1人追加します', mDup:'選んでいる人を、写真や調整ごとコピーします', mDel:'選んでいる人を一覧から消します(2回押すと消えます)',
+  mCopyAll:'この人の枠の位置・写真の写り・文字の色を、ほかの全員にも同じにします', mReset:'この人の枠の位置・写真の写り・レタッチ・文字の色をテンプレートどおりに戻します(写真と名前はそのまま)',
+  savePng:'今プレビューに出ている人のポスターを保存します', saveSet:'保存する大きさ・形式・ファイル名を決めます', bRun:'一覧の全員分を作って、1つのZIPファイルにまとめて保存します',
+  gridBtn:'全員のポスターを小さく並べて、抜けやズレがないか確認します', undoBtn:'1つ前の状態に戻します(Ctrl+Z)', redoBtn:'戻した操作をやり直します(Ctrl+Shift+Z)',
+  wSave:'このブラウザに今すぐ保存します(ふだんは自動で保存されます)', wExport:'写真・テンプレートごと1つのファイルに書き出します。別のPCやブラウザで続きができます',
+  mBgClear:'このタブで選んだ背景とフレームを外して、テンプレートのものに戻します', sampleBtn:'見本のテンプレートと3人分の写真で、作り方を試せます(今の作業は消えません)'};
+for(const [k,v] of Object.entries(TIPS)){ const el=$(k); if(el) el.title=v; }
+document.querySelectorAll('#dragSeg button').forEach(b=>{ b.title = b.dataset.v==='inner' ? '枠はそのままで、中の写真の位置や大きさ(写り)を変えます' : '写真を入れる枠そのものを動かしたり、大きさを変えたりします(この人のポスターだけ)'; });
 
 /* ---------- モード ---------- */
 const EDIT_HINT = '枠をドラッグで移動、右下の丸で大きさを変えられます。ドラッグ中はポスターの中心・端やほかの枠にぴったり合います(Altを押している間は合わせません)。選んだ枠は矢印キーで1px(Shiftで10px)ずつ動かせます。';
-const MAKE_HINT = 'このポスターだけ、枠をドラッグで動かしたり、右下の丸で大きさを変えたりできます(テンプレートは変わりません)。写真の写り具合は「中の画像」に切り替えて調整します。点線の枠はまだ画像が入っていない場所で、保存した画像には表示されません。';
+const MAKE_HINT = 'このポスターだけ、枠をドラッグで動かしたり、右下の丸で大きさを変えたりできます(テンプレートは変わりません)。写真の写り具合は「中の画像」に切り替えて調整します。点線の枠はまだ画像が入っていない場所で、保存した画像には表示されません。間違えたら「元に戻す」(Ctrl+Z)で戻せます。';
+const INNER_HINT = '枠の中の写真をドラッグで動かし、マウスホイール(スマホは枠の中を2本指でつまむ)で拡大・縮小できます。枠を選んで矢印キーや + / − でも少しずつ動かせます。写真は枠にドラッグ&ドロップでも入れられます。間違えたら「元に戻す」(Ctrl+Z)で戻せます。';
 $('modeSeg').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b) return;
   mode=b.dataset.v;
   $('modeSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));
   $('editPanel').hidden = mode!=='edit'; $('makePanel').hidden = mode!=='make';
   $('tplEditBox').hidden = mode!=='edit'; $('savePng').hidden = mode!=='make';
-  $('stageHint').textContent = mode==='edit' ? EDIT_HINT : (makeDrag==='inner' ? '枠の中の画像をドラッグで動かし、マウスホイールで拡大・縮小できます。枠そのものは動きません。' : MAKE_HINT);
-  buildOverlay(); buildMake(); schedule();
+  $('stageHint').textContent = mode==='edit' ? EDIT_HINT : (makeDrag==='inner' ? INNER_HINT : MAKE_HINT);
+  for(const id of ['undoBox','gridBtn','saveSet']) $(id).hidden = mode!=='make';
+  if(mode!=='make') toast('');
+  buildOverlay(); buildMake(); schedule(); updateGuide();
 });
 
 /* ---------- 起動 ---------- */
