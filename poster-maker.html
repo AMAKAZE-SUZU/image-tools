@@ -90,6 +90,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .kind{font-size:.68rem;letter-spacing:.04em;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:0 7px;white-space:nowrap}
 .mini{font:inherit;font-size:.75rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:1px 7px;cursor:pointer}
 .item{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
+.item.sel{border-color:var(--sel);box-shadow:inset 3px 0 0 var(--sel)}
+.item .adj{display:flex;flex-wrap:wrap;gap:8px}
+.item .adj label{flex:1 1 90px}
+.overlay.inner .box .h{display:none!important}
+.overlay.inner .box{cursor:grab}
+.dragseg{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:.8rem;color:var(--muted)}
+.dragseg .seg button{font-size:.78rem;padding:5px 10px}
 .item .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .item .top b{font-size:.85rem}
 .status{min-height:1.3em}
@@ -106,7 +113,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.3 ・ 2026-11-01 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.4 ・ 2026-11-01 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -125,6 +132,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
         <span class="hint" id="sizeLabel"></span>
       </div>
       <p class="hint" id="stageHint">枠をドラッグで移動、右下の丸で大きさを変えられます。ドラッグ中はポスターの中心・端やほかの枠にぴったり合います(Altを押している間は合わせません)。選んだ枠は矢印キーで1px(Shiftで10px)ずつ動かせます。</p>
+      <div class="dragseg" id="dragBox" hidden>ドラッグで動かすもの
+        <div class="seg" id="dragSeg"><button type="button" data-v="frame" aria-pressed="true">枠ごと</button><button type="button" data-v="inner" aria-pressed="false">中の画像(写真の写り)</button></div>
+      </div>
       <label class="check" id="clineBox"><input type="checkbox" id="clineOn"> 中心線を表示</label>
     </div>
 
@@ -297,7 +307,12 @@ const DB = {
 
 let templates=[], curId=null, selId=null, mode='edit';
 const cur = () => templates.find(t=>t.id===curId);
-const prod = {bg:null, frame:null, img:{}, text:{}, name:''};
+const prod = {bg:null, frame:null, img:{}, text:{}, name:'', geom:{}, adj:{}};   // geom:このポスターだけの枠の位置 / adj:中の画像の大きさ・位置
+// このポスターだけの枠(テンプレートの枠を元に、位置と大きさだけ持つ。ほかの設定はテンプレートのまま)
+function ensureGeom(slot){ let g = prod.geom[slot.id]; if(!g){ g = Object.setPrototypeOf({x:slot.x, y:slot.y, w:slot.w, h:slot.h}, slot); prod.geom[slot.id] = g; } return g; }
+const effSlot = (slot, rmode) => rmode==='edit' ? slot : (prod.geom[slot.id] || slot);
+const slotAdj = (slot, rmode) => rmode==='edit' ? null : (prod.adj[slot.id] || null);
+let makeDrag = 'frame';
 
 function msg(t){ $('tplMsg').textContent=t; }
 let saveTimer=null;
@@ -417,10 +432,13 @@ function wrap(c,text,maxW){
   }
   return out;
 }
-function drawCover(c,im,x,y,w,h){
+function drawCover(c,im,x,y,w,h,adj){
   const iw=im.naturalWidth||im.width, ih=im.naturalHeight||im.height;
-  const s=Math.max(w/iw,h/ih), sw=w/s, sh=h/s;
-  c.drawImage(im,(iw-sw)/2,(ih-sh)/2,sw,sh,x,y,w,h);
+  if(!adj){ const s=Math.max(w/iw,h/ih), sw=w/s, sh=h/s; c.drawImage(im,(iw-sw)/2,(ih-sh)/2,sw,sh,x,y,w,h); return; }
+  // 大きさ(100%で枠にぴったり)と位置(枠の幅・高さに対する割合)。枠からはみ出して隙間ができないようにする
+  const k=Math.max(w/iw,h/ih)*Math.max(1,(adj.s??100)/100), dw=iw*k, dh=ih*k;
+  const dx=clamp((w-dw)/2+(adj.x||0)*w, w-dw, 0), dy=clamp((h-dh)/2+(adj.y||0)*h, h-dh, 0);
+  c.save(); c.beginPath(); c.rect(x,y,w,h); c.clip(); c.drawImage(im,x+dx,y+dy,dw,dh); c.restore();
 }
 function shapePath(c,slot,x,y,w,h){
   c.beginPath();
@@ -442,7 +460,7 @@ async function drawSlot(c,slot,W,H,rmode,vars,A={x:0,y:0,w:1,h:1},info=null,bg=n
   if(slot.fillShape && slot.type!=='text' && info && info.hasAlpha && bg){
     const im = await getImg(slotSrc(slot,rmode)); const b=info.bbox;
     const o=document.createElement('canvas'); o.width=c.canvas.width; o.height=c.canvas.height; const g=o.getContext('2d');
-    if(im) drawCover(g,im,b.x*W,b.y*H,Math.max(1,b.w*W),Math.max(1,b.h*H));
+    if(im) drawCover(g,im,b.x*W,b.y*H,Math.max(1,b.w*W),Math.max(1,b.h*H),slotAdj(slot,rmode));
     else if(rmode!=='export'){ g.translate(b.x*W,b.y*H); placeholder(g,slot,b.w*W,b.h*H,Math.min(W,H)/1000); g.setTransform(1,0,0,1,0,0); }
     g.globalCompositeOperation='destination-in'; g.drawImage(bg,0,0,W,H);
     c.drawImage(o,0,0); return;
@@ -482,13 +500,13 @@ async function drawSlot(c,slot,W,H,rmode,vars,A={x:0,y:0,w:1,h:1},info=null,bg=n
   const bw=(slot.border||0)*S;
   if(slot.fit==='contain'){
     const iw=im.naturalWidth||im.width, ih=im.naturalHeight||im.height;
-    const k=Math.min(w/iw,h/ih), dw=iw*k, dh=ih*k;
-    if(slot.shape!=='rect'){ c.save(); c.shadowColor='transparent'; shapePath(c,slot,0,0,w,h); c.clip(); c.drawImage(im,(w-dw)/2,(h-dh)/2,dw,dh); c.restore(); }
-    else c.drawImage(im,(w-dw)/2,(h-dh)/2,dw,dh);
+    const a=slotAdj(slot,rmode)||{}, k=Math.min(w/iw,h/ih)*Math.max(.2,(a.s??100)/100), dw=iw*k, dh=ih*k, ox=(w-dw)/2+(a.x||0)*w, oy=(h-dh)/2+(a.y||0)*h;
+    if(slot.shape!=='rect'){ c.save(); c.shadowColor='transparent'; shapePath(c,slot,0,0,w,h); c.clip(); c.drawImage(im,ox,oy,dw,dh); c.restore(); }
+    else c.drawImage(im,ox,oy,dw,dh);
   } else {
     c.fillStyle=slot.borderColor; shapePath(c,slot,0,0,w,h); c.fill();
     c.shadowColor='transparent';
-    c.save(); shapePath(c,slot,bw,bw,w-bw*2,h-bw*2); c.clip(); drawCover(c,im,bw,bw,w-bw*2,h-bw*2); c.restore();
+    c.save(); shapePath(c,slot,bw,bw,w-bw*2,h-bw*2); c.clip(); drawCover(c,im,bw,bw,w-bw*2,h-bw*2,slotAdj(slot,rmode)); c.restore();
   }
   c.restore();
 }
@@ -518,9 +536,9 @@ async function renderTo(c, rmode, maxSide, vars={name:prod.name}){
   drawBackground(g, bg, W, H, T, s, plain);
   const frameSrc = rmode==='edit' ? T.frame : (prod.frame || T.frame);
   const frame = await getImg(frameSrc);
-  for(const slot of T.slots) if(!slot.above) await drawSlot(g,slot,W,H,rmode,vars,A,info,bg);
+  for(const slot of T.slots) if(!slot.above) await drawSlot(g,effSlot(slot,rmode),W,H,rmode,vars,A,info,bg);
   if(frame) g.drawImage(frame,0,0,W,H);
-  for(const slot of T.slots) if(slot.above) await drawSlot(g,slot,W,H,rmode,vars,A,info,bg);
+  for(const slot of T.slots) if(slot.above) await drawSlot(g,effSlot(slot,rmode),W,H,rmode,vars,A,info,bg);
   if(info.hasAlpha){
     // はみ出した部分を背景の形で切り取る
     if(T.shapeClip!==false){ g.globalCompositeOperation='destination-in'; g.drawImage(bg,0,0,W,H); g.globalCompositeOperation='source-over'; }
@@ -564,8 +582,7 @@ function schedule(){
 /* ---------- オーバーレイ(枠のドラッグ) ---------- */
 const overlay=$('overlay');
 function buildOverlay(){
-  overlay.innerHTML=''; drawCenterLines(); $('clineBox').hidden = mode!=='edit';
-  if(mode!=='edit') return;
+  overlay.innerHTML=''; drawCenterLines(); $('dragBox').hidden = mode!=='make'; overlay.classList.toggle('inner', mode==='make' && makeDrag==='inner');
   const T=cur(); if(!T) return;
   if(curInfo && curInfo.hasAlpha && T.shapeFit!==false){
     const a=document.createElement('div'); a.className='area'; const A=curArea;
@@ -576,8 +593,10 @@ function buildOverlay(){
     const b=document.createElement('div'); b.className='box'+(slot.id===selId?' sel':''); b.dataset.id=slot.id;
     const tg=document.createElement('span'); tg.className='tagl'; tg.textContent=tagText(slot);
     const h=document.createElement('div'); h.className='h'; h.setAttribute('aria-label','大きさを変える');
-    b.append(tg,h); overlay.appendChild(b); placeBox(b,slot);
+    b.append(tg,h); overlay.appendChild(b); placeBox(b, mode==='make' ? effSlot(slot,'make') : slot);
     drag(b,slot,'move'); drag(h,slot,'resize');
+    if(mode==='make') b.addEventListener('wheel', e => { if(makeDrag!=='inner' || slot.type==='text') return; e.preventDefault();   // 中の画像の拡大・縮小
+      const a = prod.adj[slot.id] = prod.adj[slot.id] || {s:100,x:0,y:0}; a.s = clamp((a.s??100)*(e.deltaY<0?1.06:1/1.06), slot.fit==='contain'?20:100, 400); syncAdjUI(slot.id); schedule(); }, {passive:false});
   });
 }
 let dimW=0, dimH=0, dragKind=null;
@@ -604,11 +623,22 @@ function placeBox(b,slot){
   b.style.width=R.w*100+'%'; b.style.height=R.h*100+'%';
   b.style.transform=`rotate(${slot.rot||0}deg)`;
 }
-function drag(el,slot,kind){
+function drag(el,tslot,kind){
   el.addEventListener('pointerdown',e=>{
     e.stopPropagation(); e.preventDefault();
-    if(selId!==slot.id){ selId=slot.id; overlay.querySelectorAll('.box').forEach(x=>x.classList.toggle('sel', x.dataset.id===slot.id)); buildSlotList(); buildProps(); refreshTags(); }   // 枠を作り直さずに選ぶ(作り直すとドラッグが途切れる)
+    if(selId!==tslot.id){ selId=tslot.id; overlay.querySelectorAll('.box').forEach(x=>x.classList.toggle('sel', x.dataset.id===tslot.id)); buildSlotList(); buildProps(); refreshTags(); }   // 枠を作り直さずに選ぶ(作り直すとドラッグが途切れる)
+    if(mode==='make') markMakeItem(tslot.id);
     const r=overlay.getBoundingClientRect(), sx=e.clientX, sy=e.clientY;
+    if(mode==='make' && makeDrag==='inner'){
+      // 中の画像を動かす(写真の写り具合)
+      if(tslot.type==='text' || kind!=='move') return;
+      const a = prod.adj[tslot.id] = prod.adj[tslot.id] || {s:100,x:0,y:0}, ox=a.x||0, oy=a.y||0, br=el.getBoundingClientRect();
+      try{ el.setPointerCapture(e.pointerId); }catch(_){}
+      const mv2=ev=>{ a.x = clamp(ox+(ev.clientX-sx)/br.width, -1.5, 1.5); a.y = clamp(oy+(ev.clientY-sy)/br.height, -1.5, 1.5); syncAdjUI(tslot.id); schedule(); };
+      const up2=()=>{ el.removeEventListener('pointermove',mv2); el.removeEventListener('pointerup',up2); el.removeEventListener('pointercancel',up2); };
+      el.addEventListener('pointermove',mv2); el.addEventListener('pointerup',up2); el.addEventListener('pointercancel',up2); return;
+    }
+    const slot = mode==='make' ? ensureGeom(tslot) : tslot;
     const o={x:slot.x,y:slot.y,w:slot.w,h:slot.h};
     dragKind=kind;
     try{ el.setPointerCapture(e.pointerId); }catch(_){}
@@ -632,7 +662,7 @@ const guides = $('guides');
 function snapTargets(slot){
   const A = curArea, xs = [[0,'edge'],[.5,'center'],[1,'edge']], ys = [[0,'edge'],[.5,'center'],[1,'edge']];
   if(A.w < .999 || A.h < .999){ xs.push([(0-A.x)/A.w,'edge'],[(.5-A.x)/A.w,'center'],[(1-A.x)/A.w,'edge']); ys.push([(0-A.y)/A.h,'edge'],[(.5-A.y)/A.h,'center'],[(1-A.y)/A.h,'edge']); }
-  for(const o of cur().slots){ if(o===slot || (o.fillShape && o.type!=='text')) continue;
+  for(const o0 of cur().slots){ const o = mode==='make' ? effSlot(o0,'make') : o0; if(o0.id===slot.id || (o.fillShape && o.type!=='text')) continue;
     xs.push([o.x,'edge'],[o.x+o.w/2,'center'],[o.x+o.w,'edge']); ys.push([o.y,'edge'],[o.y+o.h/2,'center'],[o.y+o.h,'edge']); }
   return {xs, ys};
 }
@@ -656,7 +686,7 @@ function clearGuides(){ guides.querySelectorAll('.gl').forEach(x => x.remove());
 let clineOn = false; try{ clineOn = localStorage.getItem('poster-maker-centerlines')==='1'; }catch(e){}
 function drawCenterLines(){
   guides.querySelectorAll('.cl').forEach(x => x.remove());
-  if(!clineOn || mode!=='edit') return;
+  if(!clineOn) return;
   const add = (cls, prop, v) => { const d = document.createElement('div'); d.className = 'cl ' + cls; d.style[prop] = v*100 + '%'; guides.appendChild(d); };
   add('v', 'left', .5); add('h', 'top', .5);
   const A = curArea; if(A.w < .999 || A.h < .999){ add('v area', 'left', A.x + A.w/2); add('h area', 'top', A.y + A.h/2); }
@@ -665,9 +695,9 @@ $('clineOn').checked = clineOn;
 $('clineOn').addEventListener('change', e => { clineOn = e.target.checked; try{ localStorage.setItem('poster-maker-centerlines', clineOn ? '1' : '0'); }catch(_){} drawCenterLines(); });
 // 矢印キーで1px(Shiftで10px)ずつ動かす
 document.addEventListener('keydown', e => {
-  if(mode!=='edit' || !selId || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'')) return;
+  if(!selId || /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'') || (mode==='make' && makeDrag==='inner')) return;
   const mvv = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]}[e.key]; if(!mvv) return;
-  const slot = cur()?.slots.find(x => x.id===selId); if(!slot || !dimW) return; e.preventDefault();
+  const s0 = cur()?.slots.find(x => x.id===selId); if(!s0 || !dimW) return; e.preventDefault(); const slot = mode==='make' ? ensureGeom(s0) : s0;
   const st = e.shiftKey ? 10 : 1; slot.x += mvv[0]*st/(dimW*curArea.w); slot.y += mvv[1]*st/(dimH*curArea.h);
   const bx = overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, slot); syncGeom(); changed(); schedule();
 });
@@ -886,7 +916,7 @@ $('tplImport').addEventListener('change',async e=>{
 /* ---------- ポスター作成 ---------- */
 function resetProd(){
   for(const k of Object.keys(prod.img)) if(prod.img[k]?.startsWith('blob:')) URL.revokeObjectURL(prod.img[k]);
-  prod.bg=null; prod.frame=null; prod.img={}; prod.text={};
+  prod.bg=null; prod.frame=null; prod.img={}; prod.text={}; prod.geom={}; prod.adj={};
   $('mBg').value=''; $('mFrame').value='';
 }
 function buildMake(){
@@ -894,7 +924,7 @@ function buildMake(){
   if(!T) return;
   $('mBgNote').textContent = T.bg ? '未選択のときはテンプレートの背景を使います。' : 'テンプレートに背景がないので、ここで選んでください。';
   T.slots.forEach(slot=>{
-    const d=document.createElement('div'); d.className='item';
+    const d=document.createElement('div'); d.className='item'+(slot.id===selId?' sel':''); d.dataset.sid=slot.id;
     const top=document.createElement('div'); top.className='top';
     const b=document.createElement('b'); b.textContent=slot.label;
     const kd=document.createElement('span'); kd.className='kind'; kd.textContent=KIND[slot.type];
@@ -912,13 +942,31 @@ function buildMake(){
       clr.onclick=()=>{ prod.img[slot.id]=null; fi.value=''; note.textContent='空にしました(画像なし)'; schedule(); };
       const row=document.createElement('div'); row.className='btns'; row.append(clr, note);
       d.append(fi,row);
+      // 中の画像の大きさ・位置
+      const adj=document.createElement('div'); adj.className='adj';
+      const mk=(k,lab,min,max,def)=>{ const l=document.createElement('label'); l.textContent=lab; const r=document.createElement('input'); r.type='range'; r.min=min; r.max=max; r.dataset.adj=k; r.dataset.def=def;
+        r.addEventListener('input',()=>{ const a=prod.adj[slot.id]=prod.adj[slot.id]||{s:100,x:0,y:0}; a[k]= k==='s' ? +r.value : +r.value/100; schedule(); });
+        r.addEventListener('dblclick',()=>{ r.value=def; r.dispatchEvent(new Event('input')); }); l.appendChild(r); adj.appendChild(l); };
+      mk('s','画像の大きさ', slot.fit==='contain'?20:100, 400, 100); mk('x','横の位置',-100,100,0); mk('y','縦の位置',-100,100,0);
+      d.appendChild(adj);
     }
-    box.appendChild(d);
+    const rs=document.createElement('button'); rs.type='button'; rs.className='mini'; rs.textContent='位置と大きさをテンプレートどおりに戻す';
+    rs.onclick=()=>{ delete prod.geom[slot.id]; delete prod.adj[slot.id]; syncAdjUI(slot.id); buildOverlay(); schedule(); };
+    const rsr=document.createElement('div'); rsr.className='btns'; rsr.appendChild(rs); d.appendChild(rsr);
+    d.addEventListener('focusin',()=>{ if(selId!==slot.id){ selId=slot.id; markMakeItem(slot.id, true); overlay.querySelectorAll('.box').forEach(x=>x.classList.toggle('sel', x.dataset.id===slot.id)); refreshTags(); } });
+    box.appendChild(d); syncAdjUI(slot.id);
   });
   const bt=$('bTarget'); bt.innerHTML='';
   T.slots.filter(s=>s.type!=='text').forEach(s=>{ const o=document.createElement('option'); o.value=s.id; o.textContent=s.label; bt.appendChild(o); });
   const firstPhoto=T.slots.find(s=>s.type==='photo'); if(firstPhoto) bt.value=firstPhoto.id;
 }
+function syncAdjUI(id){ const it=document.querySelector(`.item[data-sid="${id}"]`); if(!it) return; const a=prod.adj[id]||{s:100,x:0,y:0};
+  it.querySelectorAll('[data-adj]').forEach(r=>{ const k=r.dataset.adj; r.value = k==='s' ? (a.s??100) : Math.round((a[k]||0)*100); }); }
+function markMakeItem(id, noScroll){ document.querySelectorAll('#mSlots .item').forEach(x=>x.classList.toggle('sel', x.dataset.sid===id));
+  const it=document.querySelector(`.item[data-sid="${id}"]`); if(it && !noScroll) it.scrollIntoView({block:'nearest', behavior:'smooth'}); }
+$('dragSeg').addEventListener('click', e => { const b=e.target.closest('button'); if(!b) return; makeDrag=b.dataset.v;
+  $('dragSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b)); clearGuides(); buildOverlay();
+  $('stageHint').textContent = makeDrag==='inner' ? '枠の中の画像をドラッグで動かし、マウスホイールで拡大・縮小できます。枠そのものは動きません。' : MAKE_HINT; });
 $('mBg').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; prod.bg=URL.createObjectURL(f); schedule(); });
 $('mFrame').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; prod.frame=URL.createObjectURL(f); schedule(); });
 $('mName').addEventListener('input',e=>{ prod.name=e.target.value; schedule(); });
@@ -966,15 +1014,15 @@ $('bRun').onclick=async()=>{
 };
 
 /* ---------- モード ---------- */
+const EDIT_HINT = '枠をドラッグで移動、右下の丸で大きさを変えられます。ドラッグ中はポスターの中心・端やほかの枠にぴったり合います(Altを押している間は合わせません)。選んだ枠は矢印キーで1px(Shiftで10px)ずつ動かせます。';
+const MAKE_HINT = 'このポスターだけ、枠をドラッグで動かしたり、右下の丸で大きさを変えたりできます(テンプレートは変わりません)。写真の写り具合は「中の画像」に切り替えて調整します。点線の枠はまだ画像が入っていない場所で、保存した画像には表示されません。';
 $('modeSeg').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b) return;
   mode=b.dataset.v;
   $('modeSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',x===b));
   $('editPanel').hidden = mode!=='edit'; $('makePanel').hidden = mode!=='make';
   $('tplEditBox').hidden = mode!=='edit'; $('savePng').hidden = mode!=='make';
-  $('stageHint').textContent = mode==='edit'
-    ? '枠をドラッグで移動、右下の丸で大きさを変えられます。位置は背景に対する割合で記録されるので、背景画像の大きさが変わっても同じレイアウトになります。'
-    : '点線の枠はまだ画像が入っていない場所です。保存した画像には表示されません。';
+  $('stageHint').textContent = mode==='edit' ? EDIT_HINT : (makeDrag==='inner' ? '枠の中の画像をドラッグで動かし、マウスホイールで拡大・縮小できます。枠そのものは動きません。' : MAKE_HINT);
   buildOverlay(); buildMake(); schedule();
 });
 
