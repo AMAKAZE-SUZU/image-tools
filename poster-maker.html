@@ -106,7 +106,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.2 ・ 2026-11-01 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.3 ・ 2026-11-01 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -158,6 +158,21 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
           <div class="btns"><button class="mini" id="eBgClear" type="button">背景を外す</button></div>
           <label>装飾フレーム(ポスター全体に重ねる透明PNG)<input type="file" id="eFrame" accept="image/png,image/webp,image/gif"></label>
           <div class="btns"><button class="mini" id="eFrameClear" type="button">フレームを外す</button></div>
+        </fieldset>
+        <fieldset>
+          <legend>背景の並べ方と色(テンプレートに保存)</legend>
+          <div class="row"><label>並べ方<select id="eBgMode"><option value="fill">画面いっぱい</option><option value="tile">タイルのように並べる</option></select></label>
+            <label>ポスターの大きさ<select id="eSize"><option value="bg">背景画像に合わせる</option><option value="1080x1350">縦長 1080×1350</option><option value="1080x1920">縦長 1080×1920</option><option value="1920x1080">横長 1920×1080</option><option value="1600x900">横長 1600×900</option><option value="1200x1200">正方形 1200×1200</option><option value="2480x3508">A4縦 2480×3508</option><option value="3508x2480">A4横 3508×2480</option><option value="custom">自由に指定</option></select></label></div>
+          <div class="row" id="eCustomBox"><label>幅(px)<input type="number" id="eW" min="64" max="8192" step="1"></label><label>高さ(px)<input type="number" id="eH" min="64" max="8192" step="1"></label></div>
+          <div id="eTileBox" style="display:flex;flex-direction:column;gap:10px">
+            <div class="row"><label>タイルの大きさ<input type="range" id="eTileScale" min="5" max="300" step="1"></label><label>傾き<input type="range" id="eTileRot" min="-45" max="45" step="1"></label></div>
+            <label class="check"><input type="checkbox" id="eTileBrick"> レンガのように1段ずつずらす</label>
+          </div>
+          <div class="row"><label>薄くする(白を重ねる)<input type="range" id="eBgLight" min="0" max="90" step="1"></label><label>暗くする<input type="range" id="eBgDim" min="0" max="90" step="1"></label></div>
+          <div class="row"><label>色をのせる<input type="range" id="eBgTintAmt" min="0" max="90" step="1"></label><label style="flex:0 1 80px">のせる色<input type="color" id="eBgTint"></label></div>
+          <div class="row"><label>ぼかし<input type="range" id="eBgBlur" min="0" max="40" step="1"></label></div>
+          <p class="hint" id="eBgNote"></p>
+          <div class="btns"><button class="mini" id="eBgReset" type="button">並べ方と色を初期値に戻す</button></div>
         </fieldset>
         <fieldset>
           <legend>背景の形に合わせる(透明PNG)</legend>
@@ -316,6 +331,36 @@ const sampleBg = (()=>{
   return c;
 })();
 
+/* ---------- 背景の並べ方と色 ---------- */
+const BG_DEF = {bgMode:'fill', size:'bg', customW:1080, customH:1350, tileScale:100, tileRot:0, tileBrick:false, bgLight:0, bgDim:0, bgTint:'#ff7eb3', bgTintAmt:0, bgBlur:0};
+const bgv = (T, k) => T[k] ?? BG_DEF[k];
+function posterDims(T, IW, IH){
+  const sz = bgv(T,'size');
+  if(sz==='custom') return [clamp(Math.round(+bgv(T,'customW')||1080), 64, 8192), clamp(Math.round(+bgv(T,'customH')||1350), 64, 8192)];
+  if(sz!=='bg'){ const [w,h] = sz.split('x').map(Number); return [w,h]; }
+  return [IW, IH];
+}
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+function drawBackground(g, bg, W, H, T, s, plain){
+  const IW=bg.naturalWidth||bg.width, IH=bg.naturalHeight||bg.height, blur = bgv(T,'bgBlur')*Math.min(W,H)/1000;
+  g.save();
+  if(blur > 0) g.filter = `blur(${blur}px)`;
+  const m = blur > 0 ? blur*3 : 0;   // ぼかしで端が透けないよう、少し大きく描く
+  if(bgv(T,'bgMode')==='tile'){
+    // 1枚のタイル(レンガ状なら2段ぶん)を作って、模様として敷き詰める
+    const k = bgv(T,'tileScale')/100*s, tw = Math.max(2, Math.round(IW*k)), th = Math.max(2, Math.round(IH*k)), brick = bgv(T,'tileBrick');
+    const tc = document.createElement('canvas'); tc.width = tw; tc.height = brick ? th*2 : th; const tg = tc.getContext('2d'); tg.imageSmoothingQuality = 'high';
+    tg.drawImage(bg, 0, 0, tw, th); if(brick){ tg.drawImage(bg, -tw/2, th, tw, th); tg.drawImage(bg, tw/2, th, tw, th); }
+    const pat = g.createPattern(tc, 'repeat'); const D = Math.hypot(W, H) + m*2;
+    g.translate(W/2, H/2); g.rotate(bgv(T,'tileRot')*Math.PI/180); g.translate(-tw/2, -th/2); g.fillStyle = pat; g.fillRect(-D, -D, D*2, D*2);
+  } else if(plain) g.drawImage(bg, -m, -m, W+m*2, H+m*2);
+  else { const k = Math.max(W/IW, H/IH); g.drawImage(bg, (W-IW*k)/2 - m, (H-IH*k)/2 - m, IW*k + m*2, IH*k + m*2); }   // 大きさを選んだときは、はみ出しを切って画面いっぱい
+  g.restore();
+  // 色の調整(透明な部分はそのまま)
+  const over = (style, a) => { if(a <= 0) return; g.save(); g.globalCompositeOperation = 'source-atop'; g.globalAlpha = a; g.fillStyle = style; g.fillRect(0,0,W,H); g.restore(); };
+  over(bgv(T,'bgTint'), bgv(T,'bgTintAmt')/100); over('#000000', bgv(T,'bgDim')/100); over('#ffffff', bgv(T,'bgLight')/100);
+}
+
 /* ---------- 背景の形(透明PNG)の解析 ---------- */
 // 見えている部分(不透明)の外接範囲と、その中に入るいちばん大きな四角(細長すぎるものは避ける)を、0〜1の割合で求める
 const shapeCache=new Map();
@@ -459,15 +504,18 @@ async function renderTo(c, rmode, maxSide, vars={name:prod.name}){
   const T=cur(); if(!T) return null;
   const bgSrc = rmode==='edit' ? T.bg : (prod.bg || T.bg);
   const bg = (await getImg(bgSrc)) || sampleBg;
-  const BW=bg.naturalWidth||bg.width, BH=bg.naturalHeight||bg.height;
+  const IW=bg.naturalWidth||bg.width, IH=bg.naturalHeight||bg.height;
+  const [BW, BH] = posterDims(T, IW, IH);
   let s = maxSide ? Math.min(1, maxSide/Math.max(BW,BH)) : 1;
   const LIMIT=16e6; if(BW*BH*s*s>LIMIT) s=Math.sqrt(LIMIT/(BW*BH));
   if(Math.max(BW,BH)*s>8192) s=8192/Math.max(BW,BH);
   const W=Math.round(BW*s), H=Math.round(BH*s);
   c.width=W; c.height=H;
   const g=c.getContext('2d');
-  const info = shapeInfo(bg, bgSrc||'sample'), A = layoutArea(T,info);
-  g.drawImage(bg,0,0,W,H);
+  // 形に合わせるのは「画面いっぱい」で、大きさが背景画像に合っているときだけ
+  const plain = (T.bgMode||'fill')==='fill' && (T.size||'bg')==='bg';
+  const info = plain ? shapeInfo(bg, bgSrc||'sample') : {hasAlpha:false, inner:{x:0,y:0,w:1,h:1}, bbox:{x:0,y:0,w:1,h:1}}, A = layoutArea(T,info);
+  drawBackground(g, bg, W, H, T, s, plain);
   const frameSrc = rmode==='edit' ? T.frame : (prod.frame || T.frame);
   const frame = await getImg(frameSrc);
   for(const slot of T.slots) if(!slot.above) await drawSlot(g,slot,W,H,rmode,vars,A,info,bg);
@@ -745,13 +793,34 @@ function buildProps(){
 
 $('eBg').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; cur().bg=await readDataURL(f); e.target.value=''; changed(); schedule(); });
 $('eBgClear').onclick=()=>{ cur().bg=null; changed(); schedule(); };
-function syncShapeUI(){ const T=cur(); if(!T) return;
+function syncBgUI(){ const T=cur(); if(!T) return;
+  for(const [id,k] of [['eBgMode','bgMode'],['eSize','size'],['eW','customW'],['eH','customH'],['eTileScale','tileScale'],['eTileRot','tileRot'],['eBgLight','bgLight'],['eBgDim','bgDim'],['eBgTint','bgTint'],['eBgTintAmt','bgTintAmt'],['eBgBlur','bgBlur']]) $(id).value = bgv(T,k);
+  $('eTileBrick').checked = !!bgv(T,'tileBrick'); $('eTileBox').hidden = bgv(T,'bgMode')!=='tile'; $('eCustomBox').hidden = bgv(T,'size')!=='custom';
+  document.querySelectorAll('#eTileBox input[type=range], #eBgLight, #eBgDim, #eBgTintAmt, #eBgBlur').forEach(el => el._upd && el._upd());
+  const tile = bgv(T,'bgMode')==='tile', sized = bgv(T,'size')!=='bg';
+  $('eBgNote').textContent = tile && !sized ? 'タイルのときは「ポスターの大きさ」を選ぶのがおすすめです(背景画像に合わせると、タイル1枚ぶんの大きさになります)。'
+    : (tile || sized) ? 'タイルや大きさを選んだときは、「背景の形に合わせる」は使われません。' : '';
+}
+function syncShapeUI(){ syncBgUI(); const T=cur(); if(!T) return;
   $('eShapeFit').checked=T.shapeFit!==false; $('eShapePad').value=T.shapePad??4; $('eShapeClip').checked=T.shapeClip!==false;
   $('eRim').value=T.rim||0; $('eRimColor').value=T.rimColor||'#ffffff'; }
 function shapeNote(info){ const el=$('eShapeNote'); if(!el) return; const T=cur();
   el.textContent = !info.hasAlpha ? 'いまの背景には透明な部分がないので、画像全体に並べています。'
     : T.shapeFit===false ? '透明な部分がある背景です。オンにすると、見えている部分の中に並べます。'
     : `見えている部分の中(幅 ${Math.round(curArea.w*100)}%・高さ ${Math.round(curArea.h*100)}%)に並べています。`; }
+// 背景の並べ方と色の入力
+const BG_INPUTS = [['eBgMode','bgMode','change'],['eSize','size','change'],['eW','customW','input',1],['eH','customH','input',1],['eTileScale','tileScale','input',1],['eTileRot','tileRot','input',1],['eTileBrick','tileBrick','change'],['eBgLight','bgLight','input',1],['eBgDim','bgDim','input',1],['eBgTint','bgTint','input'],['eBgTintAmt','bgTintAmt','input',1],['eBgBlur','bgBlur','input',1]];
+for(const [id,k,ev,num] of BG_INPUTS){
+  $(id).addEventListener(ev, () => { const T=cur(), el=$(id); T[k] = el.type==='checkbox' ? el.checked : num ? +el.value : el.value;
+    if(k==='bgMode' && T.bgMode==='tile' && (T.size||'bg')==='bg') T.size = '1080x1350';   // タイルにしたら、ポスターの大きさを決めておく
+    syncBgUI(); changed(); schedule(); });
+}
+for(const [id, f] of [['eTileScale', v=>v+'%'],['eTileRot', v=>v+'°'],['eBgLight', v=>v+'%'],['eBgDim', v=>v+'%'],['eBgTintAmt', v=>v+'%'],['eBgBlur', v=>v]]){
+  const el=$(id), lab=el.closest('label'), out=document.createElement('b'); out.style.cssText='margin-left:6px;color:var(--fg);font-variant-numeric:tabular-nums';
+  const t=[...lab.childNodes].find(n=>n.nodeType===3 && n.textContent.trim()); if(t) t.after(out); el._upd=()=>{ out.textContent=f(el.value); }; el.addEventListener('input', el._upd); el._upd();
+  el.addEventListener('dblclick', () => { const k = BG_INPUTS.find(x=>x[0]===id)[1]; cur()[k] = BG_DEF[k]; syncBgUI(); changed(); schedule(); });
+}
+$('eBgReset').onclick = () => { const T=cur(); for(const k of Object.keys(BG_DEF)) T[k] = BG_DEF[k]; syncBgUI(); changed(); schedule(); };
 $('eShapeFit').addEventListener('change',e=>{ cur().shapeFit=e.target.checked; changed(); schedule(); buildOverlay(); });
 $('eShapePad').addEventListener('input',e=>{ cur().shapePad=+e.target.value; changed(); schedule(); });
 $('eShapeClip').addEventListener('change',e=>{ cur().shapeClip=e.target.checked; changed(); schedule(); });
