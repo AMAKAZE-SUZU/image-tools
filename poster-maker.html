@@ -124,7 +124,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.8 ・ 2026-11-01 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.9 ・ 2026-11-01 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -227,6 +227,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
           <legend>背景とフレーム</legend>
           <label>背景画像(この画像の大きさでポスターを作ります)<input type="file" id="mBg" accept="image/*"></label>
           <p class="hint" id="mBgNote"></p>
+          <div class="btns"><button class="mini" id="mBgClear" type="button" hidden>このタブで選んだ背景・フレームを外す</button></div>
           <label>装飾フレーム(テンプレートのものを差し替えたいときだけ)<input type="file" id="mFrame" accept="image/png,image/webp,image/gif"></label>
         </fieldset>
         <fieldset>
@@ -254,6 +255,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
           <button class="btn" id="bRun" type="button">全員分をZIPで保存</button>
           <div class="progress" aria-hidden="true"><i id="bBar"></i></div>
           <p class="hint status" id="bMsg" role="status"></p>
+        </fieldset>
+        <fieldset>
+          <legend>作業の保存</legend>
+          <p class="hint">作業中のメンバー・写真・調整・このタブで選んだ背景とフレームは、テンプレートごとにこのブラウザへ自動で保存されます。別のPCに移すときや、残しておきたいときはファイルに書き出してください(テンプレートも一緒に入ります)。</p>
+          <p class="hint" id="workStatus" role="status"></p>
+          <div class="btns">
+            <button class="btn small" id="wSave" type="button">今すぐ保存</button>
+            <button class="btn ghost small" id="wExport" type="button">作業をファイルに書き出す</button>
+            <label class="btn ghost small" style="flex-direction:row;display:inline-flex">ファイルから読み込む<input type="file" id="wImport" accept=".json,application/json" hidden></label>
+          </div>
+          <p class="hint status" id="wMsg" role="status"></p>
         </fieldset>
       </div>
     </div>
@@ -974,14 +986,14 @@ $('tplImport').addEventListener('change',async e=>{
 /* ---------- ポスター作成 ---------- */
 function resetProd(){
   for(const m of members) for(const k of Object.keys(m.img)) if(m.img[k]?.startsWith('blob:')) URL.revokeObjectURL(m.img[k]);
-  prod.bg=null; prod.frame=null; members=[newMember()]; mi=0;
+  prod.bg=null; prod.frame=null; prod.bgBlob=null; prod.frameBlob=null; members=[newMember()]; mi=0;
   $('mBg').value=''; $('mFrame').value='';
 }
 function buildMake(){
   buildMemberList(); $('mName').value = M().name || '';
   const T=cur(); const box=$('mSlots'); box.innerHTML='';
   if(!T) return;
-  $('mBgNote').textContent = T.bg ? '未選択のときはテンプレートの背景を使います。' : 'テンプレートに背景がないので、ここで選んでください。';
+  noteMakeBg();
   T.slots.forEach(slot=>{
     const d=document.createElement('div'); d.className='item'+(slot.id===selId?' sel':''); d.dataset.sid=slot.id;
     const top=document.createElement('div'); top.className='top';
@@ -1049,8 +1061,9 @@ function markMakeItem(id, noScroll){ document.querySelectorAll('#mSlots .item').
 $('dragSeg').addEventListener('click', e => { const b=e.target.closest('button'); if(!b) return; makeDrag=b.dataset.v;
   $('dragSeg').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b)); clearGuides(); buildOverlay();
   $('stageHint').textContent = makeDrag==='inner' ? '枠の中の画像をドラッグで動かし、マウスホイールで拡大・縮小できます。枠そのものは動きません。' : MAKE_HINT; });
-$('mBg').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; prod.bg=URL.createObjectURL(f); schedule(); });
-$('mFrame').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; prod.frame=URL.createObjectURL(f); schedule(); });
+$('mBgClear').onclick=()=>{ prod.bg=null; prod.bgBlob=null; prod.frame=null; prod.frameBlob=null; noteMakeBg(); schedule(); };
+$('mBg').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; prod.bg=URL.createObjectURL(f); prod.bgBlob=f; e.target.value=''; noteMakeBg(); schedule(); });
+$('mFrame').addEventListener('change',e=>{ const f=e.target.files[0]; if(!f) return; prod.frame=URL.createObjectURL(f); prod.frameBlob=f; e.target.value=''; noteMakeBg(); schedule(); });
 $('mName').addEventListener('input',e=>{ prod.name=e.target.value; const li=document.querySelector(`#mList li[data-i="${mi}"] .nm`); if(li) li.textContent=e.target.value||`メンバー${mi+1}`; schedule(); });
 function setMemberImg(m, sid, file){ if(m.img[sid]?.startsWith('blob:')) URL.revokeObjectURL(m.img[sid]); m.img[sid]=URL.createObjectURL(file); m.blobs[sid]=file; }
 function thumbSlotId(){ const T=cur(); return $('bTarget').value || T?.slots.find(s=>s.type==='photo')?.id; }
@@ -1084,7 +1097,9 @@ function saveWorkSoon(){ clearTimeout(workT); workT=setTimeout(saveWork, 600); }
 async function saveWork(){ const T=cur(); if(!T || !DB.ok || workLoading) return;
   const data={members: members.map(m=>({id:m.id, name:m.name, text:m.text, style:m.style, adj:m.adj, fx:m.fx||{}, blobs:m.blobs, imgNull:Object.keys(m.img).filter(k=>m.img[k]===null),
     geom:Object.fromEntries(Object.entries(m.geom).map(([k,g])=>[k,{x:g.x,y:g.y,w:g.w,h:g.h}]))})), mi};
-  try{ await DB.putWork(T.id, data); }catch(e){} }
+  data.bg = prod.bgBlob||null; data.frame = prod.frameBlob||null;
+  try{ await DB.putWork(T.id, data); const d=new Date(); $('workStatus').textContent = `自動保存しました(${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}・${members.length}人分)`; return true; }
+  catch(e){ $('workStatus').textContent = '自動保存できませんでした。写真が多いときは「作業をファイルに書き出す」で残してください。'; return false; } }
 async function loadWork(){ const T=cur(); if(!T) return; let d=null; workLoading=true; clearTimeout(workT); try{ d=await DB.getWork(T.id); }catch(e){} workLoading=false;
   if(cur()!==T || !d || !Array.isArray(d.members) || !d.members.length) return;
   members = d.members.map(x=>{ const m={...newMember(x.name||''), id:x.id||newMember().id, text:x.text||{}, style:x.style||{}, adj:x.adj||{}, fx:x.fx||{}};
@@ -1092,7 +1107,42 @@ async function loadWork(){ const T=cur(); if(!T) return; let d=null; workLoading
     for(const k of x.imgNull||[]) m.img[k]=null;
     for(const [k,g] of Object.entries(x.geom||{})){ const sl=T.slots.find(s=>s.id===k); if(sl) m.geom[k]=Object.setPrototypeOf({...g}, sl); }
     return m; });
-  mi = clamp(d.mi||0, 0, members.length-1); buildMake(); buildOverlay(); schedule(); }
+  mi = clamp(d.mi||0, 0, members.length-1);
+  if(d.bg){ prod.bg=URL.createObjectURL(d.bg); prod.bgBlob=d.bg; } if(d.frame){ prod.frame=URL.createObjectURL(d.frame); prod.frameBlob=d.frame; }
+  noteMakeBg(); buildMake(); buildOverlay(); schedule(); $('workStatus').textContent = `前回の作業を読み込みました(${members.length}人分)`; }
+// このタブで選んだ背景・フレームを表示する(外すボタンつき)
+function noteMakeBg(){
+  const T=cur(); let t = prod.bgBlob ? `背景:${prod.bgBlob.name||'選んだ画像'}を使用中` : (T&&T.bg ? '未選択のときはテンプレートの背景を使います。' : 'テンプレートに背景がないので、ここで選んでください。');
+  if(prod.frameBlob) t += `/フレーム:${prod.frameBlob.name||'選んだ画像'}を使用中`;
+  $('mBgNote').textContent = t; $('mBgClear').hidden = !prod.bgBlob && !prod.frameBlob;
+}
+async function blobToDataURL(b){ return b ? await readDataURL(b) : null; }
+async function urlToBlob(u){ return u ? (await fetch(u)).blob() : null; }
+$('wSave').onclick = async () => { clearTimeout(workT); const ok = await saveWork(); $('wMsg').textContent = ok ? 'このブラウザに保存しました。' : '保存できませんでした。'; };
+$('wExport').onclick = async () => {
+  const T=cur(); $('wMsg').textContent='書き出しています…';
+  try{
+    const ms=[]; for(const m of members){ const blobs={}; for(const [k,b] of Object.entries(m.blobs)) blobs[k]={name:b.name||'', data:await blobToDataURL(b)};
+      ms.push({name:m.name, text:m.text, style:m.style, adj:m.adj, fx:m.fx||{}, imgNull:Object.keys(m.img).filter(k=>m.img[k]===null), blobs, geom:Object.fromEntries(Object.entries(m.geom).map(([k,g])=>[k,{x:g.x,y:g.y,w:g.w,h:g.h}]))}); }
+    const out={app:'poster-maker-work', version:1, template:T, work:{members:ms, mi, bg: prod.bgBlob ? {name:prod.bgBlob.name||'', data:await blobToDataURL(prod.bgBlob)} : null, frame: prod.frameBlob ? {name:prod.frameBlob.name||'', data:await blobToDataURL(prod.frameBlob)} : null}};
+    const r=await saveFile(safeName(T.name)+'_作業_'+members.length+'人.json', new Blob([JSON.stringify(out)], {type:'application/json'}));
+    $('wMsg').textContent = r==='saved' ? `作業を書き出しました(${members.length}人分・写真とテンプレートも含みます)。` : r==='declined' ? '書き出しを取り消しました。' : '書き出せませんでした。もう一度試してください。';
+  }catch(e){ $('wMsg').textContent='書き出せませんでした。'; }
+};
+$('wImport').addEventListener('change', async e => {
+  const f=e.target.files[0]; e.target.value=''; if(!f) return; $('wMsg').textContent='読み込んでいます…';
+  try{
+    const j=JSON.parse(await f.text()); if(j.app!=='poster-maker-work' || !j.template || !j.work) throw new Error('bad');
+    const t=j.template; const idMap={}; t.id=uid(); t.slots.forEach(sl=>{ const n=uid(); idMap[sl.id]=n; sl.id=n; });
+    t.name=(t.name||'テンプレート')+'(読み込み)'; templates.push(t); curId=t.id; changed();
+    const remap = o => Object.fromEntries(Object.entries(o||{}).filter(([k])=>idMap[k]).map(([k,v])=>[idMap[k],v]));
+    const toB = async x => { if(!x || !x.data) return null; const b = await urlToBlob(x.data); try{ return new File([b], x.name||'image', {type:b.type}); }catch(_){ return b; } };
+    const ms=[]; for(const x of j.work.members||[]){ const blobs={}; for(const [k,v] of Object.entries(x.blobs||{})) if(idMap[k]) blobs[idMap[k]]=await toB(v);
+      ms.push({id:uid(), name:x.name||'', text:remap(x.text), style:remap(x.style), adj:remap(x.adj), fx:remap(x.fx), blobs, imgNull:(x.imgNull||[]).filter(k=>idMap[k]).map(k=>idMap[k]), geom:remap(x.geom)}); }
+    await DB.putWork(t.id, {members:ms, mi:j.work.mi||0, bg:await toB(j.work.bg), frame:await toB(j.work.frame)});
+    useTemplate(t.id); $('wMsg').textContent=`「${f.name}」を読み込みました(テンプレート「${t.name}」として追加・${ms.length}人分)。`;
+  }catch(err){ $('wMsg').textContent='読み込めませんでした。「作業をファイルに書き出す」で作ったファイル(.json)を選んでください。'; }
+});
 
 $('savePng').onclick=async()=>{
   const btn=$('savePng'); btn.disabled=true; btn.textContent='作成中…';
