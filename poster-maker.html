@@ -113,7 +113,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.4 ・ 2026-11-01 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.5 ・ 2026-11-01 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -504,9 +504,15 @@ async function drawSlot(c,slot,W,H,rmode,vars,A={x:0,y:0,w:1,h:1},info=null,bg=n
     if(slot.shape!=='rect'){ c.save(); c.shadowColor='transparent'; shapePath(c,slot,0,0,w,h); c.clip(); c.drawImage(im,ox,oy,dw,dh); c.restore(); }
     else c.drawImage(im,ox,oy,dw,dh);
   } else {
-    c.fillStyle=slot.borderColor; shapePath(c,slot,0,0,w,h); c.fill();
-    c.shadowColor='transparent';
-    c.save(); shapePath(c,slot,bw,bw,w-bw*2,h-bw*2); c.clip(); drawCover(c,im,bw,bw,w-bw*2,h-bw*2,slotAdj(slot,rmode)); c.restore();
+    // 枠の中は塗らない(背景が透明な画像のとき、ポスターの背景が見えるように)。「写真の後ろを縁の色で塗る」のときだけ塗る
+    const shOn = !!slot.shadow, setSh = on => { if(on){ c.shadowColor='rgba(20,10,40,.3)'; c.shadowBlur=24*S; c.shadowOffsetY=8*S; } else { c.shadowColor='transparent'; c.shadowBlur=0; c.shadowOffsetY=0; } };
+    if(slot.fillBg){ setSh(shOn); c.fillStyle=slot.borderColor; shapePath(c,slot,0,0,w,h); c.fill(); }
+    else if(bw>0){ setSh(shOn); c.lineWidth=bw; c.strokeStyle=slot.borderColor; shapePath(c,slot,bw/2,bw/2,w-bw,h-bw); c.stroke(); }
+    // 写真は別のキャンバスで枠の形に切り抜いてから重ねる(影は写真の形に沿って付く)
+    const Tm=c.getTransform(), sc=Math.max(.05, Math.hypot(Tm.a,Tm.b)), ow=Math.max(1,Math.ceil(w*sc)), oh=Math.max(1,Math.ceil(h*sc));
+    const off=document.createElement('canvas'); off.width=ow; off.height=oh; const og=off.getContext('2d'); og.scale(ow/w, oh/h); og.imageSmoothingQuality='high';
+    og.save(); shapePath(og,slot,bw,bw,w-bw*2,h-bw*2); og.clip(); drawCover(og,im,bw,bw,w-bw*2,h-bw*2,slotAdj(slot,rmode)); og.restore();
+    setSh(shOn && !slot.fillBg && bw<=0); c.drawImage(off,0,0,w,h); setSh(false);
   }
   c.restore();
 }
@@ -774,6 +780,7 @@ function buildProps(){
       <label>入れ方<select id="p_fit"><option value="cover">枠いっぱい(はみ出しは切る)</option><option value="contain">全体を収める</option></select></label></div>`);
     H.push(`<div class="row"><label>縁の太さ<input type="range" id="p_border" min="0" max="30"></label><label>縁の色<input type="color" id="p_borderColor"></label></div>`);
     H.push(`<label class="check"><input type="checkbox" id="p_shadow"> 影をつける</label>`);
+    H.push(`<label class="check"><input type="checkbox" id="p_fillBg"> 写真の後ろを縁の色で塗る(背景が透明な画像のとき、後ろを見せたくない場合)</label>`);
     H.push(`<label class="check"><input type="checkbox" id="p_fillShape"> 背景の形いっぱいに入れる(背景が透明PNGのとき、形で切り抜く)</label>`);
     H.push(`<label>固定の画像(全ポスター共通にしたいとき。ロゴなど)<input type="file" id="p_fixed" accept="image/*"></label>`);
     H.push(`<div class="btns"><button class="mini" id="p_fixedClear" type="button">固定の画像を外す</button></div>`);
@@ -805,7 +812,7 @@ function buildProps(){
     const bx = overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, slot); syncGeom(); changed(); schedule(); });
   if(slot.type==='text'){ bind('text'); bind('font',Number); bind('size',Number); bind('color'); bind('strokeColor'); bind('stroke',Number); bind('align'); }
   else {
-    bind('shape'); bind('fit'); bind('border',Number); bind('borderColor'); bind('shadow'); bind('fillShape');
+    bind('shape'); bind('fit'); bind('border',Number); bind('borderColor'); bind('shadow'); bind('fillShape'); bind('fillBg');
     $('p_fillShape').addEventListener('change',()=>buildOverlay());
     $('p_fixed').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; slot.fixed=await readDataURL(f); changed(); schedule(); });
     $('p_fixedClear').onclick=()=>{ slot.fixed=null; changed(); schedule(); };
