@@ -47,7 +47,8 @@ h1{font-family:var(--font-display);font-size:clamp(1.7rem,4vw,2.3rem);margin:0 0
 .logo .go{color:#7a3cf0} .logo .thumb{background:linear-gradient(135deg,#1d1530,#3b2466 60%,#5a2a6e);gap:10px}
 .uv .go{color:#13809a} .uv .thumb{background:linear-gradient(135deg,#d3f1f6,#e4ecff 60%,#f3e3f6);gap:8px}
 .gbanner .go{color:#3d5ee8} .gbanner .thumb{background:linear-gradient(135deg,#6a5cff,#c86dd7 60%,#ff9ac6);gap:8px}
-@media (prefers-color-scheme: dark){.member .go{color:#f08ad0} .announce .go{color:#8fb6ff} .deco .go{color:#ff8db3} .logo .go{color:#b796ff} .uv .go{color:#5fd0e6} .gbanner .go{color:#8ea4ff}}
+.vthumb .go{color:#2f7de1} .vthumb .thumb{background:linear-gradient(160deg,#1b2a6b,#7a5cc9 60%,#ffb3a1);gap:10px}
+@media (prefers-color-scheme: dark){.member .go{color:#f08ad0} .announce .go{color:#8fb6ff} .deco .go{color:#ff8db3} .logo .go{color:#b796ff} .uv .go{color:#5fd0e6} .gbanner .go{color:#8ea4ff} .vthumb .go{color:#7fb3ff}}
 .anim .thumb b{color:#fff;font-size:1.6rem;letter-spacing:.2em;text-shadow:0 0 12px #ffd6ea}
 .thumb i{display:block;background:#fff;border-radius:6px;box-shadow:0 3px 10px rgba(0,0,0,.12)}
 section{margin-top:36px}
@@ -145,6 +146,13 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
       <span class="ratio">グループバナー 16:9 / アイコン ・ 見える範囲の目安つき ・ v1.0</span>
       <h2>VRCグループバナーメーカー</h2>
       <p>VRChatのグループのバナーとアイコンを作ります。ネームプレートやゲーム内のグループページで見える範囲を確かめながら、グループ名・ロゴ・メンバーの写真を並べられます。</p>
+      <span class="go">使ってみる →</span>
+    </a>
+    <a class="tool vthumb" href="vrc-thumb.html">
+      <div class="thumb" aria-hidden="true"><i style="width:80px;height:60px;border-radius:6px;background:linear-gradient(180deg,#3b2f7a,#7a5cc9);box-shadow:inset 0 -14px 0 rgba(10,16,32,.6)"></i><i style="width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 50% 40%,#ffe7d6 0 12px,#6a3d8f 13px 18px,#c79be8 19px)"></i></div>
+      <span class="ratio">ワールド / アバター ・ 1200×900 ・ ポータルの見え方つき ・ v1.0</span>
+      <h2>VRCサムネイルメーカー</h2>
+      <p>VRChatのワールドとアバターのサムネイル(1200×900)を作ります。写真に名前やバッジを入れ、ポータルやメニューでの見え方を確かめられます。グリーンスクリーンの背景も消せます。</p>
       <span class="go">使ってみる →</span>
     </a>
   </div>
@@ -254,6 +262,17 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
   <section>
     <h2>ロゴ文字メーカーの使い方</h2>
     <p>文字を入れて、ネオン看板・立体・メタリック・ポップ・ぷっくり・レトロからスタイルを選びます。色、アーチ(弓なり)、傾き、フチなどを調整し、「PNGで保存」を押します。背景を「透明」にすると、ほかのツールのポスターや動画にそのまま重ねられます。</p>
+  </section>
+
+  <section>
+    <h2>VRCサムネイルメーカーの使い方</h2>
+    <ol>
+      <li>「ワールド」か「アバター」を選び、レイアウトを選びます。「見本で試してみる」で試せます。</li>
+      <li>写真を入れます。アバターはグリーンスクリーンなど単色の背景で撮ると、「写真の背景を消す」で背景を消して、好きな背景やフチを付けられます。</li>
+      <li>名前・小さい文字・バッジ(PC / Quest / NEW など)を入れ、ドラッグで位置、マウスホイールで大きさを合わせます。右上には VRChat の対応機種のマークが重なるので避けます。</li>
+      <li>点線の目安と、下のポータル・メニュー・丸い表示のプレビューで見え方を確かめます。VRChat Wiki の公式テンプレート画像を重ねて確かめることもできます。</li>
+      <li>「PNGで保存」(1200×900)を押し、Unity の VRChat SDK のアップロード画面でサムネイルとして選びます。</li>
+    </ol>
   </section>
 
   <section>
@@ -372,6 +391,8 @@ footer{margin-top:48px;color:var(--muted);font-size:.8rem}
     <div class="log"><b>v1.0(2026-10-31)</b><ul><li>公開</li><li>チェキ・プリ風:フチの色や柄、写真の色、下の文字、日付、スタンプ(ドラッグで移動・大きさ・回転)、文字スタンプ、落書き</li><li>ステッカー:白フチ・外側のフチ・影・傾き、背景の色を消す</li><li>ドット絵:ドット数、色の数(32〜2色・ゲーム機風)、あざやかさ、マス目</li><li>雑誌の表紙風(雑誌名・号数・見出し・名前・丸い飾り・バーコード風の飾り)、漫画のコマ風(4種類のコマ割り・たて書きの吹き出し・集中線・白黒・網点)</li></ul></div>
     <h3>ロゴ文字メーカー</h3>
     <div class="log"><b>v1.0(2026-10-31)</b><ul><li>公開</li><li>スタイル6種類:ネオン看板(光の強さ・ネオンの枠)、立体(厚み・向き)、メタリック(金・銀・ローズゴールド・虹色)、ポップ(二重フチ)、ぷっくり(つやつや)、レトロ(ずらし)</li><li>アーチ(弓なり)・傾き・文字の間隔、複数行</li><li>背景は透明・色・夜のかべ・グラデーションから選べ、文字の大きさに合わせた大きさで保存</li></ul></div>
+    <h3>VRCサムネイルメーカー</h3>
+    <div class="log"><b>v1.0(2026-11-02)</b><ul><li>公開</li><li>ワールドとアバターのサムネイル(4:3・1200×900 / 2400×1800)を作る。ワールドとアバターの作業はそれぞれ自動保存</li><li>レイアウト(ワールド4種類・アバター4種類)、写真の大きさ・位置・明るさ・あざやかさ・ビネット、背景(グラデーション・単色・写真をぼかす)、飾り、帯、フチ</li><li>名前・小さい文字(縁取り・光)・バッジ(PC / Quest / NEW など)をドラッグで配置</li><li>アバターの写真の背景を消す(グリーンスクリーン・単色の背景向け)と、切り抜いたアバターのフチ</li><li>見える範囲の目安線、ポータル・メニューのカード・丸い表示のプレビュー、公式テンプレート画像を重ねて確かめる機能</li></ul></div>
     <h3>VRCグループバナーメーカー</h3>
     <div class="log"><b>v1.0(2026-11-02)</b><ul><li>公開</li><li>グループバナー(16:9・2000×1125 / 1920×1080 / 1280×720)とアイコン(1024×1024)を同じデザインで作る</li><li>レイアウト4種類、背景(グラデーション8種・単色・画像)、飾り、横の帯、グループ名・小さい文字(縁取り・光)、ロゴ、メンバーの写真(丸・角丸・四角、名前つき)</li><li>ネームプレート(短い名前・長い名前)・ゲーム内のグループページ・カード表示で見える範囲の目安線と、場所ごとの見え方のプレビュー</li><li>ドラッグで移動・ホイールで大きさ(真ん中とネームプレートの高さに吸着)、元に戻す・やり直す、作業の自動保存、見本</li></ul></div>
     <h3>UVテクスチャ貼り付け</h3>
