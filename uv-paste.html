@@ -110,7 +110,7 @@ details.more>div{display:flex;flex-direction:column;gap:10px;margin-top:10px}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>UVテクスチャ貼り付け</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.0 ・ 2026-11-02</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.1 ・ 2026-11-02</a>
     <p>BlenderでエクスポートしたUVレイアウトの画像を下敷きにして、ロゴや柄をUVの区画(アイランド)にぴったり貼り付け、テクスチャとして保存します。モデルのファイルは使いません。画像はこのブラウザの中だけで処理され、外には送られません。</p>
   </header>
   <div class="grid">
@@ -173,7 +173,7 @@ details.more>div{display:flex;flex-direction:column;gap:10px;margin-top:10px}
           <option value="1024">1024×1024</option><option value="2048">2048×2048</option><option value="4096">4096×4096</option><option value="8192">8192×8192</option>
         </select></label>
         <div class="row"><label class="check"><input type="checkbox" id="lnOn"> UVの線を表示</label><label style="flex:0 1 80px">線の色<input type="color" id="lnColor"></label></div>
-        <label>線の濃さ<input type="range" id="lnOp" min="10" max="100" step="1"></label>
+        <div class="row"><label>線の濃さ<input type="range" id="lnOp" min="10" max="100" step="1"></label><label>線の太さ<input type="range" id="lnW" min="1" max="6" step="1"></label></div>
         <label>区画の外側に広げる(px。継ぎ目に線が出ないように)<input type="range" id="dil" min="0" max="32" step="1"></label>
       </fieldset>
 
@@ -359,7 +359,7 @@ const uid = () => Math.random().toString(36).slice(2,10);
 const store = makeStore('uv-paste');
 const imgs = new Map();   // id -> {blob, im, name}
 const IM = id => (id && imgs.get(id)?.im) || null;
-const DEF = () => ({v:1, uv:null, base:null, size:'auto', dil:6, lnOn:true, lnOp:85, lnColor:'#00d5ff', outMode:'all', outLines:false, outName:'', layers:[], sel:null});
+const DEF = () => ({v:1, uv:null, base:null, size:'auto', dil:6, lnOn:true, lnOp:90, lnColor:'#ff2bd6', lnW:2, outMode:'all', outLines:false, outName:'', layers:[], sel:null});
 let S = DEF(), tool = 'move', UV = null, dragging = false;
 const curL = () => S.layers.find(l => l.id===S.sel) || null;
 async function addImage(blob, name){ const im = await loadImg(blob); const id = uid(); imgs.set(id, {blob, im, name: name || blob.name || '画像'}); return id; }
@@ -403,12 +403,22 @@ function analyzeUV(im){
       if(p>=PW && lab[p-PW]===0){ lab[p-PW] = n; q[qt++] = p-PW; } if(p<N-PW && lab[p+PW]===0){ lab[p+PW] = n; q[qt++] = p+PW; } }
     st.ok = st.n >= 16; stats.push(st);
   }
-  // 確認用の線(塗りつぶしの薄い所は除く)
-  const lm = document.createElement('canvas'); lm.width = PW; lm.height = PH; const lg = lm.getContext('2d'), li = lg.createImageData(PW, PH), ld = li.data;
-  for(let p=0; p<N; p++){ const on = opaque ? !blank[p] : d[p*4+3] > 140; if(on){ ld[p*4] = ld[p*4+1] = ld[p*4+2] = 255; ld[p*4+3] = 255; } }
-  lg.putImageData(li, 0, 0);
+  // 確認用の線。塗りつぶし(面)の濃さをいちばん多い不透明度から調べ、それより濃い所を線とみなす
+  const hist = new Uint32Array(256); let nb = 0; for(let p=0; p<N; p++){ const a = d[p*4+3]; if(a>=10){ nb++; if(a<250) hist[a]++; } }
+  let fillA = 0, best = 0; for(let a=10; a<250; a++) if(hist[a] > best){ best = hist[a]; fillA = a; }
+  if(best < nb*.08) fillA = 0;   // 面を塗っていない書き出し
+  const thr = fillA ? Math.min(250, fillA + Math.max(16, (255-fillA)*.25)) : 12;
+  const lines = new Uint8Array(N), TH = 256, tc = document.createElement('canvas'); tc.width = IW; tc.height = TH; const tg = tc.getContext('2d', {willReadFrequently:true});
+  for(let y0=0; y0<IH; y0+=TH){   // 元の大きさで少しずつ読む(大きな画像でも細い線を落とさない)
+    const rows = Math.min(TH, IH-y0); tg.clearRect(0, 0, IW, TH); tg.drawImage(im, 0, y0, IW, rows, 0, 0, IW, rows);
+    const td = tg.getImageData(0, 0, IW, rows).data;
+    for(let yy=0; yy<rows; yy++){ const py = Math.min(PH-1, Math.floor((y0+yy)*k))*PW, row = yy*IW*4;
+      for(let x=0; x<IW; x++){ const i = row + x*4;
+        const on = opaque ? ((td[i]-bg[0])**2 + (td[i+1]-bg[1])**2 + (td[i+2]-bg[2])**2 >= 1600) : td[i+3] > thr;
+        if(on) lines[py + Math.min(PW-1, Math.floor(x*k))] = 1; } }
+  }
   const count = stats.filter(s => s && s.ok).length;
-  return {PW, PH, lab, n, stats, lineMask:lm, opaque, count, hl: new ImageData(PW, PH)};
+  return {PW, PH, lab, n, stats, lines, opaque, count, hl: new ImageData(PW, PH)};
 }
 function labelAt(u, v){
   if(!UV) return 0; const {PW, PH, lab, stats} = UV;
@@ -418,6 +428,16 @@ function labelAt(u, v){
   return 0;
 }
 function picksOf(L){ const s = new Set(); if(!UV || !L.picks) return s; for(const [u,v] of L.picks){ const l = labelAt(u,v); if(l) s.add(l); } return s; }
+// 横・縦の順に r ピクセル広げる(区間の中に1つでもあれば1)
+function dilate(m, PW, PH, r){
+  const N = PW*PH, t = new Uint8Array(N);
+  for(let y=0; y<PH; y++){ const row = y*PW; let c = 0; for(let x=0; x<Math.min(r,PW); x++) c += m[row+x];
+    for(let x=0; x<PW; x++){ if(x+r<PW) c += m[row+x+r]; if(x-r-1>=0) c -= m[row+x-r-1]; t[row+x] = c>0 ? 1 : 0; } }
+  const o = new Uint8Array(N);
+  for(let x=0; x<PW; x++){ let c = 0; for(let y=0; y<Math.min(r,PH); y++) c += t[y*PW+x];
+    for(let y=0; y<PH; y++){ if(y+r<PH) c += t[(y+r)*PW+x]; if(y-r-1>=0) c -= t[(y-r-1)*PW+x]; o[y*PW+x] = c>0 ? 1 : 0; } }
+  return o;
+}
 // 区画の形の切り抜き用マスク(外側に r ピクセル広げる)
 const maskCache = new Map();
 function maskFor(set, r){
@@ -425,15 +445,7 @@ function maskFor(set, r){
   if(maskCache.has(key)) return maskCache.get(key);
   const {PW, PH, lab, stats} = UV, N = PW*PH; let m = new Uint8Array(N);
   for(const l of set){ const st = stats[l]; for(let y=st.y0; y<=st.y1; y++){ const row = y*PW; for(let x=st.x0; x<=st.x1; x++) if(lab[row+x]===l) m[row+x] = 1; } }
-  if(r>0){   // 横・縦の順に広げる(区間の中に1つでもあれば1)
-    const t = new Uint8Array(N);
-    for(let y=0; y<PH; y++){ const row = y*PW; let c = 0; for(let x=0; x<Math.min(r,PW); x++) c += m[row+x];
-      for(let x=0; x<PW; x++){ if(x+r<PW) c += m[row+x+r]; if(x-r-1>=0) c -= m[row+x-r-1]; t[row+x] = c>0 ? 1 : 0; } }
-    const o = new Uint8Array(N);
-    for(let x=0; x<PW; x++){ let c = 0; for(let y=0; y<Math.min(r,PH); y++) c += t[y*PW+x];
-      for(let y=0; y<PH; y++){ if(y+r<PH) c += t[(y+r)*PW+x]; if(y-r-1>=0) c -= t[(y-r-1)*PW+x]; o[y*PW+x] = c>0 ? 1 : 0; } }
-    m = o;
-  }
+  if(r>0) m = dilate(m, PW, PH, r);
   const c = document.createElement('canvas'); c.width = PW; c.height = PH; const g = c.getContext('2d'), id = g.createImageData(PW, PH), dd = id.data;
   for(let p=0; p<N; p++) if(m[p]){ dd[p*4] = dd[p*4+1] = dd[p*4+2] = 255; dd[p*4+3] = 255; }
   g.putImageData(id, 0, 0);
@@ -482,13 +494,16 @@ function drawLayerTo(g, L, W, H){
   g.save(); g.translate(L.x*W, L.y*H); g.rotate((L.rot||0)*Math.PI/180); g.scale(L.fx?-1:1, L.fy?-1:1);
   g.imageSmoothingQuality = 'high'; g.drawImage(src, -w/2, -h/2, w, h); g.restore();
 }
+// 線の画像。shown:実際に表示・保存される幅(px)。縮めて表示しても S.lnW ピクセル分の太さが残るように広げる
 let lineTint = null, lineTintKey = '';
-function tintedLines(){
-  if(!UV) return null; const key = S.lnColor + '|' + UV.PW;
+function lineR(shown){ return UV ? Math.max(0, Math.ceil(UV.PW/Math.max(1, shown)*(S.lnW||2)/2) - 1) : 0; }
+function tintedLines(r){
+  if(!UV) return null; const key = S.lnColor + '|' + UV.PW + '|' + r;
   if(lineTint && lineTintKey===key) return lineTint;
-  const c = document.createElement('canvas'); c.width = UV.PW; c.height = UV.PH; const g = c.getContext('2d');
-  g.drawImage(UV.lineMask, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = S.lnColor; g.fillRect(0, 0, c.width, c.height);
-  lineTint = c; lineTintKey = key; return c;
+  const {PW, PH} = UV, m = r>0 ? dilate(UV.lines, PW, PH, r) : UV.lines, [cr, cg, cb] = rgbOf(S.lnColor);
+  const c = document.createElement('canvas'); c.width = PW; c.height = PH; const g = c.getContext('2d'), id = g.createImageData(PW, PH), d = id.data;
+  for(let p=0; p<PW*PH; p++) if(m[p]){ const i = p*4; d[i] = cr; d[i+1] = cg; d[i+2] = cb; d[i+3] = 255; }
+  g.putImageData(id, 0, 0); lineTint = c; lineTintKey = key; return c;
 }
 function renderTo(c, W, H, o){
   c.width = W; c.height = H; const g = c.getContext('2d'); g.clearRect(0, 0, W, H); g.imageSmoothingQuality = 'high';
@@ -501,7 +516,7 @@ function renderTo(c, W, H, o){
     if(UV && set.size){ const m = maskFor(set, Math.round(S.dil*UV.PW/OW)); tg.globalCompositeOperation = 'destination-in'; tg.imageSmoothingEnabled = true; tg.drawImage(m, 0, 0, W, H); tg.globalCompositeOperation = 'source-over'; }
     g.globalAlpha = (L.op ?? 100)/100; g.globalCompositeOperation = L.blend || 'source-over'; g.drawImage(t, 0, 0); g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
   }
-  if(o.lines && UV){ g.globalAlpha = S.lnOp/100; g.drawImage(tintedLines(), 0, 0, W, H); g.globalAlpha = 1; }
+  if(o.lines && UV){ g.globalAlpha = S.lnOp/100; g.drawImage(tintedLines(lineR(W)), 0, 0, W, H); g.globalAlpha = 1; }
 }
 let raf = 0;
 function schedule(){
@@ -514,9 +529,12 @@ function schedule(){
     $('sizeLabel').textContent = `書き出す大きさ ${OW}×${OH}px`;
   });
 }
+let lnShownR = -1, lnT = 0;
+function linesForZoom(){ if(!UV || !S.lnOn) return; const r = lineR(vsize()[0]*V.z*(window.devicePixelRatio||1)); if(r!==lnShownR){ clearTimeout(lnT); lnT = setTimeout(paintLines, 120); } }
 function paintLines(){
   const ln = $('ln'); if(!UV){ ln.width = 1; ln.height = 1; return; }
-  ln.width = UV.PW; ln.height = UV.PH; const g = ln.getContext('2d'); g.clearRect(0, 0, ln.width, ln.height); g.drawImage(tintedLines(), 0, 0);
+  const shown = vsize()[0]*V.z*(window.devicePixelRatio||1), r = lineR(shown); lnShownR = r;
+  ln.width = UV.PW; ln.height = UV.PH; const g = ln.getContext('2d'); g.clearRect(0, 0, ln.width, ln.height); g.drawImage(tintedLines(r), 0, 0);
   ln.style.opacity = S.lnOp/100; ln.hidden = !S.lnOn;
 }
 // 選んだ区画(ピンク)と、マウスの下の区画(水色)を色付けする
@@ -536,7 +554,7 @@ const view = $('view'), V = {z:1, x:0, y:0};
 const vsize = () => { const r = view.getBoundingClientRect(); return [r.width||1, r.height||1]; };
 function layoutView(){ const [OW, OH] = outDims(); view.style.aspectRatio = `${OW} / ${OH}`; view.style.width = `min(100%, calc(78vh * ${OW/OH}))`; clampView(); applyView(); }
 function clampView(){ const [vw, vh] = vsize(); V.z = clamp(V.z, 1, 40); V.x = clamp(V.x, vw - vw*V.z, 0); V.y = clamp(V.y, vh - vh*V.z, 0); }
-function applyView(){ const [vw, vh] = vsize(), w = $('world'); w.style.width = vw*V.z + 'px'; w.style.height = vh*V.z + 'px'; w.style.transform = `translate(${V.x}px,${V.y}px)`; $('zLabel').textContent = `表示 ${Math.round(V.z*100)}%`; drawOV(); }
+function applyView(){ const [vw, vh] = vsize(), w = $('world'); w.style.width = vw*V.z + 'px'; w.style.height = vh*V.z + 'px'; w.style.transform = `translate(${V.x}px,${V.y}px)`; linesForZoom(); $('zLabel').textContent = `表示 ${Math.round(V.z*100)}%`; drawOV(); }
 function zoomAt(f, sx, sy){ const nz = clamp(V.z*f, 1, 40), k = nz/V.z; V.x = sx - (sx - V.x)*k; V.y = sy - (sy - V.y)*k; V.z = nz; clampView(); applyView(); }
 const toUV = (sx, sy) => { const [vw, vh] = vsize(); return [(sx - V.x)/(vw*V.z), (sy - V.y)/(vh*V.z)]; };
 const toScr = (u, v) => { const [vw, vh] = vsize(); return [V.x + u*vw*V.z, V.y + v*vh*V.z]; };
@@ -693,7 +711,7 @@ function buildLayers(){
 
 /* ---------- 選んだものの設定 ---------- */
 const upd = {};
-for(const [id, fmt] of [['pS', v => `${(+v).toFixed(1)}%`], ['pR', v => `${v}°`], ['op', v => `${v}%`], ['gap', v => `${v}%`], ['tStroke', v => v], ['lnOp', v => `${v}%`], ['dil', v => `${v}px`]]) upd[id] = showVal($(id), fmt);
+for(const [id, fmt] of [['pS', v => `${(+v).toFixed(1)}%`], ['pR', v => `${v}°`], ['op', v => `${v}%`], ['gap', v => `${v}%`], ['tStroke', v => v], ['lnOp', v => `${v}%`], ['lnW', v => v], ['dil', v => `${v}px`]]) upd[id] = showVal($(id), fmt);
 fontOptions($('tFont'), 'M PLUS Rounded 1c');
 function syncTf(){ const L = curL(); if(!L) return; $('pS').value = Math.round(L.s*1000)/10; $('pR').value = Math.round(L.rot||0); upd.pS(); upd.pR(); }
 function syncClip(){
@@ -756,11 +774,12 @@ $('size').addEventListener('change', e => { S.size = e.target.value; layoutView(
 $('lnOn').addEventListener('change', e => { S.lnOn = e.target.checked; paintLines(); saveSoon(); });
 $('lnOp').addEventListener('input', e => { S.lnOp = +e.target.value; $('ln').style.opacity = S.lnOp/100; saveSoon(); });
 $('lnColor').addEventListener('input', e => { S.lnColor = e.target.value; paintLines(); saveSoon(); });
+$('lnW').addEventListener('input', e => { S.lnW = +e.target.value; paintLines(); saveSoon(); });
 $('dil').addEventListener('input', e => { S.dil = +e.target.value; schedule(); });
 $('outMode').addEventListener('change', e => { S.outMode = e.target.value; saveSoon(); });
 $('outLines').addEventListener('change', e => { S.outLines = e.target.checked; saveSoon(); });
 $('outName').addEventListener('input', e => { S.outName = e.target.value; saveSoon(); });
-function syncGlobal(){ $('size').value = S.size; $('lnOn').checked = S.lnOn; $('lnOp').value = S.lnOp; $('lnColor').value = S.lnColor; $('dil').value = S.dil; upd.lnOp(); upd.dil();
+function syncGlobal(){ $('size').value = S.size; $('lnOn').checked = S.lnOn; $('lnOp').value = S.lnOp; $('lnColor').value = S.lnColor; $('lnW').value = S.lnW||2; $('dil').value = S.dil; upd.lnOp(); upd.lnW(); upd.dil();
   $('outMode').value = S.outMode; $('outLines').checked = S.outLines; $('outName').value = S.outName; noteBase(); }
 
 /* ---------- ドラッグ&ドロップ ---------- */
@@ -858,7 +877,7 @@ $('sample').onclick = async () => {
 (async () => {
   try{ const d = await store.get('work');
     if(d && d.S){ for(const [id, it] of Object.entries(d.blobs||{})){ try{ const im = await loadImg(it.blob); imgs.set(id, {blob:it.blob, im, name:it.name}); }catch(e){} }
-      S = Object.assign(DEF(), d.S); S.layers = (S.layers||[]).filter(l => l.type!=='image' || imgs.has(l.img)); if(S.uv && !imgs.has(S.uv)) S.uv = null; if(S.base && !imgs.has(S.base)) S.base = null; } }catch(e){}
+      S = Object.assign(DEF(), d.S); if(S.lnColor==='#00d5ff' && d.S.lnW===undefined){ S.lnColor = DEF().lnColor; S.lnOp = DEF().lnOp; } S.layers = (S.layers||[]).filter(l => l.type!=='image' || imgs.has(l.img)); if(S.uv && !imgs.has(S.uv)) S.uv = null; if(S.base && !imgs.has(S.base)) S.base = null; } }catch(e){}
   applyUV(); syncGlobal(); setTool('move'); layoutView(); buildLayers(); syncProps(); loading = false; schedule(); histReset();
   if(S.layers.length || S.uv) msg('前回の作業を読み込みました。');
   if(document.fonts) document.fonts.ready.then(() => { tcache.clear(); schedule(); });
