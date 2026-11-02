@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>VRCグループバナーメーカー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Zen+Kaku+Gothic+New:wght@500;700&family=M+PLUS+Rounded+1c:wght@500;800&family=Kiwi+Maru:wght@500&family=Yusei+Magic&family=Klee+One:wght@600&family=Hachi+Maru+Pop&family=Dela+Gothic+One&family=RocknRoll+One&family=Mochiy+Pop+One&family=Noto+Serif+JP:wght@600&display=swap">
+<style>
+:root{
+  --bg:#f6f3f7; --surface:#ffffff; --fg:#26222b; --muted:#6c6475; --line:#e3dde8; --field:#faf8fb; --chk:#ebe6ee; --sel:#ff4f8b;
+  --font-display:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#18161b; --surface:#221f26; --fg:#efebf3; --muted:#a9a1b3; --line:#38333f; --field:#2a2630; --chk:#2e2a33; --sel:#ff7aa8; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#18161b; --surface:#221f26; --fg:#efebf3; --muted:#a9a1b3; --line:#38333f; --field:#2a2630; --chk:#2e2a33; --sel:#ff7aa8; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:14px;line-height:1.6}
+.wrap{max-width:1320px;margin:0 auto;padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;margin-bottom:16px}
+header p{flex-basis:100%;margin:0;color:var(--muted);font-size:.85rem}
+h1{font-family:var(--font-display);font-weight:700;font-size:1.5rem;margin:0}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:minmax(0,1fr)}}
+.stage{display:flex;flex-direction:column;gap:10px;min-width:0;position:sticky;top:12px}
+@media (max-width:920px){.stage{position:static}}
+.board{margin:0 auto;max-width:100%;border-radius:6px;overflow:hidden;box-shadow:0 8px 28px rgba(30,20,50,.18);background:repeating-conic-gradient(var(--chk) 0 25%, var(--surface) 0 50%) 0 0/18px 18px}
+.board canvas{display:block;width:100%;height:auto}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 16px 16px;display:flex;flex-direction:column;min-width:0}
+fieldset{border:0;border-top:1px solid var(--line);margin:0;padding:12px 0 8px;display:flex;flex-direction:column;gap:10px;min-width:0}
+fieldset:first-child{border-top:0}
+legend{font-family:var(--font-display);font-weight:700;font-size:.95rem;padding:0;margin-bottom:2px}
+label{display:flex;flex-direction:column;gap:4px;font-size:.8rem;color:var(--muted);min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:10px}
+.row>label{flex:1 1 90px}
+input[type=text],input[type=number],input[type=date],input[type=datetime-local],input[type=time],textarea,select{font:inherit;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:6px 9px;width:100%}
+textarea{min-height:56px;resize:vertical;line-height:1.5}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:100%;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--field);padding:2px}
+input[type=file]{font-size:.78rem;color:var(--muted);max-width:100%}
+.check{flex-direction:row;align-items:center;gap:8px;color:var(--fg)}
+.btn{font:inherit;font-weight:700;border-radius:999px;padding:8px 16px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{font-size:.76rem;padding:4px 11px}
+.btn.danger{border-color:#d4405f;color:#d4405f;background:transparent}
+.btn:disabled{opacity:.5;cursor:default}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+.mini{font:inherit;font-size:.75rem;border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:6px;padding:2px 8px;cursor:pointer}
+.mini:disabled{opacity:.4;cursor:default}
+.tabs{display:flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tabs button{flex:1 1 auto;font:inherit;font-size:.82rem;padding:8px 10px;border:0;background:var(--field);color:var(--fg);cursor:pointer}
+.tabs button+button{border-left:1px solid var(--line)}
+.tabs button[aria-pressed=true]{background:var(--accent);color:var(--accent-fg);font-weight:700}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{font:inherit;font-size:.76rem;border:1px solid var(--line);background:var(--field);color:var(--fg);border-radius:999px;padding:3px 10px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg);font-weight:700}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;max-height:300px;overflow:auto}
+.list li{display:flex;align-items:center;gap:6px;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--field);cursor:pointer}
+.list li.sel{border-color:var(--sel);box-shadow:inset 3px 0 0 var(--sel)}
+.list li .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.list li .sw{width:14px;height:14px;border-radius:50%;flex:none;border:1px solid rgba(0,0,0,.15)}
+.list li img{width:30px;height:30px;border-radius:6px;object-fit:cover;flex:none;background:var(--line)}
+.hint{color:var(--muted);font-size:.78rem;margin:0}
+.status{min-height:1.3em}
+.val{font-variant-numeric:tabular-nums;color:var(--fg);font-weight:700;margin-left:4px}
+.ver{font-size:.72rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:1px 9px;text-decoration:none;white-space:nowrap;align-self:center}
+a.ver:hover{color:var(--accent);border-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.progress{height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--accent);transition:width .2s}
+@media (prefers-reduced-motion: reduce){.progress i{transition:none}}
+.toplink{font-size:.8rem;color:var(--muted);text-decoration:none;flex-basis:100%}
+.toplink:hover{text-decoration:underline}
+details.more summary{cursor:pointer;font-size:.82rem;color:var(--fg);font-weight:700}
+details.more>div{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+
+/* Layout: 左にバナーの大きなプレビュー(見える範囲の目安線つき・ドラッグで移動)と、場所ごとの見え方。右にレイアウト・背景・文字・写真・アイコンの設定 */
+:root{--accent:#3d5ee8; --accent-fg:#ffffff}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--accent:#8ea4ff; --accent-fg:#101735}}
+:root[data-theme="dark"]{--accent:#8ea4ff; --accent-fg:#101735}
+.board{position:relative;touch-action:none;cursor:default;width:100%}
+.board.over{cursor:move}
+.board canvas{display:block;width:100%;height:auto}
+.previews{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.pv{display:flex;flex-direction:column;gap:4px;font-size:.75rem;color:var(--muted)}
+.pv canvas{width:100%;height:auto;border-radius:6px;background:#111;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.pv.np canvas{border-radius:999px}
+.iconrow{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.iconrow canvas{width:120px;height:120px;border-radius:50%;box-shadow:0 2px 10px rgba(0,0,0,.2);background:var(--chk)}
+.iconrow canvas.sq{border-radius:18px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:.74rem;color:var(--muted)}
+.legend i{display:inline-block;width:14px;height:0;border-top:2px dashed;vertical-align:middle;margin-right:4px}
+.mem{display:flex;flex-direction:column;gap:4px}
+.mem li{cursor:default}
+.mem li input[type=text]{padding:3px 7px;font-size:.8rem}
+.dropping{outline:3px dashed var(--accent)!important;outline-offset:-3px}
+.lay{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.lay button{font:inherit;font-size:.8rem;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--fg);padding:6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px}
+.lay button[aria-pressed=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);font-weight:700}
+.lay svg{width:100%;height:auto;max-width:110px}
+.grads{display:flex;flex-wrap:wrap;gap:6px}
+.grads button{width:38px;height:26px;border-radius:6px;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--line);cursor:pointer;padding:0}
+.grads button[aria-pressed=true]{box-shadow:0 0 0 2px var(--accent)}
+.sel-el{font-size:.8rem;color:var(--fg)}
+@media (pointer:coarse){ .mini{padding:6px 10px;font-size:.82rem} input[type=range]{height:30px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="toplink" href="./">← ツール一覧</a>
+    <h1>VRCグループバナーメーカー</h1>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.0 ・ 2026-11-02</a>
+    <p>VRChatのグループのバナー(16:9)とアイコン(正方形)を作ります。ネームプレートやゲーム内のグループページで見える範囲の目安を見ながら、文字・ロゴ・メンバーの写真を配置できます。</p>
+  </header>
+  <div class="grid">
+    <div class="stage">
+      <div class="board" id="board"><canvas id="cv"></canvas></div>
+      <div class="legend" id="legend">
+        <span><i style="color:#ff4f8b"></i>ネームプレート(短い名前)</span>
+        <span><i style="color:#ffb020"></i>ネームプレート(長い名前)</span>
+        <span><i style="color:#22c3e6"></i>ゲーム内のグループページ</span>
+        <span><i style="color:#7ddc6a"></i>カード表示</span>
+      </div>
+      <div class="actions">
+        <button class="btn" id="saveBanner" type="button">バナーをPNGで保存</button>
+        <button class="btn ghost" id="saveIcon" type="button">アイコンをPNGで保存</button>
+        <button class="mini" id="undo" type="button" disabled title="元に戻す(Ctrl+Z)">↶ 元に戻す</button>
+        <button class="mini" id="redo" type="button" disabled title="やり直す(Ctrl+Shift+Z)">↷ やり直す</button>
+        <label class="check"><input type="checkbox" id="guides"> 見える範囲の目安を表示</label>
+      </div>
+      <p class="hint" id="stageHint">文字・ロゴ・写真の列はドラッグで動かせます。マウスホイールで大きさを変えられます(選んだものは矢印キーでも動きます)。目安の線は保存した画像には入りません。</p>
+      <p class="hint status" id="msg" role="status" aria-live="polite"></p>
+      <div class="previews" id="previews">
+        <div class="pv np"><span>ネームプレート(短い名前のとき)</span><canvas id="pvNs"></canvas></div>
+        <div class="pv np"><span>ネームプレート(長い名前のとき)</span><canvas id="pvNl"></canvas></div>
+        <div class="pv"><span>ゲーム内のグループページ</span><canvas id="pvGp"></canvas></div>
+        <div class="pv"><span>カード表示</span><canvas id="pvCard"></canvas></div>
+        <div class="pv"><span>グループの一覧(小さく表示)</span><canvas id="pvSmall"></canvas></div>
+      </div>
+      <p class="hint">見える範囲は、VRChatの表示を測った目安です。VRChatの更新で変わることがあります。2026年7月から、ネームプレートには専用の「Group Nameplate Banner」を別に登録できるようになりました(登録しないときは、このバナーが使われます)。</p>
+    </div>
+
+    <div class="panel">
+      <fieldset>
+        <legend>レイアウト</legend>
+        <div class="lay" id="layouts"></div>
+        <div class="btns"><button class="btn ghost small" id="sample" type="button">見本で試してみる</button><button class="mini" id="relayout" type="button">配置をレイアウトどおりに戻す</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>背景</legend>
+        <div class="tabs" id="bgTabs"><button type="button" data-v="grad">グラデーション</button><button type="button" data-v="color">単色</button><button type="button" data-v="image">画像</button></div>
+        <div class="grads" id="grads"></div>
+        <label id="bgColorLab">背景の色<input type="color" id="bgColor"></label>
+        <div id="bgImgBox">
+          <label id="bgImgLab">背景の画像(ワールドの写真など。ここにドラッグ&ドロップでもOK)<input type="file" id="bgFile" accept="image/*"></label>
+          <label>画像の大きさ<input type="range" id="bgZoom" min="100" max="300" step="1"></label>
+          <div class="row"><label>横の位置<input type="range" id="bgX" min="-100" max="100" step="1"></label><label>縦の位置<input type="range" id="bgY" min="-100" max="100" step="1"></label></div>
+        </div>
+        <div class="row"><label>ぼかし<input type="range" id="bgBlur" min="0" max="30" step="1"></label><label>暗くする<input type="range" id="bgDim" min="0" max="80" step="1"></label></div>
+        <label>飾り<select id="deco"><option value="none">なし</option><option value="stars">星</option><option value="sparkle">キラキラ</option><option value="hearts">ハート</option><option value="dots">水玉</option><option value="lines">ななめの線</option></select></label>
+        <div class="row"><label style="flex:0 1 80px">飾りの色<input type="color" id="decoColor"></label><label>飾りの量<input type="range" id="decoAmt" min="5" max="100" step="1"></label></div>
+        <label class="check"><input type="checkbox" id="bandOn"> 横の帯を入れる(ネームプレートで見える高さ)</label>
+        <div class="row" id="bandBox"><label style="flex:0 1 80px">帯の色<input type="color" id="bandColor"></label><label>帯の濃さ<input type="range" id="bandOp" min="10" max="100" step="1"></label></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>文字</legend>
+        <label class="check"><input type="checkbox" id="tOn"> グループ名を入れる</label>
+        <label>グループ名<input type="text" id="tText"></label>
+        <label class="check"><input type="checkbox" id="sOn"> 小さい文字を入れる</label>
+        <label>小さい文字(読み方・ショートコード・ひとことなど)<input type="text" id="sText"></label>
+        <div class="row"><label>フォント<select id="font"></select></label></div>
+        <div class="row"><label style="flex:0 1 70px">文字の色<input type="color" id="tColor"></label><label style="flex:0 1 70px">縁の色<input type="color" id="tSColor"></label><label>縁の太さ<input type="range" id="tStroke" min="0" max="30" step="1"></label></div>
+        <div class="row"><label style="flex:0 1 70px">光の色<input type="color" id="tGColor"></label><label>光らせる<input type="range" id="tGlow" min="0" max="60" step="1"></label></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>ロゴ</legend>
+        <label id="logoLab">ロゴの画像(背景が透明なPNGがおすすめ。ドラッグ&ドロップでもOK)<input type="file" id="logoFile" accept="image/*"></label>
+        <div class="btns"><button class="mini" id="logoClear" type="button" hidden>ロゴを外す</button></div>
+      </fieldset>
+
+      <fieldset id="fsMem">
+        <legend>メンバーの写真</legend>
+        <label id="memLab">写真を選ぶ(何枚でも。ここにドラッグ&ドロップでもOK)<input type="file" id="memFile" accept="image/*" multiple></label>
+        <ul class="list mem" id="memList"></ul>
+        <div class="row"><label>形<select id="mShape"><option value="circle">丸</option><option value="round">角丸</option><option value="square">四角</option></select></label><label style="flex:0 1 80px">フチの色<input type="color" id="mBColor"></label></div>
+        <div class="row"><label>フチの太さ<input type="range" id="mBorder" min="0" max="20" step="1"></label><label>写真の間隔<input type="range" id="mGap" min="-40" max="80" step="1"></label></div>
+        <label class="check"><input type="checkbox" id="mNames"> 名前を写真の下に出す</label>
+      </fieldset>
+
+      <fieldset>
+        <legend>選んでいるもの</legend>
+        <p class="hint sel-el" id="selName">プレビューで文字・ロゴ・写真の列を押すと選べます。</p>
+        <label>大きさ<input type="range" id="elSize" min="2" max="80" step="0.5"></label>
+        <div class="btns"><button class="mini" id="elCenterX" type="button">左右の真ん中へ</button><button class="mini" id="elBand" type="button">ネームプレートの高さへ</button></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>アイコン</legend>
+        <div class="iconrow"><canvas id="icv" width="512" height="512"></canvas><canvas id="icv2" class="sq" width="512" height="512"></canvas></div>
+        <p class="hint">丸く切り抜かれても大丈夫なように、真ん中に寄せて作ります。</p>
+        <label>アイコンの中身<select id="iMode"><option value="logo">ロゴ(ないときは文字)</option><option value="text">文字</option><option value="photo">1人目の写真</option></select></label>
+        <label>アイコンの文字<input type="text" id="iText" placeholder="空ならグループ名の最初の文字"></label>
+        <label>中身の大きさ<input type="range" id="iSize" min="30" max="100" step="1"></label>
+        <label class="check"><input type="checkbox" id="iBgSame"> 背景はバナーと同じにする</label>
+        <label id="iBgLab">アイコンの背景の色<input type="color" id="iBg"></label>
+      </fieldset>
+
+      <fieldset>
+        <legend>保存</legend>
+        <label>バナーの大きさ<select id="size"><option value="2000">2000×1125(おすすめ)</option><option value="1920">1920×1080</option><option value="1280">1280×720(軽い)</option></select></label>
+        <p class="hint">アップロードは VRChat のウェブサイトのグループの管理画面から行います(バナー・アイコンの変更には VRC+ が必要です)。作業はこのブラウザに自動で保存されます。</p>
+        <div class="btns"><button class="btn danger small" id="resetAll" type="button">新しく始める</button></div>
+      </fieldset>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== 共通の部品(画像作成ツール) ===== */
+const $ = id => document.getElementById(id);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const R = Math.round;
+const FONTS = [
+  {name:"Zen Maru Gothic(丸ゴシック)", fam:"Zen Maru Gothic", w:700},
+  {name:"M PLUS Rounded 1c(丸ゴシック太)", fam:"M PLUS Rounded 1c", w:800},
+  {name:"Kiwi Maru(やわらか明朝)", fam:"Kiwi Maru", w:500},
+  {name:"Klee One(手書き風)", fam:"Klee One", w:600},
+  {name:"Yusei Magic(マーカー風)", fam:"Yusei Magic", w:400},
+  {name:"Hachi Maru Pop(まるもじ)", fam:"Hachi Maru Pop", w:400},
+  {name:"Mochiy Pop One(ポップ)", fam:"Mochiy Pop One", w:400},
+  {name:"RocknRoll One(太ゴシック)", fam:"RocknRoll One", w:400},
+  {name:"Dela Gothic One(極太)", fam:"Dela Gothic One", w:400},
+  {name:"Noto Serif JP(明朝)", fam:"Noto Serif JP", w:600},
+];
+const fontOf = fam => FONTS.find(f => f.fam===fam) || FONTS[0];
+const fontStr = (f, px, w) => `${w||f.w} ${Math.max(1,px)}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
+function fontOptions(sel, cur){ sel.innerHTML=''; for(const f of FONTS){ const o=document.createElement('option'); o.value=f.fam; o.textContent=f.name; if(f.fam===cur) o.selected=true; sel.appendChild(o); } }
+const loadFont = (f, text) => document.fonts ? document.fonts.load(fontStr(f, 40), text || 'あA1').catch(()=>{}) : Promise.resolve();
+
+/* 色 */
+function rgbOf(hex){ const n = parseInt(String(hex||'#888888').replace('#','').padEnd(6,'0').slice(0,6), 16); return [n>>16, (n>>8)&255, n&255]; }
+const hexOf = (r,g,b) => '#' + [r,g,b].map(v => clamp(R(v),0,255).toString(16).padStart(2,'0')).join('');
+function mix(a, b, t){ const A=rgbOf(a), B=rgbOf(b); return hexOf(A[0]+(B[0]-A[0])*t, A[1]+(B[1]-A[1])*t, A[2]+(B[2]-A[2])*t); }
+const light = (c, t) => mix(c, '#ffffff', t), dark = (c, t) => mix(c, '#000000', t);
+function rgba(hex, a){ const [r,g,b] = rgbOf(hex); return `rgba(${r},${g},${b},${clamp(a,0,1)})`; }
+function lum(hex){ const [r,g,b] = rgbOf(hex); return (r*.299 + g*.587 + b*.114)/255; }
+const onColor = hex => lum(hex) > .62 ? '#2a2230' : '#ffffff';   // 色の上にのせる文字の色
+
+/* 画像 */
+function loadImg(blob){ return new Promise((res, rej) => { if(!blob) return res(null); const u = URL.createObjectURL(blob), im = new Image();
+  im.onload = () => { im._blob = blob; im._url = u; res(im); }; im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('img')); }; im.src = u; }); }
+// 枠いっぱいに入れる(adj:大きさ%・位置-100〜100)
+function drawCover(g, im, x, y, w, h, adj){
+  if(!im) return; const iw = im.naturalWidth||im.width, ih = im.naturalHeight||im.height, a = adj||{};
+  const k = Math.max(w/iw, h/ih) * (a.s ?? 100)/100, dw = iw*k, dh = ih*k;
+  const ox = (a.x||0)/100*w*.5, oy = (a.y||0)/100*h*.5;   // 右・下へ動かす
+  g.drawImage(im, x + (w-dw)/2 + ox, y + (h-dh)/2 + oy, dw, dh);
+}
+function drawContain(g, im, x, y, w, h){ if(!im) return; const iw = im.naturalWidth||im.width, ih = im.naturalHeight||im.height, k = Math.min(w/iw, h/ih); g.drawImage(im, x+(w-iw*k)/2, y+(h-ih*k)/2, iw*k, ih*k); }
+
+/* 文字(日本語の行頭禁則つきで折り返す) */
+const NO_START = '、。，．,.！？!?）)」』】〉》ーぁぃぅぇぉっゃゅょゎァィゥェォッャュョヮヵヶ～〜…‥';
+function wrapText(g, text, maxW){
+  const out = [];
+  for(const para of String(text||'').split('\n')){
+    if(para===''){ out.push(''); continue; }
+    let line = '';
+    for(const ch of [...para]){
+      if(line && g.measureText(line+ch).width > maxW && !NO_START.includes(ch)){ out.push(line); line = ch; }
+      else line += ch;
+    }
+    out.push(line);
+  }
+  return out;
+}
+// 枠に収まる大きさを探す(はじめの大きさから小さくしていく)
+function fitText(g, text, f, maxW, maxH, size, lh=1.3, maxLines=99){
+  let lines = [];
+  for(let i=0;i<60;i++){
+    g.font = fontStr(f, size); lines = wrapText(g, text, maxW);
+    const wd = Math.max(0, ...lines.map(l => g.measureText(l).width));
+    if((lines.length*size*lh <= maxH && wd <= maxW*1.01 && lines.length <= maxLines) || size < 6) break;
+    size *= .94;
+  }
+  g.font = fontStr(f, size); return {size, lines};
+}
+// 1行に収める(長いときだけ小さくする)
+function fitLine(g, text, f, maxW, size, w){ g.font = fontStr(f, size, w); const tw = g.measureText(text).width; if(tw > maxW) size *= maxW/tw; g.font = fontStr(f, size, w); return size; }
+function drawTextLines(g, lines, x, y, size, lh, align='left', stroke=0, strokeColor='#000'){
+  g.textAlign = align; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.miterLimit = 2;
+  lines.forEach((l, i) => { const yy = y + size*lh*(i+.5); if(stroke>0){ g.lineWidth = stroke; g.strokeStyle = strokeColor; g.strokeText(l, x, yy); } g.fillText(l, x, yy); });
+}
+function star(g, x, y, r, n=5, inner=.45){ g.beginPath(); for(let i=0;i<n*2;i++){ const a = -Math.PI/2 + i*Math.PI/n, rr = i%2 ? r*inner : r; g.lineTo(x + Math.cos(a)*rr, y + Math.sin(a)*rr); } g.closePath(); }
+function sparkle(g, x, y, r){ g.beginPath(); g.moveTo(x, y-r); g.quadraticCurveTo(x, y, x+r, y); g.quadraticCurveTo(x, y, x, y+r); g.quadraticCurveTo(x, y, x-r, y); g.quadraticCurveTo(x, y, x, y-r); g.fill(); }
+function heart(g, x, y, s){ g.beginPath(); g.moveTo(x, y+s*.35); g.bezierCurveTo(x-s*.9, y-s*.25, x-s*.45, y-s*.95, x, y-s*.45); g.bezierCurveTo(x+s*.45, y-s*.95, x+s*.9, y-s*.25, x, y+s*.35); g.fill(); }
+function rnd(i, k){ const x = Math.sin(i*127.1 + k*311.7) * 43758.5453; return x - Math.floor(x); }
+
+/* 保存 */
+let downloadsP = null;
+try{ downloadsP = window.claude?.use ? window.claude.use('downloads') : null; }catch(e){}
+async function saveFile(filename, data){
+  const dl = downloadsP ? await Promise.resolve(downloadsP).catch(()=>null) : null;
+  if(dl){ try{ await dl.save({filename, data}); return 'saved'; } catch(err){ if(err?.code==='declined') return 'declined'; if(err?.code==='rate_limited') return 'busy'; return 'failed'; } }
+  const url = URL.createObjectURL(data instanceof Blob ? data : new Blob([data])); const a = document.createElement('a'); a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 8000); return 'saved';
+}
+const toBlob = (c, type='image/png', q) => new Promise(r => c.toBlob(r, type, q));
+const stamp = () => { const d=new Date(), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`; };
+const safeName = s => (String(s||'').replace(/[\\/:*?"<>|\n\r]/g,'_').trim() || 'image').slice(0, 60);
+const tick = ms => new Promise(r => setTimeout(r, ms||0));
+const resultMsg = (r, ok) => r==='saved' ? ok : r==='declined' ? '保存を取り消しました。' : '保存できませんでした。少し待ってからもう一度試してください。';
+async function saveZip(entries, zipName, onProgress){   // entries: [{name, blob}]
+  if(typeof JSZip==='undefined') throw new Error('nozip');
+  const zip = new JSZip(), used = new Set();
+  entries.forEach(e => { let n = e.name, k = 2; const m = n.replace(/(\.[^.]+)$/, ''), ext = n.slice(m.length); while(used.has(n)) n = `${m}(${k++})${ext}`; used.add(n); zip.file(n, e.blob); });
+  const z = await zip.generateAsync({type:'blob'}, m => onProgress && onProgress(m.percent/100));
+  return saveFile(zipName, z);
+}
+
+/* 作業の自動保存(IndexedDB。画像もそのまま入る) */
+function makeStore(dbName){
+  let dbp = null;
+  const open = () => dbp || (dbp = new Promise((res, rej) => { try{ const r = indexedDB.open(dbName, 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }catch(e){ rej(e); } }));
+  const tx = async (mode, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('kv', mode), st = t.objectStore('kv'), q = fn(st); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); }); };
+  return { get: k => tx('readonly', st => st.get(k)), put: (k, v) => tx('readwrite', st => st.put(v, k)) };
+}
+// 「もう一度押すと〜」の確認つきボタン
+function armButton(btn, label, armedLabel, fn){
+  let armed = false;
+  btn.onclick = () => { if(!armed){ armed = true; btn.textContent = armedLabel; setTimeout(() => { armed = false; btn.textContent = label; }, 3000); return; } armed = false; btn.textContent = label; fn(); };
+}
+// スライダーの値を表示する(label の中の .val に入れる)
+function showVal(input, fmt){ const lab = input.closest('label'); let v = lab && lab.querySelector('.val'); if(lab && !v){ v = document.createElement('span'); v.className = 'val'; const t = [...lab.childNodes].find(n => n.nodeType===3 && n.textContent.trim()); if(t) t.after(v); else lab.prepend(v); }
+  const upd = () => { if(v) v.textContent = fmt ? fmt(input.value) : input.value; }; input.addEventListener('input', upd); upd(); return upd; }
+
+(() => {
+const msg = t => { $('msg').textContent = t; };
+const uid = () => Math.random().toString(36).slice(2,10);
+const store = makeStore('group-banner');
+const imgs = new Map();   // id -> {blob, im, name}
+const IM = id => (id && imgs.get(id)?.im) || null;
+async function addImage(blob, name){ const im = await loadImg(blob); const id = uid(); imgs.set(id, {blob, im, name: name || blob.name || '画像'}); return id; }
+const stem = n => String(n||'').replace(/\.[^.]+$/, '');
+
+// 見える範囲の目安(バナー全体に対する割合。2000×1125 の画面で測ったもの)
+const ZONES = [
+  {k:'ns', name:'ネームプレート(短い名前)', color:'#ff4f8b', x:.162, y:.282, w:.674, h:.193},
+  {k:'nl', name:'ネームプレート(長い名前)', color:'#ffb020', x:0, y:.279, w:1, h:.196},
+  {k:'gp', name:'ゲーム内のグループページ', color:'#22c3e6', x:0, y:.35, w:1, h:.30},
+  {k:'card', name:'カード表示', color:'#7ddc6a', x:0, y:.14, w:1, h:.86}];
+const BAND_Y = .282 + .193/2;   // ネームプレートの帯の真ん中
+const GRADS = [['#6a5cff','#c86dd7','#ff9ac6'], ['#0f2a5c','#2b5fb8','#7fd3ff'], ['#ff7a59','#ffb347','#ffe08a'], ['#0b0f2a','#3a1c71','#d76d77'],
+  ['#14b8a6','#60a5fa','#a78bfa'], ['#ffd1e8','#fbe3ff','#d8ecff'], ['#1f1f1f','#3b3b3b','#6b6b6b'], ['#2d0b3a','#7b1fa2','#ff4fd8']];
+const LAYOUTS = {
+  center: {name:'まん中に名前', title:[.5,BAND_Y,.17], sub:[.5,.6,.055], logo:[.5,.17,.2], members:[.5,.81,.2], band:false},
+  left:   {name:'左に名前・右に写真', title:[.27,BAND_Y,.1], sub:[.27,.6,.045], logo:[.08,.6,.14], members:[.74,BAND_Y,.15], band:true},
+  members:{name:'メンバーを並べる', title:[.5,.17,.1], sub:[.5,.71,.05], logo:[.89,.84,.14], members:[.5,BAND_Y,.19], band:false},
+  band:   {name:'帯に名前', title:[.5,BAND_Y,.135], sub:[.5,.6,.05], logo:[.5,.17,.16], members:[.5,.8,.18], band:true}};
+const DEF = () => ({v:1, layout:'center', size:'2000', guides:true,
+  bg:{type:'grad', grad:0, color:'#3b3f8f', img:null, zoom:100, x:0, y:0, blur:0, dim:0},
+  deco:'stars', decoColor:'#ffffff', decoAmt:40, band:{on:false, color:'#141432', op:55},
+  font:'M PLUS Rounded 1c', tColor:'#ffffff', tSColor:'#3a2a7a', tStroke:10, tGColor:'#b9a6ff', tGlow:18,
+  title:{on:true, text:'Yumechiffo', x:.5, y:BAND_Y, s:.17}, sub:{on:true, text:'ゆめしふぉ 公式グループ', x:.5, y:.6, s:.055},
+  logo:{img:null, x:.5, y:.17, s:.2}, members:{list:[], x:.5, y:.81, s:.2, shape:'circle', border:6, bcolor:'#ffffff', gap:12, names:false},
+  icon:{mode:'logo', text:'', size:72, bgSame:true, bg:'#3b3f8f'}, sel:'title'});
+let S = DEF(), dragging = false;
+
+/* ---------- 描画 ---------- */
+function coverDraw(g, im, x, y, w, h, z=1, ox=0, oy=0){ const iw = im.naturalWidth||im.width, ih = im.naturalHeight||im.height, k = Math.max(w/iw, h/ih)*z, dw = iw*k, dh = ih*k;
+  g.drawImage(im, x + (w-dw)/2 - ox*(dw-w)/2, y + (h-dh)/2 - oy*(dh-h)/2, dw, dh); }
+function drawBg(g, W, H, forIcon){
+  const B = S.bg; g.save();
+  if(B.type==='image' && IM(B.img)){
+    if(B.blur) g.filter = `blur(${B.blur*W/1000}px)`;
+    const pad = B.blur ? B.blur*W/400 : 0; coverDraw(g, IM(B.img), -pad, -pad, W+pad*2, H+pad*2, B.zoom/100, B.x/100, B.y/100); g.filter = 'none';
+  } else if(B.type==='color'){ g.fillStyle = B.color; g.fillRect(0, 0, W, H); }
+  else { const c = GRADS[B.grad] || GRADS[0], gr = g.createLinearGradient(0, 0, W, H); c.forEach((col, i) => gr.addColorStop(i/(c.length-1), col)); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
+  g.restore();
+  if(B.dim){ g.fillStyle = `rgba(0,0,0,${B.dim/100})`; g.fillRect(0, 0, W, H); }
+  // 飾り
+  const n = Math.round(S.decoAmt*(forIcon ? .35 : 1)), U = Math.min(W, H)/100; g.fillStyle = S.decoColor; g.strokeStyle = S.decoColor;
+  for(let i=0; i<n && S.deco!=='none'; i++){
+    const x = rnd(i,1)*W, y = rnd(i,2)*H, r = (1.2 + rnd(i,3)*3.2)*U; g.globalAlpha = .25 + rnd(i,4)*.55;
+    if(S.deco==='stars'){ star(g, x, y, r, 5, .45); g.fill(); }
+    else if(S.deco==='sparkle') sparkle(g, x, y, r*1.3);
+    else if(S.deco==='hearts') heart(g, x, y, r*1.6);
+    else if(S.deco==='dots'){ g.beginPath(); g.arc(x, y, r*.8, 0, Math.PI*2); g.fill(); }
+    else if(S.deco==='lines' && i < n/2){ g.lineWidth = U*(.4 + rnd(i,5)); g.beginPath(); const x0 = rnd(i,1)*W*1.4 - W*.2; g.moveTo(x0, -10); g.lineTo(x0 - H*.6, H + 10); g.stroke(); }
+  }
+  g.globalAlpha = 1;
+}
+function textBlock(g, el, W, H, small){
+  const f = fontOf(S.font), size = el.s*H, x = el.x*W, y = el.y*H, maxW = Math.max(W*.2, Math.min(W*.96, 2*Math.min(el.x, 1-el.x)*W*.98));   // 画面からはみ出さない幅
+  const sz = fitLine(g, el.text, f, maxW, size);
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.miterLimit = 2;
+  const sw = S.tStroke/100*sz*(small ? .8 : 1);
+  if(S.tGlow){ g.save(); g.shadowColor = S.tGColor; g.shadowBlur = S.tGlow/100*sz*1.6; g.fillStyle = S.tGColor; g.fillText(el.text, x, y); g.restore(); }
+  if(sw > 0){ g.lineWidth = sw*2; g.strokeStyle = S.tSColor; g.strokeText(el.text, x, y); }
+  g.fillStyle = S.tColor; g.fillText(el.text, x, y);
+  const tw = g.measureText(el.text).width; return {x:x - tw/2 - sw, y:y - sz*.6 - sw, w:tw + sw*2, h:sz*1.2 + sw*2};
+}
+function shapePath(g, x, y, s, shape){ g.beginPath(); if(shape==='circle') g.arc(x + s/2, y + s/2, s/2, 0, Math.PI*2); else g.roundRect(x, y, s, s, shape==='round' ? s*.2 : 0); }
+function drawMembers(g, W, H){
+  const M = S.members, L = M.list.filter(m => IM(m.img)); if(!L.length) return null;
+  const s = M.s*H, gap = M.gap/100*s, n = L.length, tot = n*s + (n-1)*gap, x0 = M.x*W - tot/2, y0 = M.y*H - s/2, bw = M.border/100*s*.5;
+  L.forEach((m, i) => { const x = x0 + i*(s+gap);
+    g.save(); g.shadowColor = 'rgba(0,0,0,.3)'; g.shadowBlur = s*.08; g.shadowOffsetY = s*.03; g.fillStyle = M.bcolor; shapePath(g, x-bw, y0-bw, s+bw*2, M.shape); g.fill(); g.restore();
+    g.save(); shapePath(g, x, y0, s, M.shape); g.clip(); coverDraw(g, IM(m.img), x, y0, s, s); g.restore();
+    if(M.names && m.name){ const f = fontOf(S.font), fs = fitLine(g, m.name, f, s+gap*.9, s*.2); g.textAlign = 'center'; g.textBaseline = 'top'; g.lineJoin = 'round';
+      if(S.tStroke){ g.lineWidth = fs*.3; g.strokeStyle = S.tSColor; g.strokeText(m.name, x + s/2, y0 + s + bw + s*.05); } g.fillStyle = S.tColor; g.fillText(m.name, x + s/2, y0 + s + bw + s*.05); }
+  });
+  return {x:x0 - bw, y:y0 - bw, w:tot + bw*2, h:s + bw*2 + (M.names ? s*.3 : 0)};
+}
+let boxes = {};
+function renderBanner(c, W, H){
+  c.width = W; c.height = H; const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; boxes = {};
+  drawBg(g, W, H, false);
+  if(S.band.on){ const z = ZONES[1]; g.fillStyle = rgba(S.band.color, S.band.op/100); g.fillRect(0, z.y*H, W, z.h*H); }
+  boxes.members = drawMembers(g, W, H);
+  const lg = IM(S.logo.img); if(lg){ const h = S.logo.s*H, w = h*(lg.naturalWidth/lg.naturalHeight), x = S.logo.x*W - w/2, y = S.logo.y*H - h/2; g.drawImage(lg, x, y, w, h); boxes.logo = {x, y, w, h}; }
+  if(S.title.on && S.title.text.trim()) boxes.title = textBlock(g, S.title, W, H, false);
+  if(S.sub.on && S.sub.text.trim()) boxes.sub = textBlock(g, S.sub, W, H, true);
+}
+function renderIcon(c, N){
+  c.width = N; c.height = N; const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; const I = S.icon;
+  if(I.bgSame){ if(S.bg.type==='image' && IM(S.bg.img)){ const t = document.createElement('canvas'); t.width = Math.round(N*16/9); t.height = N; drawBg(t.getContext('2d'), t.width, N, true); g.drawImage(t, -(t.width-N)/2, 0); } else drawBg(g, N, N, true); }
+  else { g.fillStyle = I.bg; g.fillRect(0, 0, N, N); }
+  const k = I.size/100, lg = IM(S.logo.img), ph = S.members.list.map(m => IM(m.img)).find(Boolean);
+  const mode = I.mode==='logo' && !lg ? 'text' : I.mode==='photo' && !ph ? 'text' : I.mode;
+  if(mode==='logo'){ const s = N*.78*k, a = lg.naturalWidth/lg.naturalHeight, w = a>=1 ? s : s*a, h = a>=1 ? s/a : s; g.drawImage(lg, (N-w)/2, (N-h)/2, w, h); }
+  else if(mode==='photo'){ const s = N*k; g.save(); g.beginPath(); g.arc(N/2, N/2, s/2, 0, Math.PI*2); g.clip(); coverDraw(g, ph, (N-s)/2, (N-s)/2, s, s); g.restore(); }
+  else { const t = (I.text || [...(S.title.text||'?').trim()].slice(0,2).join('') || '?'), f = fontOf(S.font), sz = fitLine(g, t, f, N*.74*k, N*.5*k);
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round';
+    if(S.tGlow){ g.save(); g.shadowColor = S.tGColor; g.shadowBlur = S.tGlow/100*sz*1.4; g.fillStyle = S.tGColor; g.fillText(t, N/2, N/2); g.restore(); }
+    if(S.tStroke){ g.lineWidth = S.tStroke/100*sz*2; g.strokeStyle = S.tSColor; g.strokeText(t, N/2, N/2); } g.fillStyle = S.tColor; g.fillText(t, N/2, N/2); }
+}
+const dims = () => { const w = +S.size; return [w, Math.round(w*9/16)]; };
+let raf = 0;
+function schedule(){
+  saveSoon(); histTouch(); if(raf) return;
+  raf = requestAnimationFrame(() => { raf = 0;
+    const cv = $('cv'), W = dragging ? 1000 : 1600, H = Math.round(W*9/16); renderBanner(cv, W, H);
+    const g = cv.getContext('2d');
+    if(S.guides){ for(const z of ZONES){ g.save(); g.setLineDash([W/120, W/160]); g.lineWidth = Math.max(2, W/500); g.strokeStyle = z.color; g.strokeRect(z.x*W + 1, z.y*H, z.w*W - 2, z.h*H); g.restore(); } }
+    const b = boxes[S.sel]; if(b){ g.save(); g.lineWidth = Math.max(2, W/600); g.strokeStyle = '#ffffff'; g.setLineDash([W/200, W/300]); g.strokeRect(b.x, b.y, b.w, b.h); g.strokeStyle = '#3d5ee8'; g.lineDashOffset = W/200; g.strokeRect(b.x, b.y, b.w, b.h); g.restore(); }
+    if(!dragging) drawPreviews();
+    renderIcon($('icv'), 512); renderIcon($('icv2'), 512);
+  });
+}
+function drawPreviews(){
+  const src = document.createElement('canvas'), W = 1600, H = 900, keep = boxes; renderBanner(src, W, H); boxes = keep;
+  const crop = (id, z, ow, dim) => { const c = $(id), w = z.w*W, h = z.h*H; c.width = ow; c.height = Math.round(ow*h/w); const g = c.getContext('2d'); g.drawImage(src, z.x*W, z.y*H, w, h, 0, 0, c.width, c.height); if(dim){ g.fillStyle = `rgba(0,0,0,${dim})`; g.fillRect(0, 0, c.width, c.height); } return g; };
+  const npName = (g, c, t) => { g.font = fontStr(fontOf('M PLUS Rounded 1c'), c.height*.42); g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = c.height*.08; g.strokeStyle = 'rgba(0,0,0,.6)'; g.strokeText(t, c.width/2, c.height*.52); g.fillStyle = '#fff'; g.fillText(t, c.width/2, c.height*.52); };
+  let g = crop('pvNs', ZONES[0], 400); npName(g, $('pvNs'), 'Name');
+  g = crop('pvNl', ZONES[1], 400); npName(g, $('pvNl'), 'LongDisplayName');
+  crop('pvGp', ZONES[2], 400, .25); crop('pvCard', ZONES[3], 400);
+  const sm = $('pvSmall'); sm.width = 256; sm.height = 144; sm.getContext('2d').drawImage(src, 0, 0, 256, 144);
+}
+
+/* ---------- ドラッグで動かす ---------- */
+const board = $('board'), cvEl = $('cv'), ELS = {title:'グループ名', sub:'小さい文字', logo:'ロゴ', members:'メンバーの写真'};
+const elOf = k => k==='members' ? S.members : k==='logo' ? S.logo : S[k];
+function hitAt(e){ const r = cvEl.getBoundingClientRect(), x = (e.clientX - r.left)/r.width*cvEl.width, y = (e.clientY - r.top)/r.height*cvEl.height;
+  for(const k of ['sub','title','logo','members']){ const b = boxes[k]; if(b && x>=b.x && x<=b.x+b.w && y>=b.y && y<=b.y+b.h) return k; } return null; }
+let act = null;
+board.addEventListener('pointerdown', e => { const k = hitAt(e); if(!k){ return; } e.preventDefault(); const ae = document.activeElement; if(ae && ae.blur) ae.blur();
+  S.sel = k; syncSel(); const r = cvEl.getBoundingClientRect(), el = elOf(k); act = {k, sx:e.clientX, sy:e.clientY, ox:el.x, oy:el.y, w:r.width, h:r.height}; dragging = true; try{ board.setPointerCapture(e.pointerId); }catch(_){} schedule(); });
+board.addEventListener('pointermove', e => {
+  if(!act){ board.classList.toggle('over', !!hitAt(e)); return; }
+  const el = elOf(act.k); let x = act.ox + (e.clientX - act.sx)/act.w, y = act.oy + (e.clientY - act.sy)/act.h;
+  if(!e.altKey){ if(Math.abs(x - .5) < .012) x = .5; if(Math.abs(y - BAND_Y) < .012) y = BAND_Y; }   // 真ん中とネームプレートの高さに吸着
+  el.x = clamp(x, -.2, 1.2); el.y = clamp(y, -.2, 1.2); schedule(); });
+const endDrag = () => { if(!act) return; act = null; dragging = false; schedule(); };
+board.addEventListener('pointerup', endDrag); board.addEventListener('pointercancel', endDrag);
+board.addEventListener('wheel', e => { const k = hitAt(e) || (boxes[S.sel] ? S.sel : null); if(!k) return; e.preventDefault(); S.sel = k; const el = elOf(k); el.s = clamp(el.s*(e.deltaY<0 ? 1.05 : 1/1.05), .02, .8); syncSel(); schedule(); }, {passive:false});
+document.addEventListener('keydown', e => {
+  const ae = document.activeElement, tag = ae?.tagName||'', typing = tag==='TEXTAREA' || (tag==='INPUT' && /^(text|number|search)$/.test(ae.type));
+  if((e.ctrlKey||e.metaKey) && !e.altKey && !typing){ const k = e.key.toLowerCase(); if(k==='z'){ e.preventDefault(); e.shiftKey ? redo() : undo(); return; } if(k==='y'){ e.preventDefault(); redo(); return; } }
+  if(/INPUT|TEXTAREA|SELECT/.test(tag)) return;
+  const mv = {ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1]}[e.key]; if(!mv || !S.sel) return; e.preventDefault();
+  const el = elOf(S.sel), st = e.shiftKey ? 10 : 1, [W, H] = dims(); el.x += mv[0]*st/W; el.y += mv[1]*st/H; schedule(); });
+
+/* ---------- 設定の画面 ---------- */
+const upd = {};
+for(const [id, fmt] of [['bgZoom', v=>`${v}%`], ['bgBlur', v=>v], ['bgDim', v=>`${v}%`], ['decoAmt', v=>v], ['bandOp', v=>`${v}%`], ['tStroke', v=>v], ['tGlow', v=>v], ['mBorder', v=>v], ['mGap', v=>`${v}%`], ['elSize', v=>`${v}%`], ['iSize', v=>`${v}%`]]) upd[id] = showVal($(id), fmt);
+fontOptions($('font'), S.font);
+const layIcon = k => { const L = LAYOUTS[k], r = (x,y,w,h,c,rx=0) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${c}"/>`;
+  let s = `<svg viewBox="0 0 160 90" aria-hidden="true">${r(0,0,160,90,'#8b93e8',6)}`; if(L.band) s += r(0,25,160,18,'#2b2e6b');
+  const [tx,ty,ts] = L.title; s += r(tx*160-ts*160*2.2, ty*90-ts*90/2, ts*160*4.4, ts*90, '#fff', 2);
+  const [mx,my,ms] = L.members; for(let i=0;i<4;i++) s += `<circle cx="${mx*160 + (i-1.5)*ms*90*1.15}" cy="${my*90}" r="${ms*90/2}" fill="#ffd6ea"/>`;
+  return s + '</svg>'; };
+for(const k of Object.keys(LAYOUTS)){ const b = document.createElement('button'); b.type = 'button'; b.dataset.v = k; b.innerHTML = layIcon(k) + `<span>${LAYOUTS[k].name}</span>`; b.onclick = () => applyLayout(k); $('layouts').appendChild(b); }
+function applyLayout(k){ const L = LAYOUTS[k]; S.layout = k;
+  for(const el of ['title','sub','logo','members']){ const [x,y,s] = L[el]; Object.assign(elOf(el), {x, y, s}); }
+  S.band.on = L.band; syncUI(); schedule(); }
+$('relayout').onclick = () => applyLayout(S.layout);
+GRADS.forEach((c, i) => { const b = document.createElement('button'); b.type = 'button'; b.style.background = `linear-gradient(135deg,${c.join(',')})`; b.setAttribute('aria-label', `グラデーション${i+1}`); b.onclick = () => { S.bg.grad = i; S.bg.type = 'grad'; syncUI(); schedule(); }; $('grads').appendChild(b); });
+$('bgTabs').addEventListener('click', e => { const b = e.target.closest('button'); if(!b) return; S.bg.type = b.dataset.v; syncUI(); schedule(); });
+const on = (id, fn, ev='input') => $(id).addEventListener(ev, e => { fn(e.target); schedule(); });
+on('bgColor', t => S.bg.color = t.value); on('bgZoom', t => S.bg.zoom = +t.value); on('bgX', t => S.bg.x = +t.value); on('bgY', t => S.bg.y = +t.value);
+on('bgBlur', t => S.bg.blur = +t.value); on('bgDim', t => S.bg.dim = +t.value);
+on('deco', t => S.deco = t.value, 'change'); on('decoColor', t => S.decoColor = t.value); on('decoAmt', t => S.decoAmt = +t.value);
+on('bandOn', t => { S.band.on = t.checked; $('bandBox').hidden = !t.checked; }, 'change'); on('bandColor', t => S.band.color = t.value); on('bandOp', t => S.band.op = +t.value);
+on('tOn', t => S.title.on = t.checked, 'change'); on('tText', t => { S.title.text = t.value; loadFont(fontOf(S.font), t.value).then(schedule); });
+on('sOn', t => S.sub.on = t.checked, 'change'); on('sText', t => { S.sub.text = t.value; loadFont(fontOf(S.font), t.value).then(schedule); });
+on('font', t => { S.font = t.value; loadFont(fontOf(S.font), S.title.text + S.sub.text).then(schedule); }, 'change');
+on('tColor', t => S.tColor = t.value); on('tSColor', t => S.tSColor = t.value); on('tStroke', t => S.tStroke = +t.value); on('tGColor', t => S.tGColor = t.value); on('tGlow', t => S.tGlow = +t.value);
+on('mShape', t => S.members.shape = t.value, 'change'); on('mBColor', t => S.members.bcolor = t.value); on('mBorder', t => S.members.border = +t.value); on('mGap', t => S.members.gap = +t.value);
+on('mNames', t => S.members.names = t.checked, 'change');
+on('elSize', t => { const el = elOf(S.sel); if(el) el.s = +t.value/100; });
+on('iMode', t => S.icon.mode = t.value, 'change'); on('iText', t => S.icon.text = t.value); on('iSize', t => S.icon.size = +t.value);
+on('iBgSame', t => { S.icon.bgSame = t.checked; $('iBgLab').hidden = t.checked; }, 'change'); on('iBg', t => S.icon.bg = t.value);
+on('size', t => S.size = t.value, 'change'); on('guides', t => S.guides = t.checked, 'change');
+$('elCenterX').onclick = () => { const el = elOf(S.sel); if(el){ el.x = .5; schedule(); } };
+$('elBand').onclick = () => { const el = elOf(S.sel); if(el){ el.y = BAND_Y; schedule(); msg('ネームプレートで見える高さの真ん中に合わせました。'); } };
+function syncSel(){ const el = elOf(S.sel); $('selName').textContent = S.sel ? `選んでいるもの:${ELS[S.sel]}` : 'プレビューで文字・ロゴ・写真の列を押すと選べます。'; if(el){ $('elSize').value = Math.round(el.s*1000)/10; upd.elSize(); } }
+function syncUI(){
+  $('layouts').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v===S.layout));
+  $('bgTabs').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v===S.bg.type));
+  $('grads').hidden = S.bg.type!=='grad'; $('bgColorLab').hidden = S.bg.type!=='color'; $('bgImgBox').hidden = S.bg.type!=='image';
+  $('grads').querySelectorAll('button').forEach((b, i) => b.setAttribute('aria-pressed', i===S.bg.grad));
+  const set = (id, v, k='value') => { $(id)[k] = v; };
+  set('bgColor', S.bg.color); set('bgZoom', S.bg.zoom); set('bgX', S.bg.x); set('bgY', S.bg.y); set('bgBlur', S.bg.blur); set('bgDim', S.bg.dim);
+  set('deco', S.deco); set('decoColor', S.decoColor); set('decoAmt', S.decoAmt); set('bandOn', S.band.on, 'checked'); $('bandBox').hidden = !S.band.on; set('bandColor', S.band.color); set('bandOp', S.band.op);
+  set('tOn', S.title.on, 'checked'); set('tText', S.title.text); set('sOn', S.sub.on, 'checked'); set('sText', S.sub.text); set('font', S.font);
+  set('tColor', S.tColor); set('tSColor', S.tSColor); set('tStroke', S.tStroke); set('tGColor', S.tGColor); set('tGlow', S.tGlow);
+  set('mShape', S.members.shape); set('mBColor', S.members.bcolor); set('mBorder', S.members.border); set('mGap', S.members.gap); set('mNames', S.members.names, 'checked');
+  set('iMode', S.icon.mode); set('iText', S.icon.text); set('iSize', S.icon.size); set('iBgSame', S.icon.bgSame, 'checked'); set('iBg', S.icon.bg); $('iBgLab').hidden = S.icon.bgSame;
+  set('size', S.size); set('guides', S.guides, 'checked'); $('logoClear').hidden = !S.logo.img;
+  Object.values(upd).forEach(f => f()); syncSel(); buildMem();
+}
+function buildMem(){
+  const ul = $('memList'); ul.innerHTML = '';
+  S.members.list.forEach((m, i) => { const li = document.createElement('li'); const im = document.createElement('img'); im.src = IM(m.img)?.src || ''; im.alt = '';
+    const nm = document.createElement('input'); nm.type = 'text'; nm.value = m.name; nm.setAttribute('aria-label', '名前'); nm.oninput = () => { m.name = nm.value; schedule(); };
+    const btn = (t, lab, fn, dis) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'mini'; b.textContent = t; b.setAttribute('aria-label', lab); b.disabled = !!dis; b.onclick = fn; return b; };
+    li.append(im, nm, btn('↑','前へ', () => { [S.members.list[i-1], S.members.list[i]] = [S.members.list[i], S.members.list[i-1]]; buildMem(); schedule(); }, i===0),
+      btn('↓','後ろへ', () => { [S.members.list[i+1], S.members.list[i]] = [S.members.list[i], S.members.list[i+1]]; buildMem(); schedule(); }, i===S.members.list.length-1),
+      btn('×','外す', () => { S.members.list.splice(i, 1); buildMem(); schedule(); }));
+    ul.appendChild(li); });
+}
+
+/* ---------- 画像の読み込み ---------- */
+const imgOnly = fs => [...fs].filter(f => /^image\//.test(f.type) || /\.(png|jpe?g|webp|gif|avif)$/i.test(f.name||''));
+async function setBg(f){ try{ S.bg.img = await addImage(f, f.name); S.bg.type = 'image'; syncUI(); schedule(); }catch(e){ msg('背景の画像を読み込めませんでした。'); } }
+async function setLogo(f){ try{ S.logo.img = await addImage(f, f.name); syncUI(); schedule(); msg('ロゴを入れました。ドラッグで動かし、ホイールで大きさを変えられます。'); }catch(e){ msg('ロゴの画像を読み込めませんでした。'); } }
+async function addMembers(fs){ const list = imgOnly(fs).sort((a,b) => a.name.localeCompare(b.name, 'ja', {numeric:true})); for(const f of list){ try{ S.members.list.push({img: await addImage(f, f.name), name: stem(f.name)}); }catch(e){} }
+  if(list.length){ syncUI(); schedule(); msg(`${list.length}人の写真を追加しました。`); } }
+$('bgFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if(f) setBg(f); });
+$('logoFile').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if(f) setLogo(f); });
+$('memFile').addEventListener('change', e => { const fs = [...e.target.files]; e.target.value = ''; addMembers(fs); });
+$('logoClear').onclick = () => { S.logo.img = null; syncUI(); schedule(); };
+const isFileDrag = e => [...(e.dataTransfer?.types||[])].includes('Files');
+function dropZone(el, fn){ el.addEventListener('dragover', e => { if(!isFileDrag(e)) return; e.preventDefault(); e.stopPropagation(); el.classList.add('dropping'); });
+  el.addEventListener('dragleave', e => { if(!el.contains(e.relatedTarget)) el.classList.remove('dropping'); });
+  el.addEventListener('drop', e => { if(!isFileDrag(e)) return; e.preventDefault(); e.stopPropagation(); el.classList.remove('dropping'); const fs = imgOnly(e.dataTransfer.files); if(fs.length) fn(fs); else msg('画像ファイルをドロップしてください。'); }); }
+window.addEventListener('dragover', e => { if(isFileDrag(e)) e.preventDefault(); }); window.addEventListener('drop', e => { if(isFileDrag(e)) e.preventDefault(); });
+dropZone($('bgImgLab'), fs => setBg(fs[0])); dropZone($('logoLab'), fs => setLogo(fs[0])); dropZone($('fsMem'), fs => addMembers(fs));
+dropZone(board, fs => { if(fs.length>1) addMembers(fs); else setBg(fs[0]); });
+
+/* ---------- 元に戻す・自動保存 ---------- */
+const H = {undo:[], redo:[], base:'', t:0, busy:false};
+const snap = () => JSON.stringify({...S, sel:null});
+function histReset(){ clearTimeout(H.t); H.undo = []; H.redo = []; H.base = snap(); updUndo(); }
+function histTouch(){ if(H.busy) return; clearTimeout(H.t); H.t = setTimeout(histCommit, 450); }
+function histCommit(){ clearTimeout(H.t); if(dragging){ H.t = setTimeout(histCommit, 300); return; } const s = snap(); if(s!==H.base){ H.undo.push(H.base); if(H.undo.length>100) H.undo.shift(); H.redo = []; H.base = s; } updUndo(); }
+function histApply(s){ H.busy = true; const sel = S.sel; S = Object.assign(DEF(), JSON.parse(s)); S.sel = sel; syncUI(); schedule(); H.base = snap(); H.busy = false; updUndo(); }
+function undo(){ histCommit(); if(!H.undo.length){ msg('これ以上は戻せません。'); return; } H.redo.push(H.base); histApply(H.undo.pop()); msg('1つ前に戻しました。'); }
+function redo(){ histCommit(); if(!H.redo.length) return; H.undo.push(H.base); histApply(H.redo.pop()); msg('やり直しました。'); }
+function updUndo(){ $('undo').disabled = !H.undo.length; $('redo').disabled = !H.redo.length; }
+$('undo').onclick = undo; $('redo').onclick = redo;
+let saveT = 0, loading = true;
+function saveSoon(){ if(loading) return; clearTimeout(saveT); saveT = setTimeout(async () => {
+  const ids = new Set([S.bg.img, S.logo.img, ...S.members.list.map(m => m.img)].filter(Boolean)), blobs = {};
+  for(const id of ids){ const it = imgs.get(id); if(it) blobs[id] = {blob:it.blob, name:it.name}; }
+  try{ await store.put('work', {S: JSON.parse(JSON.stringify(S)), blobs}); }catch(e){} }, 800); }
+armButton($('resetAll'), '新しく始める', 'もう一度押すと最初に戻ります', () => { S = DEF(); syncUI(); schedule(); msg('最初の状態に戻しました。「元に戻す」で戻せます。'); });
+
+/* ---------- 保存 ---------- */
+const fileBase = () => safeName((S.title.text||'group').trim());
+$('saveBanner').onclick = async () => { const b = $('saveBanner'); b.disabled = true; msg('作成しています…');
+  try{ const [W, H] = dims(), c = document.createElement('canvas'); renderBanner(c, W, H); const n = `${fileBase()}_banner_${W}x${H}.png`; msg(resultMsg(await saveFile(n, await toBlob(c)), `保存しました(${n})。`)); }
+  catch(e){ msg('保存できませんでした。'); } finally { b.disabled = false; } };
+$('saveIcon').onclick = async () => { const b = $('saveIcon'); b.disabled = true;
+  try{ const c = document.createElement('canvas'); renderIcon(c, 1024); const n = `${fileBase()}_icon_1024.png`; msg(resultMsg(await saveFile(n, await toBlob(c)), `保存しました(${n})。`)); }
+  catch(e){ msg('保存できませんでした。'); } finally { b.disabled = false; } };
+
+/* ---------- 見本 ---------- */
+function sampleFace(i){ const pal = [['#ffb3cf','#6a3d8f'],['#a8d8ff','#24406b'],['#ffe08a','#7a4a1f'],['#c5f2c7','#2f6b3a'],['#e3c8ff','#4b2a7a']][i%5];
+  const c = document.createElement('canvas'); c.width = 400; c.height = 400; const g = c.getContext('2d');
+  g.fillStyle = pal[0]; g.fillRect(0, 0, 400, 400); g.fillStyle = '#ffe7d6'; g.beginPath(); g.arc(200, 225, 110, 0, Math.PI*2); g.fill();
+  g.fillStyle = pal[1]; g.beginPath(); g.ellipse(200, 160, 125, 80, 0, Math.PI, 0); g.fill(); g.beginPath(); g.ellipse(95, 240, 30, 95, .1, 0, Math.PI*2); g.fill(); g.beginPath(); g.ellipse(305, 240, 30, 95, -.1, 0, Math.PI*2); g.fill();
+  g.fillStyle = '#2b2540'; for(const x of [160, 240]){ g.beginPath(); g.ellipse(x, 235, 11, 16, 0, 0, Math.PI*2); g.fill(); }
+  g.strokeStyle = '#c94b6c'; g.lineWidth = 6; g.lineCap = 'round'; g.beginPath(); g.arc(200, 268, 22, .2*Math.PI, .8*Math.PI); g.stroke();
+  return toBlob(c); }
+$('sample').onclick = async () => { const btn = $('sample'); btn.disabled = true;
+  try{ const names = ['サンプルA','サンプルB','サンプルC','サンプルD','サンプルE']; S.members.list = [];
+    for(let i=0; i<5; i++) S.members.list.push({img: await addImage(await sampleFace(i), names[i] + '.png'), name:names[i]});
+    S.bg.type = 'grad'; S.bg.grad = 0; S.deco = 'stars'; S.members.names = true; applyLayout('left');
+    msg('見本を用意しました。レイアウトを切り替えたり、文字や写真をドラッグしたりしてみてください。下の小さなプレビューで、場所ごとの見え方を確かめられます。');
+  } finally { btn.disabled = false; } };
+
+/* ---------- 起動 ---------- */
+(async () => {
+  try{ const d = await store.get('work');
+    if(d && d.S){ for(const [id, it] of Object.entries(d.blobs||{})){ try{ imgs.set(id, {blob:it.blob, im: await loadImg(it.blob), name:it.name}); }catch(e){} }
+      const def = DEF(); S = Object.assign(def, d.S); for(const k of ['bg','band','title','sub','logo','members','icon']) S[k] = Object.assign(DEF()[k], d.S[k]||{});
+      if(S.bg.img && !imgs.has(S.bg.img)) S.bg.img = null; if(S.logo.img && !imgs.has(S.logo.img)) S.logo.img = null; S.members.list = S.members.list.filter(m => imgs.has(m.img)); } }catch(e){}
+  syncUI(); loading = false; schedule(); histReset();
+  loadFont(fontOf(S.font), S.title.text + S.sub.text).then(schedule); loadFont(fontOf('M PLUS Rounded 1c'), 'NameLongDisplay').then(schedule);
+  if(document.fonts) document.fonts.ready.then(schedule);
+})();
+window.__tool = {get S(){ return S; }, renderBanner, renderIcon};   // 動作確認用
+})();
+</script>
+</body>
+</html>
