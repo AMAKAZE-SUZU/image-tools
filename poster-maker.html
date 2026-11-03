@@ -199,7 +199,7 @@ fieldset.flash{animation:flash 1.4s ease-out}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.7 ・ 2026-11-03 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.8 ・ 2026-11-03 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -807,7 +807,14 @@ async function drawSlot(c,slot,W,H,rmode,vars,A={x:0,y:0,w:1,h:1},info=null,bg=n
     const fx=slotFx(slot,rmode); let src=im, sx=ox, sy=oy, sw=dw, sh=dh;
     if(fx){ const Tm=c.getTransform(), sc=Math.max(.05,Math.hypot(Tm.a,Tm.b)), t=document.createElement('canvas'); t.width=Math.max(1,Math.ceil(dw*sc)); t.height=Math.max(1,Math.ceil(dh*sc));
       const tg=t.getContext('2d'); tg.imageSmoothingQuality='high'; tg.drawImage(im,0,0,t.width,t.height); retouch(tg, fx); src=t; }
-    if(slot.shape!=='rect'){ c.save(); c.shadowColor='transparent'; shapePath(c,slot,0,0,w,h); c.clip(); c.drawImage(src,sx,sy,sw,sh); c.restore(); }
+    const olw=(slot.ol||0)*S;
+    if(olw>0){   // 輪郭線つき:枠の大きさのキャンバスに描いてから輪郭線を付ける
+      const Tm=c.getTransform(), sc=Math.max(.05,Math.hypot(Tm.a,Tm.b)), ow=Math.max(1,Math.ceil(w*sc)), oh=Math.max(1,Math.ceil(h*sc));
+      const off=document.createElement('canvas'); off.width=ow; off.height=oh; const og=off.getContext('2d'); og.imageSmoothingQuality='high'; og.scale(ow/w, oh/h); og.drawImage(src,sx,sy,sw,sh);
+      const clip = g2=>{ g2.save(); g2.scale(ow/w, oh/h); shapePath(g2,slot,0,0,w,h); g2.fillStyle='#000'; g2.fill(); g2.restore(); };
+      c.drawImage(withOutline(off, olw*ow/w, slot.olColor, clip), 0, 0, w, h);
+    }
+    else if(slot.shape!=='rect'){ c.save(); c.shadowColor='transparent'; shapePath(c,slot,0,0,w,h); c.clip(); c.drawImage(src,sx,sy,sw,sh); c.restore(); }
     else c.drawImage(src,sx,sy,sw,sh);
   } else {
     // 枠の中は塗らない(背景が透明な画像のとき、ポスターの背景が見えるように)。「写真の後ろを縁の色で塗る」のときだけ塗る
@@ -818,9 +825,22 @@ async function drawSlot(c,slot,W,H,rmode,vars,A={x:0,y:0,w:1,h:1},info=null,bg=n
     const Tm=c.getTransform(), sc=Math.max(.05, Math.hypot(Tm.a,Tm.b)), ow=Math.max(1,Math.ceil(w*sc)), oh=Math.max(1,Math.ceil(h*sc));
     const off=document.createElement('canvas'); off.width=ow; off.height=oh; const og=off.getContext('2d'); og.scale(ow/w, oh/h); og.imageSmoothingQuality='high';
     og.save(); shapePath(og,slot,bw,bw,w-bw*2,h-bw*2); og.clip(); drawCover(og,im,bw,bw,w-bw*2,h-bw*2,slotAdj(slot,rmode)); og.restore(); retouch(og, slotFx(slot,rmode));
-    setSh(shOn && !slot.fillBg && bw<=0); c.drawImage(off,0,0,w,h); setSh(false);
+    const olw=(slot.ol||0)*S, fin = olw>0 ? withOutline(off, olw*ow/w, slot.olColor, g2=>{ g2.save(); g2.scale(ow/w, oh/h); shapePath(g2,slot,bw,bw,w-bw*2,h-bw*2); g2.fillStyle='#000'; g2.fill(); g2.restore(); }) : off;
+    setSh(shOn && !slot.fillBg && bw<=0); c.drawImage(fin,0,0,w,h); setSh(false);
   }
   c.restore();
+}
+// 透過画像の輪郭線:画像の形(透明でない所)を、まわりに少しずつずらして重ねる。clipFn があれば枠の形の中だけにする
+function withOutline(src, px, color, clipFn){
+  if(!(px>0)) return src;
+  const W=src.width, H=src.height, sil=document.createElement('canvas'); sil.width=W; sil.height=H; const sg=sil.getContext('2d');
+  sg.drawImage(src,0,0); sg.globalCompositeOperation='source-in'; sg.fillStyle=color||'#ffffff'; sg.fillRect(0,0,W,H);
+  const o=document.createElement('canvas'); o.width=W; o.height=H; const g=o.getContext('2d');
+  const n=Math.max(16,Math.min(40,Math.round(px*1.5))), rings=Math.max(1,Math.ceil(px/5));
+  for(let k=1;k<=rings;k++){ const r=px*k/rings; for(let i=0;i<n;i++){ const a=(i+k*.5)/n*Math.PI*2; g.drawImage(sil,Math.cos(a)*r,Math.sin(a)*r); } }
+  g.drawImage(src,0,0);
+  if(clipFn){ g.globalCompositeOperation='destination-in'; clipFn(g); }
+  return o;
 }
 function placeholder(c,slot,w,h,S){
   c.fillStyle='rgba(79,91,213,.16)'; shapePath(c,slot,0,0,w,h); c.fill();
@@ -1113,6 +1133,7 @@ function buildProps(){
     H.push(`<div class="row"><label>形<select id="p_shape"><option value="rect">四角</option><option value="round">角丸</option><option value="circle">丸</option></select></label>
       <label>入れ方<select id="p_fit"><option value="cover">枠いっぱい(はみ出しは切る)</option><option value="contain">全体を収める</option></select></label></div>`);
     H.push(`<div class="row"><label>縁の太さ<input type="range" id="p_border" min="0" max="30"></label><label>縁の色<input type="color" id="p_borderColor"></label></div>`);
+    H.push(`<div class="row"><label>輪郭線の太さ(透過画像のふち)<input type="range" id="p_ol" min="0" max="40"></label><label>輪郭線の色<input type="color" id="p_olColor"></label></div>`);
     H.push(`<label class="check"><input type="checkbox" id="p_shadow"> 影をつける</label>`);
     H.push(`<label class="check"><input type="checkbox" id="p_fillBg"> 写真の後ろを縁の色で塗る(背景が透明な画像のとき、後ろを見せたくない場合)</label>`);
     H.push(`<label class="check"><input type="checkbox" id="p_fillShape"> 背景の形いっぱいに入れる(背景が透明PNGのとき、形で切り抜く)</label>`);
@@ -1146,6 +1167,7 @@ function buildProps(){
     const bx = overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, slot); syncGeom(); changed(); schedule(); });
   if(slot.type==='text'){ bind('text'); bind('font',v=>/^\d+$/.test(v)?+v:v); setupFontUI(slot); bind('size',Number); bind('color'); bind('strokeColor'); bind('stroke',Number); bind('align'); if(slot.lh==null) slot.lh=1.35; if(slot.ls==null) slot.ls=0; if(slot.glow==null) slot.glow=0; if(!slot.glowColor) slot.glowColor='#ffffff'; bind('lh',Number); bind('ls',Number); bind('glow',Number); bind('glowColor'); bind('shadow'); }
   else {
+    if(slot.ol==null) slot.ol=0; if(!slot.olColor) slot.olColor='#ffffff'; bind('ol',Number); bind('olColor');
     bind('shape'); bind('fit'); bind('border',Number); bind('borderColor'); bind('shadow'); bind('fillShape'); bind('fillBg');
     $('p_fillShape').addEventListener('change',()=>buildOverlay());
     $('p_fixed').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; slot.fixed=await readDataURL(f); changed(); schedule(); });
@@ -1324,6 +1346,26 @@ function textAdjUI(slot){
   const al2=document.createElement('button'); al2.type='button'; al2.className='mini'; al2.textContent='この文字の設定を全員にそろえる'; al2.onclick=()=>{ const src=st(); for(const m of members){ if(m===M()) continue; const o=m.style[slot.id]=m.style[slot.id]||{}; for(const k of TXT_KEYS){ if(k in src) o[k]=src[k]; else delete o[k]; } } toast(`「${slot.label}」の文字の設定を全員にそろえました。`); schedule(); };
   bt.append(rs, al2); box.appendChild(bt); det.appendChild(box); return det;
 }
+function outlineUI(slot){
+  const st=()=>prod.style[slot.id]||{}, val=k=>(k in st()) ? st()[k] : (slot[k] ?? (k==='ol' ? 0 : '#ffffff'));
+  const box=document.createElement('div'); box.style.cssText='display:flex;flex-direction:column;gap:6px';
+  const set=(k,v)=>{ const o=prod.style[slot.id]=prod.style[slot.id]||{}; o[k]=v; schedule(); };
+  const w=document.createElement('div'); w.className='rotrow'; const l=document.createElement('label'); l.textContent='輪郭線(透過写真のふち)'; const r=document.createElement('input'); r.type='range'; r.min=0; r.max=60; r.step=1; r.value=val('ol'); l.appendChild(r);
+  const n=document.createElement('input'); n.type='number'; n.min=0; n.max=60; n.step=1; n.value=val('ol'); n.setAttribute('aria-label','輪郭線の太さ(数値)');
+  const cl=document.createElement('label'); cl.style.flex='0 0 64px'; cl.textContent='色'; const ci=document.createElement('input'); ci.type='color'; ci.value=val('olColor'); cl.appendChild(ci);
+  r.addEventListener('input',()=>{ n.value=r.value; set('ol',+r.value); }); n.addEventListener('input',()=>{ if(n.value===''||isNaN(+n.value)) return; const v=clamp(+n.value,0,60); r.value=v; set('ol',v); });
+  r.addEventListener('dblclick',()=>{ const o=prod.style[slot.id]; if(o){ delete o.ol; } r.value=n.value=val('ol'); schedule(); });
+  ci.addEventListener('input',()=>set('olColor',ci.value));
+  w.append(l,n,cl); box.appendChild(w);
+  const bt=document.createElement('div'); bt.className='btns';
+  const quick=[['なし',0],['細く',6],['ふつう',14],['太く',26]];
+  for(const [t,v] of quick){ const b=document.createElement('button'); b.type='button'; b.className='mini'; b.textContent=t; b.onclick=()=>{ r.value=n.value=v; set('ol',v); }; bt.appendChild(b); }
+  const all=document.createElement('button'); all.type='button'; all.className='mini'; all.textContent='この輪郭線を全員にそろえる';
+  all.onclick=()=>{ const v=val('ol'), c=val('olColor'); for(const m of members){ const o=m.style[slot.id]=m.style[slot.id]||{}; o.ol=v; o.olColor=c; } toast(`「${slot.label}」の輪郭線を全員にそろえました。`); schedule(); };
+  bt.appendChild(all); box.appendChild(bt);
+  const h=document.createElement('p'); h.className='hint'; h.textContent='背景が透明な写真(PNG)の、人物などのまわりに線が付きます(枠の中だけ)。背景が残っている写真は「写真の背景を透明にする」で消してから使えます。'; box.appendChild(h);
+  return box;
+}
 function syncMakeFx(){
   const T=cur(); if(!T) return; const me=!!M().bgFx, f=bgFxFor(T,'make'), v=k=>f[k]??BG_DEF[k];
   $('mFxScope').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', (b.dataset.v==='me')===me));
@@ -1415,6 +1457,7 @@ function buildMake(){
       const all=document.createElement('button'); all.type='button'; all.className='mini'; all.textContent='このレタッチを全員にそろえる';
       all.onclick=()=>{ const f={...(prod.fx[slot.id]||{})}; for(const m of members){ m.fx=m.fx||{}; m.fx[slot.id]={...f}; } $('bMsg').textContent='このレタッチを全員にそろえました。'; schedule(); };
       rbt.appendChild(all); rb.appendChild(rbt); det.appendChild(rb); d.appendChild(det);
+      d.appendChild(outlineUI(slot));
       d.appendChild(bgRemoveUI(slot));
     }
     const rs=document.createElement('button'); rs.type='button'; rs.className='mini'; rs.textContent='この枠の調整をリセット';
