@@ -196,7 +196,7 @@ fieldset.flash{animation:flash 1.4s ease-out}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.2 ・ 2026-11-03 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.3 ・ 2026-11-03 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -268,6 +268,14 @@ fieldset.flash{animation:flash 1.4s ease-out}
           <div class="row"><label>薄くする(白を重ねる)<input type="range" id="eBgLight" min="0" max="90" step="1"></label><label>暗くする<input type="range" id="eBgDim" min="0" max="90" step="1"></label></div>
           <label class="check"><input type="checkbox" id="eFillOn"> 背景画像がないときは、単色の背景にする</label>
           <label id="eFillLab">背景の色<input type="color" id="eFill"></label>
+          <details class="more" id="eRecolorBox" open><summary>背景画像の色を変える</summary><div>
+            <label>色相をずらす(赤→黄→緑→青→紫と色が回ります)<input type="range" id="eBgHue" min="-180" max="180" step="1"></label>
+            <div class="row"><label>あざやかさ<input type="range" id="eBgSat" min="-100" max="100" step="1"></label><label>明るさ<input type="range" id="eBgBri" min="-100" max="100" step="1"></label></div>
+            <label class="check"><input type="checkbox" id="eColorizeOn"> 1色に染める(模様や明るさは残して、色だけ変える)</label>
+            <label id="eColorizeLab">染める色<input type="color" id="eColorize"></label>
+            <label id="eColorizeAmtLab">染める強さ<input type="range" id="eColorizeAmt" min="0" max="100" step="1"></label>
+            <p class="hint">スライダーはダブルクリックで元に戻ります。透明な部分はそのままです。</p>
+          </div></details>
           <label>色をのせる<input type="range" id="eBgTintAmt" min="0" max="90" step="1"></label>
           <label id="eTintLab">のせる色<input type="color" id="eBgTint"></label>
           <div class="row"><label>ぼかし<input type="range" id="eBgBlur" min="0" max="40" step="1"></label></div>
@@ -594,7 +602,7 @@ const sampleBg = (()=>{
 })();
 
 /* ---------- 背景の並べ方と色 ---------- */
-const BG_DEF = {bgMode:'fill', size:'bg', customW:1080, customH:1350, tileScale:100, tileRot:0, tileBrick:false, bgLight:0, bgDim:0, bgTint:'#ff7eb3', bgTintAmt:0, bgBlur:0, bgFillOn:false, bgFill:'#f3cfee'};
+const BG_DEF = {bgMode:'fill', size:'bg', customW:1080, customH:1350, tileScale:100, tileRot:0, tileBrick:false, bgLight:0, bgDim:0, bgTint:'#ff7eb3', bgTintAmt:0, bgBlur:0, bgFillOn:false, bgFill:'#f3cfee', bgHue:0, bgSat:0, bgBri:0, bgColorizeOn:false, bgColorize:'#7a6cff', bgColorizeAmt:100};
 // 単色の背景(背景画像がないときに使う)
 const solidCache=new Map();
 function solidBg(color){ if(solidCache.has(color)) return solidCache.get(color); const c=document.createElement('canvas'); c.width=1080; c.height=1350; const g=c.getContext('2d'); g.fillStyle=color; g.fillRect(0,0,c.width,c.height); solidCache.set(color,c); if(solidCache.size>8) solidCache.delete(solidCache.keys().next().value); return c; }
@@ -621,9 +629,35 @@ function drawBackground(g, bg, W, H, T, s, plain){
   } else if(plain) g.drawImage(bg, -m, -m, W+m*2, H+m*2);
   else { const k = Math.max(W/IW, H/IH); g.drawImage(bg, (W-IW*k)/2 - m, (H-IH*k)/2 - m, IW*k + m*2, IH*k + m*2); }   // 大きさを選んだときは、はみ出しを切って画面いっぱい
   g.restore();
+  recolorBg(g, W, H, T);
   // 色の調整(透明な部分はそのまま)
   const over = (style, a) => { if(a <= 0) return; g.save(); g.globalCompositeOperation = 'source-atop'; g.globalAlpha = a; g.fillStyle = style; g.fillRect(0,0,W,H); g.restore(); };
   over(bgv(T,'bgTint'), bgv(T,'bgTintAmt')/100); over('#000000', bgv(T,'bgDim')/100); over('#ffffff', bgv(T,'bgLight')/100);
+}
+
+// 背景画像の色を変える:色相をずらす・あざやかさ・明るさ・1色に染める
+function recolorBg(g, W, H, T){
+  const hue = bgv(T,'bgHue'), sat = bgv(T,'bgSat'), bri = bgv(T,'bgBri'), cz = bgv(T,'bgColorizeOn') ? bgv(T,'bgColorizeAmt')/100 : 0;
+  if(!hue && !sat && !bri && !cz) return;
+  const id = g.getImageData(0, 0, W, H), d = id.data;
+  // 色相を回す行列(明るさを保つ)
+  const a = hue*Math.PI/180, c = Math.cos(a), s = Math.sin(a);
+  const m = [.213+c*.787-s*.213, .715-c*.715-s*.715, .072-c*.072+s*.928,
+             .213-c*.213+s*.143, .715+c*.285+s*.140, .072-c*.072-s*.283,
+             .213-c*.213-s*.787, .715-c*.715+s*.715, .072+c*.928+s*.072];
+  const sk = 1 + sat/100, bk = bri/100, tc = (() => { const n = parseInt(String(bgv(T,'bgColorize')).slice(1), 16); return [n>>16, (n>>8)&255, n&255]; })();
+  for(let i=0; i<d.length; i+=4){
+    if(d[i+3] === 0) continue;
+    let r = d[i], gg = d[i+1], b = d[i+2];
+    if(hue){ const r2 = m[0]*r + m[1]*gg + m[2]*b, g2 = m[3]*r + m[4]*gg + m[5]*b, b2 = m[6]*r + m[7]*gg + m[8]*b; r = r2; gg = g2; b = b2; }
+    if(cz){ const L = (r*.299 + gg*.587 + b*.114)/255;   // 明るさに合わせて、暗い所は色の暗い側、明るい所は白い側へ
+      const cr = L<.5 ? tc[0]*L*2 : tc[0] + (255-tc[0])*(L*2-1), cg = L<.5 ? tc[1]*L*2 : tc[1] + (255-tc[1])*(L*2-1), cb = L<.5 ? tc[2]*L*2 : tc[2] + (255-tc[2])*(L*2-1);
+      r += (cr-r)*cz; gg += (cg-gg)*cz; b += (cb-b)*cz; }
+    if(sat){ const l = r*.299 + gg*.587 + b*.114; r = l + (r-l)*sk; gg = l + (gg-l)*sk; b = l + (b-l)*sk; }
+    if(bri){ if(bk > 0){ r += (255-r)*bk*.8; gg += (255-gg)*bk*.8; b += (255-b)*bk*.8; } else { r *= 1+bk*.85; gg *= 1+bk*.85; b *= 1+bk*.85; } }
+    d[i] = r<0?0:r>255?255:r; d[i+1] = gg<0?0:gg>255?255:gg; d[i+2] = b<0?0:b>255?255:b;
+  }
+  g.putImageData(id, 0, 0);
 }
 
 /* ---------- 背景の形(透明PNG)の解析 ---------- */
@@ -1110,10 +1144,11 @@ function buildProps(){
 $('eBg').addEventListener('change',async e=>{ const f=e.target.files[0]; if(!f) return; cur().bg=await readDataURL(f); e.target.value=''; changed(); schedule(); });
 $('eBgClear').onclick=()=>{ cur().bg=null; changed(); schedule(); };
 function syncBgUI(){ const T=cur(); if(!T) return;
-  for(const [id,k] of [['eBgMode','bgMode'],['eSize','size'],['eW','customW'],['eH','customH'],['eTileScale','tileScale'],['eTileRot','tileRot'],['eBgLight','bgLight'],['eBgDim','bgDim'],['eBgTint','bgTint'],['eFill','bgFill'],['eBgTintAmt','bgTintAmt'],['eBgBlur','bgBlur']]) $(id).value = bgv(T,k);
-  $('eFillOn').checked = !!bgv(T,'bgFillOn'); $('eFillLab').hidden = !bgv(T,'bgFillOn'); if($('eFill')._box) $('eFill')._box.hidden = !bgv(T,'bgFillOn'); document.querySelectorAll('#eFill, #eBgTint').forEach(el => el._ctlRefresh && el._ctlRefresh());
+  for(const [id,k] of [['eBgMode','bgMode'],['eSize','size'],['eW','customW'],['eH','customH'],['eTileScale','tileScale'],['eTileRot','tileRot'],['eBgLight','bgLight'],['eBgDim','bgDim'],['eBgTint','bgTint'],['eFill','bgFill'],['eBgHue','bgHue'],['eBgSat','bgSat'],['eBgBri','bgBri'],['eColorize','bgColorize'],['eColorizeAmt','bgColorizeAmt'],['eBgTintAmt','bgTintAmt'],['eBgBlur','bgBlur']]) $(id).value = bgv(T,k);
+  $('eColorizeOn').checked = !!bgv(T,'bgColorizeOn'); for(const id of ['eColorizeLab','eColorizeAmtLab']) $(id).hidden = !bgv(T,'bgColorizeOn'); if($('eColorize')._box) $('eColorize')._box.hidden = !bgv(T,'bgColorizeOn');
+  $('eFillOn').checked = !!bgv(T,'bgFillOn'); $('eFillLab').hidden = !bgv(T,'bgFillOn'); if($('eFill')._box) $('eFill')._box.hidden = !bgv(T,'bgFillOn'); document.querySelectorAll('#eFill, #eBgTint, #eColorize').forEach(el => el._ctlRefresh && el._ctlRefresh());
   $('eTileBrick').checked = !!bgv(T,'tileBrick'); $('eTileBox').hidden = bgv(T,'bgMode')!=='tile'; $('eCustomBox').hidden = bgv(T,'size')!=='custom';
-  document.querySelectorAll('#eTileBox input[type=range], #eBgLight, #eBgDim, #eBgTintAmt, #eBgBlur').forEach(el => el._upd && el._upd());
+  document.querySelectorAll('#eTileBox input[type=range], #eBgHue, #eBgSat, #eBgBri, #eColorizeAmt, #eBgLight, #eBgDim, #eBgTintAmt, #eBgBlur').forEach(el => el._upd && el._upd());
   const tile = bgv(T,'bgMode')==='tile', sized = bgv(T,'size')!=='bg';
   $('eBgNote').textContent = tile && !sized ? 'タイルのときは「ポスターの大きさ」を選ぶのがおすすめです(背景画像に合わせると、タイル1枚ぶんの大きさになります)。'
     : (tile || sized) ? 'タイルや大きさを選んだときは、「背景の形に合わせる」は使われません。' : '';
@@ -1126,13 +1161,13 @@ function shapeNote(info){ const el=$('eShapeNote'); if(!el) return; const T=cur(
     : T.shapeFit===false ? '透明な部分がある背景です。オンにすると、見えている部分の中に並べます。'
     : `見えている部分の中(幅 ${Math.round(curArea.w*100)}%・高さ ${Math.round(curArea.h*100)}%)に並べています。`; }
 // 背景の並べ方と色の入力
-const BG_INPUTS = [['eFillOn','bgFillOn','change'],['eFill','bgFill','input'],['eBgMode','bgMode','change'],['eSize','size','change'],['eW','customW','input',1],['eH','customH','input',1],['eTileScale','tileScale','input',1],['eTileRot','tileRot','input',1],['eTileBrick','tileBrick','change'],['eBgLight','bgLight','input',1],['eBgDim','bgDim','input',1],['eBgTint','bgTint','input'],['eBgTintAmt','bgTintAmt','input',1],['eBgBlur','bgBlur','input',1]];
+const BG_INPUTS = [['eBgHue','bgHue','input',1],['eBgSat','bgSat','input',1],['eBgBri','bgBri','input',1],['eColorizeOn','bgColorizeOn','change'],['eColorize','bgColorize','input'],['eColorizeAmt','bgColorizeAmt','input',1],['eFillOn','bgFillOn','change'],['eFill','bgFill','input'],['eBgMode','bgMode','change'],['eSize','size','change'],['eW','customW','input',1],['eH','customH','input',1],['eTileScale','tileScale','input',1],['eTileRot','tileRot','input',1],['eTileBrick','tileBrick','change'],['eBgLight','bgLight','input',1],['eBgDim','bgDim','input',1],['eBgTint','bgTint','input'],['eBgTintAmt','bgTintAmt','input',1],['eBgBlur','bgBlur','input',1]];
 for(const [id,k,ev,num] of BG_INPUTS){
   $(id).addEventListener(ev, () => { const T=cur(), el=$(id); T[k] = el.type==='checkbox' ? el.checked : num ? +el.value : el.value;
     if(k==='bgMode' && T.bgMode==='tile' && (T.size||'bg')==='bg') T.size = '1080x1350';   // タイルにしたら、ポスターの大きさを決めておく
     syncBgUI(); changed(); schedule(); });
 }
-for(const [id, f] of [['eTileScale', v=>v+'%'],['eTileRot', v=>v+'°'],['eBgLight', v=>v+'%'],['eBgDim', v=>v+'%'],['eBgTintAmt', v=>v+'%'],['eBgBlur', v=>v]]){
+for(const [id, f] of [['eBgHue', v=>(v>0?'+':'')+v+'°'],['eBgSat', v=>(v>0?'+':'')+v],['eBgBri', v=>(v>0?'+':'')+v],['eColorizeAmt', v=>v+'%'],['eTileScale', v=>v+'%'],['eTileRot', v=>v+'°'],['eBgLight', v=>v+'%'],['eBgDim', v=>v+'%'],['eBgTintAmt', v=>v+'%'],['eBgBlur', v=>v]]){
   const el=$(id), lab=el.closest('label'), out=document.createElement('b'); out.style.cssText='margin-left:6px;color:var(--fg);font-variant-numeric:tabular-nums';
   const t=[...lab.childNodes].find(n=>n.nodeType===3 && n.textContent.trim()); if(t) t.after(out); el._upd=()=>{ out.textContent=f(el.value); }; el.addEventListener('input', el._upd); el._upd();
   el.addEventListener('dblclick', () => { const k = BG_INPUTS.find(x=>x[0]===id)[1]; cur()[k] = BG_DEF[k]; syncBgUI(); changed(); schedule(); });
@@ -1169,7 +1204,7 @@ function colorCtl(input, anchor){
   input._ctlRefresh=()=>{ fromHex(input.value); paint(); };
   fromHex(input.value||'#888888'); paint(); (anchor||input.closest('label')).after(box); input._box=box; return box;
 }
-colorCtl($('eFill'), $('eFillLab')); colorCtl($('eBgTint'), $('eTintLab'));
+colorCtl($('eFill'), $('eFillLab')); colorCtl($('eBgTint'), $('eTintLab')); colorCtl($('eColorize'), $('eColorizeLab'));
 $('eBgReset').onclick = () => { const T=cur(); for(const k of Object.keys(BG_DEF)) T[k] = BG_DEF[k]; syncBgUI(); changed(); schedule(); };
 $('eShapeFit').addEventListener('change',e=>{ cur().shapeFit=e.target.checked; changed(); schedule(); buildOverlay(); });
 $('eShapePad').addEventListener('input',e=>{ cur().shapePad=+e.target.value; changed(); schedule(); });
