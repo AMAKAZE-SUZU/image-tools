@@ -196,7 +196,7 @@ fieldset.flash{animation:flash 1.4s ease-out}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.4 ・ 2026-11-03 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.5 ・ 2026-11-03 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -352,7 +352,7 @@ fieldset.flash{animation:flash 1.4s ease-out}
             <button class="btn ghost small" id="mDup" type="button">複製</button>
             <button class="btn danger small" id="mDel" type="button">削除</button>
           </div>
-          <label>メンバー名(文字枠の {名前} に入ります)<input type="text" id="mName" placeholder="例:シフォン"></label>
+          <label>メンバー名(文字枠の {名前} に入ります。Enterで改行できます)<textarea id="mName" rows="2" placeholder="例:シフォン" style="min-height:0"></textarea></label>
           <div class="btns"><button class="mini" id="mCopyAll" type="button">この人の位置・写り・文字の色を全員にそろえる</button><button class="mini" id="mReset" type="button">この人の調整をリセット</button></div>
         </fieldset>
         <fieldset id="fsSlots">
@@ -1751,7 +1751,7 @@ const saveO=()=>{ try{ localStorage.setItem('poster-maker-out', JSON.stringify(O
 function outSize(BW,BH,p){ let k=1; if(p==='x') k=Math.min(1,2048/Math.max(BW,BH)); else if(p==='insta') k=1080/BW; else if(p==='small') k=Math.min(1,1200/Math.max(BW,BH)); return [Math.max(1,Math.round(BW*k)), Math.max(1,Math.round(BH*k))]; }
 const pad2=n=>String(n).padStart(2,'0');
 function fileBase(m,i){ const d=new Date();
-  return safeName((O.rule||'{名前}').replaceAll('{名前}', (m.name||'').trim()||`メンバー${i+1}`).replaceAll('{番号}', pad2(i+1)).replaceAll('{テンプレート}', cur()?.name||'poster').replaceAll('{日付}', `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`)); }
+  return safeName((O.rule||'{名前}').replaceAll('{名前}', (m.name||'').replace(/\s*\n\s*/g,' ').trim()||`メンバー${i+1}`).replaceAll('{番号}', pad2(i+1)).replaceAll('{テンプレート}', cur()?.name||'poster').replaceAll('{日付}', `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`)); }
 const ext=()=>O.fmt==='jpeg'?'.jpg':'.png';
 const CHIPS=['{名前}','{番号}_{名前}','Yumechiffo_{名前}','{テンプレート}_{名前}_{日付}'];
 CHIPS.forEach(c=>{ const b=document.createElement('button'); b.type='button'; b.className='mini'; b.textContent=c; b.onclick=()=>{ O.rule=c; saveO(); syncSaveDlg(); }; $('sdChips').appendChild(b); });
