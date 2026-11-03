@@ -185,7 +185,7 @@ fieldset.flash{animation:flash 1.4s ease-out}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.0 ・ 2026-11-01 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.1 ・ 2026-11-03 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -432,8 +432,8 @@ const DB = {
     if(this.db) return Promise.resolve(this.db);
     return new Promise((res,rej)=>{
       try{
-        const r=indexedDB.open('poster-maker',2);
-        r.onupgradeneeded=()=>{ const db=r.result; if(!db.objectStoreNames.contains('templates')) db.createObjectStore('templates',{keyPath:'id'}); if(!db.objectStoreNames.contains('work')) db.createObjectStore('work'); };
+        const r=indexedDB.open('poster-maker',3);
+        r.onupgradeneeded=()=>{ const db=r.result; if(!db.objectStoreNames.contains('templates')) db.createObjectStore('templates',{keyPath:'id'}); if(!db.objectStoreNames.contains('work')) db.createObjectStore('work'); if(!db.objectStoreNames.contains('fonts')) db.createObjectStore('fonts'); };
         r.onsuccess=()=>{ this.db=r.result; res(r.result); };
         r.onerror=()=>rej(r.error);
       }catch(e){ rej(e); }
@@ -452,7 +452,64 @@ const DB = {
   async work(mode, fn){ const db=await this.open(); return new Promise((res,rej)=>{ const t=db.transaction('work',mode), st=t.objectStore('work'), r=fn(st); t.oncomplete=()=>res(r&&r.result); t.onerror=()=>rej(t.error); }); },
   getWork(id){ return this.work('readonly', st=>st.get(id)); },
   putWork(id, v){ return this.work('readwrite', st=>st.put(v, id)); },
+  async fonts(mode, fn){ const db=await this.open(); return new Promise((res,rej)=>{ const t=db.transaction('fonts',mode), st=t.objectStore('fonts'), r=fn(st); t.oncomplete=()=>res(r&&r.result); t.onerror=()=>rej(t.error); }); },
+  allFonts(){ return this.fonts('readonly', st=>st.getAll()); },
+  putFont(v){ return this.fonts('readwrite', st=>st.put(v, v.fam)); },
+  delFont(fam){ return this.fonts('readwrite', st=>st.delete(fam)); },
 };
+
+/* ---------- 追加のフォント(パソコンのフォント・読み込んだフォントファイル) ---------- */
+// フォントの値:数字=もとからあるフォント / "sys:名前"=パソコンのフォント / "file:名前"=読み込んだファイル
+let sysFonts=['Academy Engraved LET']; try{ const v=JSON.parse(localStorage.getItem('poster-maker-sysfonts')||'null'); if(Array.isArray(v)) sysFonts=v; }catch(e){}
+const fileFonts=[];   // {fam, name}
+const saveSysFonts=()=>{ try{ localStorage.setItem('poster-maker-sysfonts', JSON.stringify(sysFonts)); }catch(e){} };
+function fontFor(v){
+  if(typeof v==='string' && v.startsWith('sys:')) return {name:v.slice(4), fam:v.slice(4), w:400};
+  if(typeof v==='string' && v.startsWith('file:')) return {name:v.slice(5), fam:'PM-'+v.slice(5), w:400};
+  return FONTS[v]||FONTS[0];
+}
+const escH=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+// パソコンにそのフォントが入っているか(ふつうのフォントと幅が変わるかで調べる)
+const sysCache=new Map();
+function hasSysFont(name){
+  if(sysCache.has(name)) return sysCache.get(name);
+  const c=document.createElement('canvas').getContext('2d'), t='mmmmmmmmmmlliWWWQq0123', r=[];
+  for(const base of ['monospace','serif']){ c.font=`72px ${base}`; const a=c.measureText(t).width; c.font=`72px "${name}", ${base}`; r.push(Math.abs(c.measureText(t).width-a)>.5); }
+  const ok=r.some(Boolean); sysCache.set(name, ok); return ok;
+}
+function fontOptionsHTML(cur){
+  let h=FONTS.map((f,i)=>`<option value="${i}">${escH(f.name)}</option>`).join('');
+  const sys=[...new Set([...sysFonts, ...(typeof cur==='string'&&cur.startsWith('sys:')?[cur.slice(4)]:[])])];
+  if(sys.length) h+=`<optgroup label="パソコンのフォント">${sys.map(n=>`<option value="sys:${escH(n)}">${escH(n)}${hasSysFont(n)?'':'(このパソコンには入っていません)'}</option>`).join('')}</optgroup>`;
+  const files=fileFonts.map(f=>[f.name, f.name]);
+  if(typeof cur==='string'&&cur.startsWith('file:')&&!fileFonts.some(f=>'file:'+f.name===cur)) files.push([cur.slice(5), cur.slice(5)+'(ファイルがありません)']);
+  if(files.length) h+=`<optgroup label="読み込んだフォント">${files.map(([v,l])=>`<option value="file:${escH(v)}">${escH(l)}</option>`).join('')}</optgroup>`;
+  return h;
+}
+function fontNote(v){
+  if(typeof v==='string' && v.startsWith('sys:')) return hasSysFont(v.slice(4)) ? 'このパソコンに入っているフォントを使っています。ほかのパソコンで開くと、そのフォントが入っていないときはふつうのフォントになります。' : '⚠ このパソコンにはこのフォントが入っていないので、ふつうのフォントで表示しています。フォントファイルを読み込むと使えます。';
+  if(typeof v==='string' && v.startsWith('file:')) return fileFonts.some(f=>'file:'+f.name===v) ? '読み込んだフォントファイルを使っています。' : '⚠ このフォントのファイルがこのブラウザにありません。フォントファイルを読み込んでください。';
+  return '';
+}
+async function registerFontFile(name, blob){
+  const fam='PM-'+name, ff=new FontFace(fam, await blob.arrayBuffer()); await ff.load(); document.fonts.add(ff);
+  if(!fileFonts.some(f=>f.name===name)) fileFonts.push({fam, name});
+}
+function setupFontUI(slot){
+  const sel=$('p_font'); sel.value=String(slot.font??0); $('p_fontNote').textContent=fontNote(slot.font);
+  sel.addEventListener('change',()=>{ $('p_fontNote').textContent=fontNote(slot.font); });
+  const list=$('p_fontList');
+  const drawList=()=>{ list.innerHTML=''; for(const n of sysFonts){ const b=document.createElement('button'); b.type='button'; b.className='mini'; b.textContent=`${n} を一覧から外す`; b.onclick=()=>{ sysFonts=sysFonts.filter(x=>x!==n); saveSysFonts(); buildProps(); }; list.appendChild(b); }
+    for(const f of fileFonts){ const b=document.createElement('button'); b.type='button'; b.className='mini'; b.textContent=`${f.name}(ファイル)を消す`; b.onclick=async()=>{ fileFonts.splice(fileFonts.indexOf(f),1); try{ await DB.delFont(f.fam); }catch(e){} buildProps(); schedule(); }; list.appendChild(b); } };
+  drawList();
+  $('p_sysAdd').onclick=()=>{ const n=$('p_sysName').value.trim().replace(/["\\]/g,''); if(!n) return; if(!sysFonts.includes(n)){ sysFonts.push(n); saveSysFonts(); } sysCache.delete(n);
+    slot.font='sys:'+n; changed(); buildProps(); schedule(); msg(hasSysFont(n) ? `「${n}」を使います。` : `「${n}」はこのパソコンで見つかりませんでした。名前が合っているか確かめるか、フォントファイルを読み込んでください。`); };
+  $('p_fontFile').addEventListener('change',async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+    const name=f.name.replace(/\.(ttf|otf|woff2?)$/i,'').replace(/["\\]/g,'').slice(0,60)||'font';
+    try{ await registerFontFile(name, f); try{ await DB.putFont({fam:'PM-'+name, name, blob:f}); }catch(err){}
+      slot.font='file:'+name; changed(); buildProps(); schedule(); msg(`フォント「${name}」を読み込みました。`); }
+    catch(err){ msg('このフォントファイルは読み込めませんでした。.ttf / .otf / .woff / .woff2 のファイルを選んでください。'); } });
+}
 
 let templates=[], curId=null, selId=null, mode='edit';
 const cur = () => templates.find(t=>t.id===curId);
@@ -649,7 +706,7 @@ async function drawSlot(c,slot,W,H,rmode,vars,A={x:0,y:0,w:1,h:1},info=null,bg=n
   if(slot.type==='text'){
     const t=slotText(slot,rmode,vars);
     if(!t.trim()){ c.shadowColor='transparent'; if(rmode==='edit') placeholder(c,slot,w,h,S); c.restore(); return; }
-    const f=FONTS[slot.font]||FONTS[0];
+    const f=fontFor(slot.font);
     try{ await document.fonts.load(`${f.w} 40px "${f.fam}"`, t); }catch(e){}
     let size=slot.size/100*H*A.h, lines;
     for(let i=0;i<50;i++){
@@ -967,7 +1024,15 @@ function buildProps(){
   H.push(`<label>回転 (°)<input type="range" id="p_rot" min="-45" max="45"></label>`);
   if(slot.type==='text'){
     H.push(`<label>初期の文字(ポスター作成時に変更できます。{名前} はメンバー名に置き換わります)<textarea id="p_text"></textarea></label>`);
-    H.push(`<label>フォント<select id="p_font">${FONTS.map((f,i)=>`<option value="${i}">${f.name}</option>`).join('')}</select></label>`);
+    H.push(`<label>フォント<select id="p_font">${fontOptionsHTML(slot.font)}</select></label>`);
+    H.push(`<p class="hint" id="p_fontNote"></p>`);
+    H.push(`<details class="more"><summary>ほかのフォントを使う(パソコンのフォント・フォントファイル)</summary><div>
+      <p class="hint">パソコンに入っているフォントは名前で追加できます(例:Mac の「Academy Engraved LET」)。そのフォントが入っていないパソコンでは、ふつうのフォントで表示されます。</p>
+      <div class="row"><label>フォントの名前<input type="text" id="p_sysName" placeholder="Academy Engraved LET" spellcheck="false"></label><button class="btn ghost small" id="p_sysAdd" type="button" style="align-self:end">追加</button></div>
+      <label>フォントファイルを読み込む(.ttf / .otf / .woff / .woff2。このブラウザに保存されます)<input type="file" id="p_fontFile" accept=".ttf,.otf,.woff,.woff2,font/*"></label>
+      <p class="hint">英字だけのフォントの場合、日本語の部分はふつうのフォントで表示されます。読み込んだフォントファイルは、テンプレートを書き出したファイルには入りません(フォントは配布できないことが多いため)。</p>
+      <div class="btns" id="p_fontList"></div>
+    </div></details>`);
     H.push(`<label>文字の大きさ(背景の高さに対する%)<input type="range" id="p_size" min="1" max="15" step="0.1"></label>`);
     H.push(`<div class="row"><label>文字色<input type="color" id="p_color"></label><label>縁取り色<input type="color" id="p_strokeColor"></label></div>`);
     H.push(`<label>縁取りの太さ<input type="range" id="p_stroke" min="0" max="40"></label>`);
@@ -1007,7 +1072,7 @@ function buildProps(){
   box.querySelectorAll('[data-al]').forEach(b => b.onclick = () => { const a = b.dataset.al;
     if(a==='cx'||a==='c') slot.x = .5 - slot.w/2; if(a==='cy'||a==='c') slot.y = .5 - slot.h/2;
     const bx = overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, slot); syncGeom(); changed(); schedule(); });
-  if(slot.type==='text'){ bind('text'); bind('font',Number); bind('size',Number); bind('color'); bind('strokeColor'); bind('stroke',Number); bind('align'); }
+  if(slot.type==='text'){ bind('text'); bind('font',v=>/^\d+$/.test(v)?+v:v); setupFontUI(slot); bind('size',Number); bind('color'); bind('strokeColor'); bind('stroke',Number); bind('align'); }
   else {
     bind('shape'); bind('fit'); bind('border',Number); bind('borderColor'); bind('shadow'); bind('fillShape'); bind('fillBg');
     $('p_fillShape').addEventListener('change',()=>buildOverlay());
@@ -1686,6 +1751,7 @@ $('modeSeg').addEventListener('click',e=>{
 
 /* ---------- 起動 ---------- */
 (async()=>{
+  try{ for(const f of (await DB.allFonts())||[]){ try{ await registerFontFile(f.name, f.blob); }catch(e){} } }catch(e){}
   try{ templates = await DB.all() || []; }catch(e){ DB.ok=false; templates=[]; msg('このブラウザでは自動保存できません。「ファイルに書き出す」で保存してください。'); }
   if(!templates.length){ const t=defaultTemplate(); templates.push(t); curId=t.id; changed(); }
   let last=null; try{ last=localStorage.getItem('poster-maker-last'); }catch(e){}
