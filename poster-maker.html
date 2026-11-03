@@ -196,7 +196,7 @@ fieldset.flash{animation:flash 1.4s ease-out}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.3 ・ 2026-11-03 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.4 ・ 2026-11-03 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -332,6 +332,16 @@ fieldset.flash{animation:flash 1.4s ease-out}
           <p class="hint" id="mBgNote"></p>
           <div class="btns"><button class="mini" id="mBgClear" type="button" hidden>このタブで選んだ背景・フレームを外す</button></div>
           <label id="mFrameLab">装飾フレーム(ポスター全体に重ねる飾りの透明PNG。テンプレートのものを差し替えたいときだけ)<input type="file" id="mFrame" accept="image/png,image/webp,image/gif"></label>
+          <details class="more" id="mFxBox"><summary>背景の色を変える(テンプレートは変わりません)</summary><div>
+            <div class="dragseg">変える範囲<div class="seg" id="mFxScope"><button type="button" data-v="all" aria-pressed="true">全員共通</button><button type="button" data-v="me" aria-pressed="false">この人だけ</button></div></div>
+            <p class="hint" id="mFxNote"></p>
+            <label>色相をずらす<input type="range" id="mFxHue" min="-180" max="180" step="1"></label>
+            <div class="row"><label>あざやかさ<input type="range" id="mFxSat" min="-100" max="100" step="1"></label><label>明るさ<input type="range" id="mFxBri" min="-100" max="100" step="1"></label></div>
+            <label class="check"><input type="checkbox" id="mFxCzOn"> 1色に染める(模様や明るさは残して、色だけ変える)</label>
+            <label id="mFxCzLab">染める色<input type="color" id="mFxCz"></label>
+            <label id="mFxCzAmtLab">染める強さ<input type="range" id="mFxCzAmt" min="0" max="100" step="1"></label>
+            <div class="btns"><button class="mini" id="mFxReset" type="button">テンプレートの色に戻す</button><button class="mini" id="mFxAll" type="button">この色を全員にそろえる</button></div>
+          </div></details>
         </fieldset>
         <fieldset id="fsMembers">
           <legend>メンバー</legend>
@@ -536,7 +546,7 @@ function setupFontUI(slot){
 let templates=[], curId=null, selId=null, mode='edit';
 const cur = () => templates.find(t=>t.id===curId);
 // ポスター作成のデータ。背景・フレームは全員共通、それ以外はメンバーごと(img:画像URL / blobs:画像ファイル / text:文字 / style:文字の色 / geom:枠の位置 / adj:中の画像の写り)
-const newMember = (name='') => ({id:Math.random().toString(36).slice(2,10), name, img:{}, blobs:{}, text:{}, style:{}, geom:{}, adj:{}, fx:{}});   // fx:写真のレタッチ
+const newMember = (name='') => ({id:Math.random().toString(36).slice(2,10), name, img:{}, blobs:{}, text:{}, style:{}, geom:{}, adj:{}, fx:{}, bgFx:null});   // fx:写真のレタッチ / bgFx:この人だけの背景の色(なければ全員共通)
 let members = [newMember()], mi = 0;
 const M = () => members[Math.min(mi, members.length-1)];
 const prod = {bg:null, frame:null};
@@ -614,7 +624,7 @@ function posterDims(T, IW, IH){
   return [IW, IH];
 }
 const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
-function drawBackground(g, bg, W, H, T, s, plain){
+function drawBackground(g, bg, W, H, T, s, plain, fx){
   const IW=bg.naturalWidth||bg.width, IH=bg.naturalHeight||bg.height, blur = bgv(T,'bgBlur')*Math.min(W,H)/1000;
   g.save();
   if(blur > 0) g.filter = `blur(${blur}px)`;
@@ -629,13 +639,16 @@ function drawBackground(g, bg, W, H, T, s, plain){
   } else if(plain) g.drawImage(bg, -m, -m, W+m*2, H+m*2);
   else { const k = Math.max(W/IW, H/IH); g.drawImage(bg, (W-IW*k)/2 - m, (H-IH*k)/2 - m, IW*k + m*2, IH*k + m*2); }   // 大きさを選んだときは、はみ出しを切って画面いっぱい
   g.restore();
-  recolorBg(g, W, H, T);
+  recolorBg(g, W, H, fx || T);
   // 色の調整(透明な部分はそのまま)
   const over = (style, a) => { if(a <= 0) return; g.save(); g.globalCompositeOperation = 'source-atop'; g.globalAlpha = a; g.fillStyle = style; g.fillRect(0,0,W,H); g.restore(); };
   over(bgv(T,'bgTint'), bgv(T,'bgTintAmt')/100); over('#000000', bgv(T,'bgDim')/100); over('#ffffff', bgv(T,'bgLight')/100);
 }
 
 // 背景画像の色を変える:色相をずらす・あざやかさ・明るさ・1色に染める
+const FX_KEYS=['bgHue','bgSat','bgBri','bgColorizeOn','bgColorize','bgColorizeAmt'];
+const tplFx = T => Object.fromEntries(FX_KEYS.map(k=>[k, bgv(T,k)]));
+const bgFxFor = (T, rmode) => rmode==='edit' ? T : (M().bgFx || prod.bgFx || T);
 function recolorBg(g, W, H, T){
   const hue = bgv(T,'bgHue'), sat = bgv(T,'bgSat'), bri = bgv(T,'bgBri'), cz = bgv(T,'bgColorizeOn') ? bgv(T,'bgColorizeAmt')/100 : 0;
   if(!hue && !sat && !bri && !cz) return;
@@ -828,7 +841,7 @@ async function renderTo(c, rmode, maxSide, vars={name:prod.name}){
   // 形に合わせるのは「画面いっぱい」で、大きさが背景画像に合っているときだけ
   const plain = (T.bgMode||'fill')==='fill' && (T.size||'bg')==='bg';
   const info = plain ? shapeInfo(bg, bgSrc||(bg===sampleBg?'sample':'solid:'+bgv(T,'bgFill'))) : {hasAlpha:false, inner:{x:0,y:0,w:1,h:1}, bbox:{x:0,y:0,w:1,h:1}}, A = layoutArea(T,info);
-  drawBackground(g, bg, W, H, T, s, plain);
+  drawBackground(g, bg, W, H, T, s, plain, bgFxFor(T, rmode));
   const frameSrc = rmode==='edit' ? T.frame : (prod.frame || T.frame);
   const frame = await getImg(frameSrc);
   for(const slot of T.slots) if(!slot.above) await drawSlot(g,effSlot(slot,rmode),W,H,rmode,vars,A,info,bg);
@@ -1204,6 +1217,7 @@ function colorCtl(input, anchor){
   input._ctlRefresh=()=>{ fromHex(input.value); paint(); };
   fromHex(input.value||'#888888'); paint(); (anchor||input.closest('label')).after(box); input._box=box; return box;
 }
+colorCtl($('mFxCz'), $('mFxCzLab'));
 colorCtl($('eFill'), $('eFillLab')); colorCtl($('eBgTint'), $('eTintLab')); colorCtl($('eColorize'), $('eColorizeLab'));
 $('eBgReset').onclick = () => { const T=cur(); for(const k of Object.keys(BG_DEF)) T[k] = BG_DEF[k]; syncBgUI(); changed(); schedule(); };
 $('eShapeFit').addEventListener('change',e=>{ cur().shapeFit=e.target.checked; changed(); schedule(); buildOverlay(); });
@@ -1271,11 +1285,33 @@ $('tplImport').addEventListener('change',async e=>{
 /* ---------- ポスター作成 ---------- */
 function resetProd(){
   for(const m of members) for(const k of Object.keys(m.img)) if(m.img[k]?.startsWith('blob:')) URL.revokeObjectURL(m.img[k]);
-  prod.bg=null; prod.frame=null; prod.bgBlob=null; prod.frameBlob=null; members=[newMember()]; mi=0;
+  prod.bg=null; prod.frame=null; prod.bgBlob=null; prod.frameBlob=null; prod.bgFx=null; members=[newMember()]; mi=0;
   $('mBg').value=''; $('mFrame').value='';
 }
+function syncMakeFx(){
+  const T=cur(); if(!T) return; const me=!!M().bgFx, f=bgFxFor(T,'make'), v=k=>f[k]??BG_DEF[k];
+  $('mFxScope').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', (b.dataset.v==='me')===me));
+  $('mFxNote').textContent = me ? `${M().name||`メンバー${mi+1}`}さんだけの色です。ほかの人は全員共通の色のままです。` : (prod.bgFx ? '全員共通の色です(「この人だけ」にした人は別の色になります)。' : 'いまはテンプレートの色のままです。動かすと、このポスター作りだけの色になります。');
+  $('mFxHue').value=v('bgHue'); $('mFxSat').value=v('bgSat'); $('mFxBri').value=v('bgBri'); $('mFxCzOn').checked=!!v('bgColorizeOn'); $('mFxCz').value=v('bgColorize'); $('mFxCzAmt').value=v('bgColorizeAmt');
+  const cz=!!v('bgColorizeOn'); for(const id of ['mFxCzLab','mFxCzAmtLab']) $(id).hidden=!cz; if($('mFxCz')._box) $('mFxCz')._box.hidden=!cz; $('mFxCz')._ctlRefresh && $('mFxCz')._ctlRefresh();
+  ['mFxHue','mFxSat','mFxBri','mFxCzAmt'].forEach(id=>$(id)._upd && $(id)._upd());
+}
+function makeFxTarget(){ const T=cur(); if(M().bgFx) return M().bgFx; return prod.bgFx || (prod.bgFx = tplFx(T)); }
+for(const [id,k,ev,num] of [['mFxHue','bgHue','input',1],['mFxSat','bgSat','input',1],['mFxBri','bgBri','input',1],['mFxCzOn','bgColorizeOn','change'],['mFxCz','bgColorize','input'],['mFxCzAmt','bgColorizeAmt','input',1]]){
+  $(id).addEventListener(ev, () => { const el=$(id), t=makeFxTarget(); t[k] = el.type==='checkbox' ? el.checked : num ? +el.value : el.value; syncMakeFx(); schedule(); });
+}
+for(const [id, f, def] of [['mFxHue', v=>(v>0?'+':'')+v+'°', 0],['mFxSat', v=>(v>0?'+':'')+v, 0],['mFxBri', v=>(v>0?'+':'')+v, 0],['mFxCzAmt', v=>v+'%', 100]]){
+  const el=$(id), lab=el.closest('label'), out=document.createElement('b'); out.style.cssText='margin-left:6px;color:var(--fg);font-variant-numeric:tabular-nums';
+  const t=[...lab.childNodes].find(n=>n.nodeType===3 && n.textContent.trim()); if(t) t.after(out); el._upd=()=>{ out.textContent=f(el.value); }; el.addEventListener('input', el._upd); el._upd();
+  el.addEventListener('dblclick', () => { el.value=def; el.dispatchEvent(new Event('input')); });
+}
+$('mFxScope').addEventListener('click', e => { const b=e.target.closest('button'); if(!b) return; const T=cur();
+  if(b.dataset.v==='me'){ if(!M().bgFx) M().bgFx={...(prod.bgFx||tplFx(T))}; } else M().bgFx=null;
+  syncMakeFx(); schedule(); });
+$('mFxReset').onclick = () => { if(M().bgFx){ M().bgFx=null; toast('この人の色を、全員共通の色に戻しました。'); } else { prod.bgFx=null; for(const m of members) m.bgFx=null; toast('背景の色をテンプレートの色に戻しました。「元に戻す」で戻せます。'); } syncMakeFx(); schedule(); };
+$('mFxAll').onclick = () => { const f=bgFxFor(cur(),'make'); prod.bgFx=Object.fromEntries(FX_KEYS.map(k=>[k, f[k]??BG_DEF[k]])); for(const m of members) m.bgFx=null; syncMakeFx(); schedule(); toast('この背景の色を全員にそろえました。'); };
 function buildMake(){
-  buildMemberList(); $('mName').value = M().name || '';
+  buildMemberList(); syncMakeFx(); $('mName').value = M().name || '';
   const T=cur(); const box=$('mSlots'); box.innerHTML='';
   if(!T) return;
   noteMakeBg();
@@ -1373,7 +1409,7 @@ function buildMemberList(){
 }
 function selectMember(i){ mi=clamp(i,0,members.length-1); buildMake(); buildOverlay(); schedule(); }
 $('mAdd').onclick=()=>{ members.push(newMember('')); selectMember(members.length-1); saveWorkSoon(); };
-$('mDup').onclick=()=>{ const s0=M(), c=newMember(s0.name ? s0.name+'のコピー' : ''); c.text={...s0.text}; c.style=JSON.parse(JSON.stringify(s0.style)); c.adj=JSON.parse(JSON.stringify(s0.adj)); c.fx=JSON.parse(JSON.stringify(s0.fx||{}));
+$('mDup').onclick=()=>{ const s0=M(), c=newMember(s0.name ? s0.name+'のコピー' : ''); c.text={...s0.text}; c.style=JSON.parse(JSON.stringify(s0.style)); c.adj=JSON.parse(JSON.stringify(s0.adj)); c.fx=JSON.parse(JSON.stringify(s0.fx||{})); c.bgFx=s0.bgFx?{...s0.bgFx}:null;
   for(const [k,g] of Object.entries(s0.geom)) c.geom[k]=Object.setPrototypeOf({x:g.x,y:g.y,w:g.w,h:g.h}, Object.getPrototypeOf(g));
   for(const [k,b] of Object.entries(s0.blobs)) setMemberImg(c,k,b); members.splice(mi+1,0,c); selectMember(mi+1); saveWorkSoon(); };
 let mDelArmed=false;
@@ -1387,19 +1423,19 @@ $('mCopyAll').onclick=()=>{ const s0=M(); for(const m of members){ if(m===s0) co
 let workT=null, workLoading=false;   // 読み込み中は保存しない(空の状態で上書きしないように)
 function saveWorkSoon(){ clearTimeout(workT); workT=setTimeout(saveWork, 600); histTouch(); }
 async function saveWork(){ const T=cur(); if(!T || !DB.ok || workLoading) return; if(swapping){ saveWorkSoon(); return; }
-  const data={members: members.map(m=>({id:m.id, name:m.name, text:m.text, style:m.style, adj:m.adj, fx:m.fx||{}, blobs:m.blobs, imgNull:Object.keys(m.img).filter(k=>m.img[k]===null),
+  const data={members: members.map(m=>({id:m.id, name:m.name, text:m.text, style:m.style, adj:m.adj, fx:m.fx||{}, bgFx:m.bgFx||null, blobs:m.blobs, imgNull:Object.keys(m.img).filter(k=>m.img[k]===null),
     geom:Object.fromEntries(Object.entries(m.geom).map(([k,g])=>[k,{x:g.x,y:g.y,w:g.w,h:g.h}]))})), mi};
-  data.bg = prod.bgBlob||null; data.frame = prod.frameBlob||null;
+  data.bg = prod.bgBlob||null; data.frame = prod.frameBlob||null; data.bgFx = prod.bgFx||null;
   try{ await DB.putWork(T.id, data); const d=new Date(); $('workStatus').textContent = `自動保存しました(${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}・${members.length}人分)`; return true; }
   catch(e){ $('workStatus').textContent = '自動保存できませんでした。写真が多いときは「作業をファイルに書き出す」で残してください。'; return false; } }
 async function loadWork(){ const T=cur(); if(!T) return; let d=null; workLoading=true; clearTimeout(workT); try{ d=await DB.getWork(T.id); }catch(e){} workLoading=false;
   if(cur()!==T || !d || !Array.isArray(d.members) || !d.members.length) return;
-  members = d.members.map(x=>{ const m={...newMember(x.name||''), id:x.id||newMember().id, text:x.text||{}, style:x.style||{}, adj:x.adj||{}, fx:x.fx||{}};
+  members = d.members.map(x=>{ const m={...newMember(x.name||''), id:x.id||newMember().id, text:x.text||{}, style:x.style||{}, adj:x.adj||{}, fx:x.fx||{}, bgFx:x.bgFx||null};
     for(const [k,b] of Object.entries(x.blobs||{})) if(b) setMemberImg(m,k,b);
     for(const k of x.imgNull||[]) m.img[k]=null;
     for(const [k,g] of Object.entries(x.geom||{})){ const sl=T.slots.find(s=>s.id===k); if(sl) m.geom[k]=Object.setPrototypeOf({...g}, sl); }
     return m; });
-  mi = clamp(d.mi||0, 0, members.length-1);
+  mi = clamp(d.mi||0, 0, members.length-1); prod.bgFx = d.bgFx||null;
   if(d.bg){ prod.bg=URL.createObjectURL(d.bg); prod.bgBlob=d.bg; } if(d.frame){ prod.frame=URL.createObjectURL(d.frame); prod.frameBlob=d.frame; }
   noteMakeBg(); buildMake(); buildOverlay(); schedule(); histReset(); $('workStatus').textContent = `前回の作業を読み込みました(${members.length}人分)`; }
 // このタブで選んだ背景・フレームを表示する(外すボタンつき)
@@ -1415,8 +1451,8 @@ $('wExport').onclick = async () => {
   const T=cur(); $('wMsg').textContent='書き出しています…';
   try{
     const ms=[]; for(const m of members){ const blobs={}; for(const [k,b] of Object.entries(m.blobs)) blobs[k]={name:b.name||'', data:await blobToDataURL(b)};
-      ms.push({name:m.name, text:m.text, style:m.style, adj:m.adj, fx:m.fx||{}, imgNull:Object.keys(m.img).filter(k=>m.img[k]===null), blobs, geom:Object.fromEntries(Object.entries(m.geom).map(([k,g])=>[k,{x:g.x,y:g.y,w:g.w,h:g.h}]))}); }
-    const out={app:'poster-maker-work', version:1, template:T, work:{members:ms, mi, bg: prod.bgBlob ? {name:prod.bgBlob.name||'', data:await blobToDataURL(prod.bgBlob)} : null, frame: prod.frameBlob ? {name:prod.frameBlob.name||'', data:await blobToDataURL(prod.frameBlob)} : null}};
+      ms.push({name:m.name, text:m.text, style:m.style, adj:m.adj, fx:m.fx||{}, bgFx:m.bgFx||null, imgNull:Object.keys(m.img).filter(k=>m.img[k]===null), blobs, geom:Object.fromEntries(Object.entries(m.geom).map(([k,g])=>[k,{x:g.x,y:g.y,w:g.w,h:g.h}]))}); }
+    const out={app:'poster-maker-work', version:1, template:T, work:{members:ms, mi, bgFx:prod.bgFx||null, bg: prod.bgBlob ? {name:prod.bgBlob.name||'', data:await blobToDataURL(prod.bgBlob)} : null, frame: prod.frameBlob ? {name:prod.frameBlob.name||'', data:await blobToDataURL(prod.frameBlob)} : null}};
     const r=await saveFile(safeName(T.name)+'_作業_'+members.length+'人.json', new Blob([JSON.stringify(out)], {type:'application/json'}));
     $('wMsg').textContent = r==='saved' ? `作業を書き出しました(${members.length}人分・写真とテンプレートも含みます)。` : r==='declined' ? '書き出しを取り消しました。' : '書き出せませんでした。もう一度試してください。';
   }catch(e){ $('wMsg').textContent='書き出せませんでした。'; }
@@ -1430,8 +1466,8 @@ $('wImport').addEventListener('change', async e => {
     const remap = o => Object.fromEntries(Object.entries(o||{}).filter(([k])=>idMap[k]).map(([k,v])=>[idMap[k],v]));
     const toB = async x => { if(!x || !x.data) return null; const b = await urlToBlob(x.data); try{ return new File([b], x.name||'image', {type:b.type}); }catch(_){ return b; } };
     const ms=[]; for(const x of j.work.members||[]){ const blobs={}; for(const [k,v] of Object.entries(x.blobs||{})) if(idMap[k]) blobs[idMap[k]]=await toB(v);
-      ms.push({id:uid(), name:x.name||'', text:remap(x.text), style:remap(x.style), adj:remap(x.adj), fx:remap(x.fx), blobs, imgNull:(x.imgNull||[]).filter(k=>idMap[k]).map(k=>idMap[k]), geom:remap(x.geom)}); }
-    await DB.putWork(t.id, {members:ms, mi:j.work.mi||0, bg:await toB(j.work.bg), frame:await toB(j.work.frame)});
+      ms.push({id:uid(), name:x.name||'', text:remap(x.text), style:remap(x.style), adj:remap(x.adj), fx:remap(x.fx), bgFx:x.bgFx||null, blobs, imgNull:(x.imgNull||[]).filter(k=>idMap[k]).map(k=>idMap[k]), geom:remap(x.geom)}); }
+    await DB.putWork(t.id, {members:ms, mi:j.work.mi||0, bgFx:j.work.bgFx||null, bg:await toB(j.work.bg), frame:await toB(j.work.frame)});
     useTemplate(t.id); $('wMsg').textContent=`「${f.name}」を読み込みました(テンプレート「${t.name}」として追加・${ms.length}人分)。`;
   }catch(err){ $('wMsg').textContent='読み込めませんでした。「作業をファイルに書き出す」で作ったファイル(.json)を選んでください。'; }
 });
@@ -1460,9 +1496,9 @@ function toast(t){ $('stageMsg').textContent = t; }
 function goTo(id){ const el=$(id); if(!el) return; el.scrollIntoView({behavior:'smooth', block:'start'}); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
 
 // ── 元に戻す・やり直す(写真の差し替え・メンバーの追加や削除・背景の変更も戻せる) ──
-function snapState(){ return {mi, bg:prod.bg||null, bgBlob:prod.bgBlob||null, frame:prod.frame||null, frameBlob:prod.frameBlob||null,
-  members: members.map(m=>({id:m.id, name:m.name, img:{...m.img}, blobs:{...m.blobs}, text:{...m.text}, style:clone(m.style), adj:clone(m.adj), fx:clone(m.fx), geom:plainGeom(m.geom)}))}; }
-const snapKey = st => JSON.stringify([st.bg, st.frame, st.members.map(m=>[m.id, m.name, m.img, m.text, m.style, m.adj, m.fx, m.geom])]);
+function snapState(){ return {mi, bgFx:prod.bgFx?{...prod.bgFx}:null, bg:prod.bg||null, bgBlob:prod.bgBlob||null, frame:prod.frame||null, frameBlob:prod.frameBlob||null,
+  members: members.map(m=>({id:m.id, name:m.name, img:{...m.img}, blobs:{...m.blobs}, text:{...m.text}, style:clone(m.style), adj:clone(m.adj), fx:clone(m.fx), bgFx:m.bgFx?{...m.bgFx}:null, geom:plainGeom(m.geom)}))}; }
+const snapKey = st => JSON.stringify([st.bg, st.frame, st.bgFx, st.members.map(m=>[m.id, m.name, m.img, m.text, m.style, m.adj, m.fx, m.bgFx, m.geom])]);
 function histReset(){ clearTimeout(H.t); H.undo=[]; H.redo=[]; H.base=snapState(); H.key=snapKey(H.base); H.dirty=false; updUndoUI(); }
 function histTouch(){ if(H.busy || mode!=='make' || !H.base) return; clearTimeout(H.t); H.dirty=true; H.t=setTimeout(()=>histCommit(), 450); updUndoUI(); }
 function histCommit(force){
@@ -1473,11 +1509,11 @@ function histCommit(force){
   H.base=st; updUndoUI();
 }
 function restoreState(st){ const T=cur();
-  members = st.members.map(x=>{ const m={...newMember(x.name), id:x.id, img:{...x.img}, blobs:{...x.blobs}, text:{...x.text}, style:clone(x.style), adj:clone(x.adj), fx:clone(x.fx), geom:{}};
+  members = st.members.map(x=>{ const m={...newMember(x.name), id:x.id, img:{...x.img}, blobs:{...x.blobs}, text:{...x.text}, style:clone(x.style), adj:clone(x.adj), fx:clone(x.fx), bgFx:x.bgFx?{...x.bgFx}:null, geom:{}};
     for(const [k,g] of Object.entries(x.geom)){ const sl=T && T.slots.find(q=>q.id===k); if(sl) m.geom[k]=Object.setPrototypeOf({...g}, sl); }
     return m; });
   if(!members.length) members=[newMember()];
-  mi=clamp(st.mi,0,members.length-1); prod.bg=st.bg; prod.bgBlob=st.bgBlob; prod.frame=st.frame; prod.frameBlob=st.frameBlob;
+  mi=clamp(st.mi,0,members.length-1); prod.bgFx=st.bgFx?{...st.bgFx}:null; prod.bg=st.bg; prod.bgBlob=st.bgBlob; prod.frame=st.frame; prod.frameBlob=st.frameBlob;
 }
 function histApply(st){ H.busy=true; try{ restoreState(st); noteMakeBg(); buildMake(); buildOverlay(); schedule(); saveWorkSoon(); } finally { H.base=snapState(); H.key=snapKey(H.base); H.busy=false; updUndoUI(); } }
 function undo(){ if(swapping) return; histCommit(true); if(!H.undo.length){ toast('これ以上は戻せません。'); return; } H.redo.push(H.base); histApply(H.undo.pop()); toast('1つ前に戻しました(やり直すには Ctrl+Shift+Z)。'); }
