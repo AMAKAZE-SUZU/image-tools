@@ -199,7 +199,7 @@ fieldset.flash{animation:flash 1.4s ease-out}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.9 ・ 2026-11-03 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v3.0 ・ 2026-11-03 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -979,8 +979,9 @@ function drag(el,tslot,kind){
     const r=overlay.getBoundingClientRect(), sx=e.clientX, sy=e.clientY;
     if(mode==='make' && makeDrag==='inner'){
       // 中の画像を動かす(写真の写り具合)
-      if(tslot.type==='text' || kind!=='move') return;
-      innerDown(el, tslot, e); return;   // 1本指(マウス)で移動、2本指でつまんで拡大・縮小
+      if(kind!=='move') return;
+      if(tslot.type!=='text'){ innerDown(el, tslot, e); return; }   // 1本指(マウス)で移動、2本指でつまんで拡大・縮小
+      // 文字には中の画像がないので、枠ごと動かす(下へ続く)
     }
     const slot = mode==='make' ? ensureGeom(tslot) : tslot;
     const o={x:slot.x,y:slot.y,w:slot.w,h:slot.h};
@@ -991,8 +992,8 @@ function drag(el,tslot,kind){
       if(kind==='move'){ slot.x=o.x+dx; slot.y=o.y+dy; }
       else { slot.w=Math.max(.02,o.w+dx); slot.h=Math.max(.02,o.h+dy); }
       snapSlot(slot, kind, r, ev.altKey);
-      const box=overlay.querySelector(`[data-id="${slot.id}"]`); if(box) placeBox(box,slot);
-      syncGeom(); schedule();
+      const box=overlay.querySelector(`[data-id="${slot.id}"]`); if(box) placeBox(box, mode==='make' ? effSlot(tslot,'make') : slot);
+      syncGeom(); if(mode==='make') syncPosUI(tslot.id); schedule();
     };
     const up=()=>{ dragKind=null; dragging=false; clearGuides(); refreshTags(); el.removeEventListener('pointermove',mv); el.removeEventListener('pointerup',up); el.removeEventListener('pointercancel',up); changed(); };
     el.addEventListener('pointermove',mv); el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up);
@@ -1049,15 +1050,16 @@ document.addEventListener('keydown', e => {
   if(mode==='make' && makeDrag==='inner'){
     // 中の画像:矢印キーで1px(Shiftで10px)、+ / - で拡大・縮小
     const zoom = {'+':1.04, '=':1.04, ';':1.04, '-':1/1.04}[e.key];
-    if(s0.type==='text' || (!mvv && !zoom)) return; e.preventDefault();
+    if(s0.type==='text'){ if(!mvv) return; }
+    else { if(!mvv && !zoom) return; e.preventDefault();
     const a = prod.adj[s0.id] = prod.adj[s0.id] || {s:100,x:0,y:0}, g = effSlot(s0,'make');
     if(zoom) a.s = clamp((a.s??100)*zoom, s0.fit==='contain'?20:100, 400);
     else { const st = e.shiftKey ? 10 : 1; a.x = clamp((a.x||0) + mvv[0]*st/Math.max(1, g.w*curArea.w*dimW), -1.5, 1.5); a.y = clamp((a.y||0) + mvv[1]*st/Math.max(1, g.h*curArea.h*dimH), -1.5, 1.5); }
-    syncAdjUI(s0.id); schedule(); return;
+    syncAdjUI(s0.id); schedule(); return; }
   }
   if(!mvv) return; e.preventDefault(); const slot = mode==='make' ? ensureGeom(s0) : s0;
   const st = e.shiftKey ? 10 : 1; slot.x += mvv[0]*st/(dimW*curArea.w); slot.y += mvv[1]*st/(dimH*curArea.h);
-  const bx = overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, slot); syncGeom(); changed(); schedule();
+  const bx = overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, mode==='make' ? effSlot(s0,'make') : slot); syncGeom(); if(mode==='make') syncPosUI(s0.id); changed(); schedule();
 });
 
 /* ---------- 初期値 ---------- */
@@ -1375,6 +1377,30 @@ function outlineUI(slot){
   const h=document.createElement('p'); h.className='hint'; h.textContent='背景が透明な写真(PNG)の、人物などのまわりに線が付きます(枠の中だけ)。背景が残っている写真は「写真の背景を透明にする」で消してから使えます。'; box.appendChild(h);
   return box;
 }
+// この人の文字の位置(枠の左上の位置をピクセルで。ドラッグ・矢印キーとも連動)
+function posOf(slot){ const g = prod.geom[slot.id] || slot, A = curArea; return {x:(A.x + g.x*A.w)*(dimW||1080), y:(A.y + g.y*A.h)*(dimH||1350)}; }
+function setPos(slot, px, py){ const g = ensureGeom(slot), A = curArea;
+  if(px!=null) g.x = (px/(dimW||1080) - A.x)/A.w; if(py!=null) g.y = (py/(dimH||1350) - A.y)/A.h;
+  const bx = overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, effSlot(slot,'make')); syncPosUI(slot.id); schedule(); }
+function syncPosUI(id){ const it = document.querySelector(`#mSlots .item[data-sid="${id}"] .posui`); if(!it) return; const slot = cur()?.slots.find(s=>s.id===id); if(!slot) return; const p = posOf(slot);
+  for(const [k,v] of [['x',p.x],['y',p.y]]){ const r = it.querySelector(`[data-pos="${k}"]`), n = it.querySelector(`[data-posn="${k}"]`); if(r) r.value = Math.round(v); if(n && document.activeElement!==n) n.value = Math.round(v); } }
+function textPosUI(slot){
+  const box=document.createElement('div'); box.className='posui'; box.style.cssText='display:flex;flex-direction:column;gap:6px';
+  const p=posOf(slot), W=dimW||1080, H=dimH||1350, g0=prod.geom[slot.id]||slot;
+  const row=(k,lab,max)=>{ const w=document.createElement('div'); w.className='rotrow'; const l=document.createElement('label'); l.textContent=lab; const r=document.createElement('input'); r.type='range'; r.min=Math.round(-max*.2); r.max=Math.round(max); r.step=1; r.value=Math.round(p[k]); r.dataset.pos=k; l.appendChild(r);
+    const n=document.createElement('input'); n.type='number'; n.step=1; n.value=Math.round(p[k]); n.dataset.posn=k; n.setAttribute('aria-label',lab+'(px)');
+    r.addEventListener('input',()=>k==='x'?setPos(slot,+r.value,null):setPos(slot,null,+r.value)); n.addEventListener('input',()=>{ if(n.value===''||isNaN(+n.value)) return; k==='x'?setPos(slot,+n.value,null):setPos(slot,null,+n.value); });
+    const u=document.createElement('span'); u.className='hint'; u.textContent='px'; w.append(l,n,u); box.appendChild(w); };
+  row('x','文字の位置:左から',W); row('y','文字の位置:上から',H);
+  const bt=document.createElement('div'); bt.className='btns';
+  const mv=(t,lab,dx,dy)=>{ const b=document.createElement('button'); b.type='button'; b.className='mini'; b.textContent=t; b.setAttribute('aria-label',lab); b.title=lab+'(Shift を押しながらで 10px)'; b.onclick=e=>{ const q=posOf(slot), st=e.shiftKey?10:1; setPos(slot, q.x+dx*st, q.y+dy*st); }; bt.appendChild(b); };
+  mv('←','左へ1px',-1,0); mv('→','右へ1px',1,0); mv('↑','上へ1px',0,-1); mv('↓','下へ1px',0,1);
+  const ctr=document.createElement('button'); ctr.type='button'; ctr.className='mini'; ctr.textContent='左右の真ん中へ'; ctr.onclick=()=>{ const g=prod.geom[slot.id]||slot, A=curArea; setPos(slot, (A.x + (1-g.w)/2*A.w)*W, null); }; bt.appendChild(ctr);
+  const rs=document.createElement('button'); rs.type='button'; rs.className='mini'; rs.textContent='テンプレートの位置に戻す'; rs.onclick=()=>{ delete prod.geom[slot.id]; buildOverlay(); syncPosUI(slot.id); schedule(); }; bt.appendChild(rs);
+  box.appendChild(bt);
+  const h=document.createElement('p'); h.className='hint'; h.textContent='プレビューの文字の枠をドラッグしても動かせます。枠を選んで矢印キーでも 1px(Shiftで10px)ずつ動きます。'; box.appendChild(h);
+  return box;
+}
 function syncMakeFx(){
   const T=cur(); if(!T) return; const me=!!M().bgFx, f=bgFxFor(T,'make'), v=k=>f[k]??BG_DEF[k];
   $('mFxScope').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', (b.dataset.v==='me')===me));
@@ -1433,6 +1459,7 @@ function buildMake(){
       for(const [t,v] of [['0°',0],['−15°',-15],['15°',15],['−90°(縦に)',-90],['90°',90]]){ const b=document.createElement('button'); b.type='button'; b.className='mini'; b.textContent=t; b.onclick=()=>setRot(v); qb.appendChild(b); }
       const rt=document.createElement('button'); rt.type='button'; rt.className='mini'; rt.textContent='テンプレートの角度に戻す'; rt.onclick=()=>{ const o=prod.style[slot.id]; if(o){ delete o.rot; if(!Object.keys(o).length) delete prod.style[slot.id]; } buildMake(); buildOverlay(); schedule(); }; qb.appendChild(rt);
       rw.append(rl, rn, deg); d.append(rw, qb);
+      d.appendChild(textPosUI(slot));
       d.appendChild(textAdjUI(slot));
       const sw=document.createElement('div'); sw.className='swatches'; const swh=document.createElement('span'); swh.className='hint'; swh.textContent='おすすめの色(写真と背景から。押すと文字色になり、縁取りも見やすい色に合わせます)'; sw.appendChild(swh); d.appendChild(sw); fillSwatches(sw, slot, d);
       const tn=document.createElement('p'); tn.className='hint warnline'; tn.dataset.tnote=slot.id; d.appendChild(tn);
