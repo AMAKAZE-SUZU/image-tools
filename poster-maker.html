@@ -199,7 +199,7 @@ fieldset.flash{animation:flash 1.4s ease-out}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.8 ・ 2026-11-03 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.9 ・ 2026-11-03 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -529,6 +529,12 @@ function fontNote(v){
 async function registerFontFile(name, blob){
   const fam='PM-'+name, ff=new FontFace(fam, await blob.arrayBuffer()); await ff.load(); document.fonts.add(ff);
   if(!fileFonts.some(f=>f.name===name)) fileFonts.push({fam, name});
+}
+function setupSizeUI(slot){
+  const r=$('p_sizeR'), n=$('p_sizeN'), mx=sizeMaxPx(); r.max=mx; n.max=mx*3; r.value=n.value=sizeToPx(slot.size);
+  const apply=px=>{ slot.size=pxToSize(px); changed(); schedule(); };
+  r.addEventListener('input',()=>{ n.value=r.value; apply(+r.value); });
+  n.addEventListener('input',()=>{ if(n.value===''||isNaN(+n.value)||+n.value<1) return; r.value=Math.min(+n.value, mx); apply(+n.value); });
 }
 function setupFontUI(slot){
   const sel=$('p_font'); sel.value=String(slot.font??0); $('p_fontNote').textContent=fontNote(slot.font);
@@ -938,6 +944,9 @@ function buildOverlay(){
   });
 }
 let dimW=0, dimH=0, dragKind=null;
+const pxPerPct = () => (dimH||1350)*((curArea&&curArea.h)||1)/100;   // 文字の大きさ 1% が何ピクセルか
+const sizeToPx = pct => Math.round((+pct||0)*pxPerPct()), pxToSize = px => Math.max(.1, (+px||0)/pxPerPct());
+const sizeMaxPx = () => Math.max(200, Math.round((dimH||1350)*.3));
 function tagText(slot){
   if(slot.id!==selId || !dimW) return slot.label;
   const A=areaFor(slot), w=Math.round(A.w*dimW), h=Math.round(A.h*dimH);
@@ -1122,7 +1131,7 @@ function buildProps(){
       <p class="hint">英字だけのフォントの場合、日本語の部分はふつうのフォントで表示されます。読み込んだフォントファイルは、テンプレートを書き出したファイルには入りません(フォントは配布できないことが多いため)。</p>
       <div class="btns" id="p_fontList"></div>
     </div></details>`);
-    H.push(`<label>文字の大きさ(背景の高さに対する%)<input type="range" id="p_size" min="1" max="15" step="0.1"></label>`);
+    H.push(`<div class="rotrow"><label>文字の大きさ(保存する画像でのピクセル数。枠に入らないときは自動で小さくなります)<input type="range" id="p_sizeR" min="8" step="1"></label><input type="number" id="p_sizeN" min="4" step="1" aria-label="文字の大きさ(px)"><span class="hint">px</span></div>`);
     H.push(`<div class="row"><label>文字色<input type="color" id="p_color"></label><label>縁取り色<input type="color" id="p_strokeColor"></label></div>`);
     H.push(`<label>縁取りの太さ<input type="range" id="p_stroke" min="0" max="40"></label>`);
     H.push(`<label>揃え<select id="p_align"><option value="left">左</option><option value="center">中央</option><option value="right">右</option></select></label>`);
@@ -1165,7 +1174,7 @@ function buildProps(){
   box.querySelectorAll('[data-al]').forEach(b => b.onclick = () => { const a = b.dataset.al;
     if(a==='cx'||a==='c') slot.x = .5 - slot.w/2; if(a==='cy'||a==='c') slot.y = .5 - slot.h/2;
     const bx = overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, slot); syncGeom(); changed(); schedule(); });
-  if(slot.type==='text'){ bind('text'); bind('font',v=>/^\d+$/.test(v)?+v:v); setupFontUI(slot); bind('size',Number); bind('color'); bind('strokeColor'); bind('stroke',Number); bind('align'); if(slot.lh==null) slot.lh=1.35; if(slot.ls==null) slot.ls=0; if(slot.glow==null) slot.glow=0; if(!slot.glowColor) slot.glowColor='#ffffff'; bind('lh',Number); bind('ls',Number); bind('glow',Number); bind('glowColor'); bind('shadow'); }
+  if(slot.type==='text'){ bind('text'); bind('font',v=>/^\d+$/.test(v)?+v:v); setupFontUI(slot); setupSizeUI(slot); bind('color'); bind('strokeColor'); bind('stroke',Number); bind('align'); if(slot.lh==null) slot.lh=1.35; if(slot.ls==null) slot.ls=0; if(slot.glow==null) slot.glow=0; if(!slot.glowColor) slot.glowColor='#ffffff'; bind('lh',Number); bind('ls',Number); bind('glow',Number); bind('glowColor'); bind('shadow'); }
   else {
     if(slot.ol==null) slot.ol=0; if(!slot.olColor) slot.olColor='#ffffff'; bind('ol',Number); bind('olColor');
     bind('shape'); bind('fit'); bind('border',Number); bind('borderColor'); bind('shadow'); bind('fillShape'); bind('fillBg');
@@ -1326,12 +1335,12 @@ function textAdjUI(slot){
   if(TXT_KEYS.some(k=>k in st())) det.open=true;
   const box=document.createElement('div'); box.style.cssText='display:flex;flex-direction:column;gap:8px;margin-top:8px';
   const set=(k,v)=>{ const o=prod.style[slot.id]=prod.style[slot.id]||{}; o[k]=v; schedule(); };
-  const num=(k,lab,min,max,step,fmt)=>{ const w=document.createElement('div'); w.className='rotrow'; const l=document.createElement('label'); l.textContent=lab; const r=document.createElement('input'); r.type='range'; r.min=min; r.max=max; r.step=step; r.value=val(k);
-    const n=document.createElement('input'); n.type='number'; n.min=min; n.max=max; n.step=step; n.value=val(k); n.setAttribute('aria-label',lab+'(数値)'); l.appendChild(r);
-    r.addEventListener('input',()=>{ n.value=r.value; set(k,+r.value); }); n.addEventListener('input',()=>{ if(n.value===''||isNaN(+n.value)) return; const v=clamp(+n.value,+min,+max); r.value=v; set(k,v); });
-    r.addEventListener('dblclick',()=>{ const o=prod.style[slot.id]; if(o) delete o[k]; r.value=n.value=val(k); schedule(); });
+  const num=(k,lab,min,max,step,fmt,to=v=>v,from=v=>v)=>{ const w=document.createElement('div'); w.className='rotrow'; const l=document.createElement('label'); l.textContent=lab; const r=document.createElement('input'); r.type='range'; r.min=min; r.max=max; r.step=step; r.value=to(val(k));
+    const n=document.createElement('input'); n.type='number'; n.min=min; n.max=k==='size' ? max*3 : max; n.step=step; n.value=to(val(k)); n.setAttribute('aria-label',lab+'(数値)'); l.appendChild(r);
+    r.addEventListener('input',()=>{ n.value=r.value; set(k,from(+r.value)); }); n.addEventListener('input',()=>{ if(n.value===''||isNaN(+n.value)) return; const v=clamp(+n.value,+min,+n.max); r.value=Math.min(v,+max); set(k,from(v)); });
+    r.addEventListener('dblclick',()=>{ const o=prod.style[slot.id]; if(o) delete o[k]; r.value=n.value=to(val(k)); schedule(); });
     const u=document.createElement('span'); u.className='hint'; u.textContent=fmt||''; w.append(l,n,u); box.appendChild(w); };
-  num('size','文字の大きさ(背景の高さに対する%)',1,25,0.1,'%');
+  num('size','文字の大きさ(保存する画像でのピクセル数)',8,sizeMaxPx(),1,'px',sizeToPx,pxToSize);
   num('stroke','縁取りの太さ',0,60,1,'');
   const fr=document.createElement('label'); fr.textContent='フォント'; const fs=document.createElement('select'); fs.innerHTML=fontOptionsHTML(val('font')); fs.value=String(val('font')); fs.onchange=()=>{ const v=fs.value; set('font', /^\d+$/.test(v)?+v:v); }; fr.appendChild(fs); box.appendChild(fr);
   const al=document.createElement('div'); al.className='dragseg'; al.append('そろえ方'); const sg=document.createElement('div'); sg.className='seg';
