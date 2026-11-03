@@ -199,7 +199,7 @@ fieldset.flash{animation:flash 1.4s ease-out}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.6 ・ 2026-11-03 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.7 ・ 2026-11-03 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -775,24 +775,26 @@ async function drawSlot(c,slot,W,H,rmode,vars,A={x:0,y:0,w:1,h:1},info=null,bg=n
     if(!t.trim()){ c.shadowColor='transparent'; if(rmode==='edit') placeholder(c,slot,w,h,S); c.restore(); return; }
     const f=fontFor(slot.font);
     try{ await document.fonts.load(`${f.w} 40px "${f.fam}"`, t); }catch(e){}
-    let size=slot.size/100*H*A.h, lines;
+    let size=slot.size/100*H*A.h, lines; const LH=slot.lh||1.35, LS=(slot.ls||0)/100, canLS='letterSpacing' in c;
     for(let i=0;i<50;i++){
-      c.font=`${f.w} ${size}px "${f.fam}", "Zen Maru Gothic", sans-serif`;
+      c.font=`${f.w} ${size}px "${f.fam}", "Zen Maru Gothic", sans-serif`; if(canLS) c.letterSpacing=`${(LS*size).toFixed(2)}px`;
       lines=wrap(c,t,w);
-      if(lines.length*size*1.35<=h && Math.max(...lines.map(l=>c.measureText(l).width))<=w*1.01 || size<6) break;
+      if(lines.length*size*LH<=h && Math.max(...lines.map(l=>c.measureText(l).width))<=w*1.01 || size<6) break;
       size*=.94;
     }
-    if(vars.notes && rmode!=='edit'){ const want=slot.size/100*H*A.h; vars.notes[slot.id]={ratio:size/want, fail: lines.length*size*1.35>h*1.03 || Math.max(...lines.map(l=>c.measureText(l).width))>w*1.03}; }
+    if(vars.notes && rmode!=='edit'){ const want=slot.size/100*H*A.h; vars.notes[slot.id]={ratio:size/want, fail: lines.length*size*LH>h*1.03 || Math.max(...lines.map(l=>c.measureText(l).width))>w*1.03}; }
     c.textBaseline='middle'; c.lineJoin='round'; c.miterLimit=2;
-    const ax = slot.align==='left'?0 : slot.align==='right'? w : w/2;
+    const pad = slot.stroke>0 ? size*slot.stroke/200 : 0, ax = slot.align==='left'? pad : slot.align==='right'? w-pad : w/2;   // 縁取りが枠からはみ出さないように
     c.textAlign = slot.align||'center';
-    let ty = h/2 - (lines.length-1)*size*1.35/2;
+    let ty = h/2 - (lines.length-1)*size*LH/2;
     for(const l of lines){
+      if(slot.glow>0){ c.save(); c.shadowColor=slot.glowColor||'#ffffff'; c.shadowBlur=size*slot.glow/100*1.6; c.shadowOffsetY=0; c.fillStyle=slot.glowColor||'#ffffff'; c.fillText(l,ax,ty); c.fillText(l,ax,ty); c.restore(); }
       if(slot.stroke>0){ c.lineWidth=size*slot.stroke/100; c.strokeStyle=slot.strokeColor; c.strokeText(l,ax,ty); }
       c.shadowColor='transparent';
       c.fillStyle=slot.color; c.fillText(l,ax,ty);
-      ty+=size*1.35;
+      ty+=size*LH;
     }
+    if(canLS) c.letterSpacing='0px';
     c.restore(); return;
   }
 
@@ -1104,6 +1106,9 @@ function buildProps(){
     H.push(`<div class="row"><label>文字色<input type="color" id="p_color"></label><label>縁取り色<input type="color" id="p_strokeColor"></label></div>`);
     H.push(`<label>縁取りの太さ<input type="range" id="p_stroke" min="0" max="40"></label>`);
     H.push(`<label>揃え<select id="p_align"><option value="left">左</option><option value="center">中央</option><option value="right">右</option></select></label>`);
+    H.push(`<div class="row"><label>行の間隔<input type="range" id="p_lh" min="0.8" max="2.2" step="0.05"></label><label>文字の間隔<input type="range" id="p_ls" min="-10" max="60" step="1"></label></div>`);
+    H.push(`<div class="row"><label>光らせる<input type="range" id="p_glow" min="0" max="60" step="1"></label><label>光の色<input type="color" id="p_glowColor"></label></div>`);
+    H.push(`<label class="check"><input type="checkbox" id="p_shadow"> 影をつける</label>`);
   } else {
     H.push(`<div class="row"><label>形<select id="p_shape"><option value="rect">四角</option><option value="round">角丸</option><option value="circle">丸</option></select></label>
       <label>入れ方<select id="p_fit"><option value="cover">枠いっぱい(はみ出しは切る)</option><option value="contain">全体を収める</option></select></label></div>`);
@@ -1139,7 +1144,7 @@ function buildProps(){
   box.querySelectorAll('[data-al]').forEach(b => b.onclick = () => { const a = b.dataset.al;
     if(a==='cx'||a==='c') slot.x = .5 - slot.w/2; if(a==='cy'||a==='c') slot.y = .5 - slot.h/2;
     const bx = overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, slot); syncGeom(); changed(); schedule(); });
-  if(slot.type==='text'){ bind('text'); bind('font',v=>/^\d+$/.test(v)?+v:v); setupFontUI(slot); bind('size',Number); bind('color'); bind('strokeColor'); bind('stroke',Number); bind('align'); }
+  if(slot.type==='text'){ bind('text'); bind('font',v=>/^\d+$/.test(v)?+v:v); setupFontUI(slot); bind('size',Number); bind('color'); bind('strokeColor'); bind('stroke',Number); bind('align'); if(slot.lh==null) slot.lh=1.35; if(slot.ls==null) slot.ls=0; if(slot.glow==null) slot.glow=0; if(!slot.glowColor) slot.glowColor='#ffffff'; bind('lh',Number); bind('ls',Number); bind('glow',Number); bind('glowColor'); bind('shadow'); }
   else {
     bind('shape'); bind('fit'); bind('border',Number); bind('borderColor'); bind('shadow'); bind('fillShape'); bind('fillBg');
     $('p_fillShape').addEventListener('change',()=>buildOverlay());
@@ -1291,6 +1296,34 @@ function resetProd(){
   prod.bg=null; prod.frame=null; prod.bgBlob=null; prod.frameBlob=null; prod.bgFx=null; members=[newMember()]; mi=0;
   $('mBg').value=''; $('mFrame').value='';
 }
+// この人の文字の調整(大きさ・縁取り・フォント・そろえ方・行や文字の間隔・光・影)。テンプレートの設定の上から変える
+const TXT_KEYS=['size','stroke','font','align','lh','ls','glow','glowColor','shadow'];
+function textAdjUI(slot){
+  const det=document.createElement('details'); det.className='retouch'; const sm=document.createElement('summary'); sm.textContent='文字の調整(大きさ・縁取り・フォントなど)'; det.appendChild(sm);
+  const st=()=>prod.style[slot.id]||{}, val=k=>(k in st()) ? st()[k] : (slot[k] ?? {lh:1.35, ls:0, glow:0, glowColor:'#ffffff', shadow:false, align:'center'}[k]);
+  if(TXT_KEYS.some(k=>k in st())) det.open=true;
+  const box=document.createElement('div'); box.style.cssText='display:flex;flex-direction:column;gap:8px;margin-top:8px';
+  const set=(k,v)=>{ const o=prod.style[slot.id]=prod.style[slot.id]||{}; o[k]=v; schedule(); };
+  const num=(k,lab,min,max,step,fmt)=>{ const w=document.createElement('div'); w.className='rotrow'; const l=document.createElement('label'); l.textContent=lab; const r=document.createElement('input'); r.type='range'; r.min=min; r.max=max; r.step=step; r.value=val(k);
+    const n=document.createElement('input'); n.type='number'; n.min=min; n.max=max; n.step=step; n.value=val(k); n.setAttribute('aria-label',lab+'(数値)'); l.appendChild(r);
+    r.addEventListener('input',()=>{ n.value=r.value; set(k,+r.value); }); n.addEventListener('input',()=>{ if(n.value===''||isNaN(+n.value)) return; const v=clamp(+n.value,+min,+max); r.value=v; set(k,v); });
+    r.addEventListener('dblclick',()=>{ const o=prod.style[slot.id]; if(o) delete o[k]; r.value=n.value=val(k); schedule(); });
+    const u=document.createElement('span'); u.className='hint'; u.textContent=fmt||''; w.append(l,n,u); box.appendChild(w); };
+  num('size','文字の大きさ(背景の高さに対する%)',1,25,0.1,'%');
+  num('stroke','縁取りの太さ',0,60,1,'');
+  const fr=document.createElement('label'); fr.textContent='フォント'; const fs=document.createElement('select'); fs.innerHTML=fontOptionsHTML(val('font')); fs.value=String(val('font')); fs.onchange=()=>{ const v=fs.value; set('font', /^\d+$/.test(v)?+v:v); }; fr.appendChild(fs); box.appendChild(fr);
+  const al=document.createElement('div'); al.className='dragseg'; al.append('そろえ方'); const sg=document.createElement('div'); sg.className='seg';
+  for(const [v,t] of [['left','左'],['center','中央'],['right','右']]){ const b=document.createElement('button'); b.type='button'; b.textContent=t; b.setAttribute('aria-pressed', val('align')===v); b.onclick=()=>{ set('align',v); sg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b)); }; sg.appendChild(b); }
+  al.appendChild(sg); box.appendChild(al);
+  num('lh','行の間隔',0.8,2.2,0.05,'倍'); num('ls','文字の間隔',-10,60,1,'%');
+  num('glow','光らせる',0,60,1,'');
+  const gc=document.createElement('label'); gc.textContent='光の色'; const gi=document.createElement('input'); gi.type='color'; gi.value=val('glowColor'); gi.addEventListener('input',()=>set('glowColor',gi.value)); gc.appendChild(gi); box.appendChild(gc);
+  const sh=document.createElement('label'); sh.className='check'; const si=document.createElement('input'); si.type='checkbox'; si.checked=!!val('shadow'); si.onchange=()=>set('shadow',si.checked); sh.append(si,' 影をつける'); box.appendChild(sh);
+  const bt=document.createElement('div'); bt.className='btns';
+  const rs=document.createElement('button'); rs.type='button'; rs.className='mini'; rs.textContent='テンプレートの文字の設定に戻す'; rs.onclick=()=>{ const o=prod.style[slot.id]; if(o){ for(const k of TXT_KEYS) delete o[k]; if(!Object.keys(o).length) delete prod.style[slot.id]; } buildMake(); schedule(); };
+  const al2=document.createElement('button'); al2.type='button'; al2.className='mini'; al2.textContent='この文字の設定を全員にそろえる'; al2.onclick=()=>{ const src=st(); for(const m of members){ if(m===M()) continue; const o=m.style[slot.id]=m.style[slot.id]||{}; for(const k of TXT_KEYS){ if(k in src) o[k]=src[k]; else delete o[k]; } } toast(`「${slot.label}」の文字の設定を全員にそろえました。`); schedule(); };
+  bt.append(rs, al2); box.appendChild(bt); det.appendChild(box); return det;
+}
 function syncMakeFx(){
   const T=cur(); if(!T) return; const me=!!M().bgFx, f=bgFxFor(T,'make'), v=k=>f[k]??BG_DEF[k];
   $('mFxScope').querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed', (b.dataset.v==='me')===me));
@@ -1349,6 +1382,7 @@ function buildMake(){
       for(const [t,v] of [['0°',0],['−15°',-15],['15°',15],['−90°(縦に)',-90],['90°',90]]){ const b=document.createElement('button'); b.type='button'; b.className='mini'; b.textContent=t; b.onclick=()=>setRot(v); qb.appendChild(b); }
       const rt=document.createElement('button'); rt.type='button'; rt.className='mini'; rt.textContent='テンプレートの角度に戻す'; rt.onclick=()=>{ const o=prod.style[slot.id]; if(o){ delete o.rot; if(!Object.keys(o).length) delete prod.style[slot.id]; } buildMake(); buildOverlay(); schedule(); }; qb.appendChild(rt);
       rw.append(rl, rn, deg); d.append(rw, qb);
+      d.appendChild(textAdjUI(slot));
       const sw=document.createElement('div'); sw.className='swatches'; const swh=document.createElement('span'); swh.className='hint'; swh.textContent='おすすめの色(写真と背景から。押すと文字色になり、縁取りも見やすい色に合わせます)'; sw.appendChild(swh); d.appendChild(sw); fillSwatches(sw, slot, d);
       const tn=document.createElement('p'); tn.className='hint warnline'; tn.dataset.tnote=slot.id; d.appendChild(tn);
     } else {
