@@ -117,6 +117,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .toplink{font-size:.8rem;color:var(--muted);text-decoration:none;flex-basis:100%}
 .toplink:hover{text-decoration:underline}
 /* 色の調整(スライダーと数値) */
+.rotrow{display:flex;align-items:end;gap:8px}
+.rotrow label{flex:1 1 auto}
+.rotrow input[type=number]{width:5em;padding:4px 7px}
 .cctl{display:flex;flex-direction:column;gap:6px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
 .cc-row{display:grid;grid-template-columns:3.6em minmax(0,1fr) 4.4em;gap:8px;align-items:center;font-size:.78rem;color:var(--muted)}
 .cc-row input[type=range]{-webkit-appearance:none;appearance:none;height:14px;border-radius:7px;border:1px solid var(--line);background:var(--line)}
@@ -196,7 +199,7 @@ fieldset.flash{animation:flash 1.4s ease-out}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>ポスターメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.5 ・ 2026-11-03 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.6 ・ 2026-11-03 更新</a>
     <div class="seg tabs" id="modeSeg">
       <button type="button" data-v="edit" aria-pressed="true">テンプレートを作る</button>
       <button type="button" data-v="make" aria-pressed="false">ポスターを作る</button>
@@ -1085,7 +1088,7 @@ function buildProps(){
     <label>幅 (%)<input type="number" step="0.5" id="p_w"></label><label>高さ (%)<input type="number" step="0.5" id="p_h"></label></div>`);
   H.push(`<p class="hint" id="p_px"></p>`);
   H.push(`<div class="btns"><button class="mini" type="button" data-al="cx">左右の中央にそろえる</button><button class="mini" type="button" data-al="cy">上下の中央にそろえる</button><button class="mini" type="button" data-al="c">ど真ん中</button></div>`);
-  H.push(`<label>回転 (°)<input type="range" id="p_rot" min="-45" max="45"></label>`);
+  H.push(`<label>回転 (°)<input type="range" id="p_rot" min="-180" max="180"></label>`);
   if(slot.type==='text'){
     H.push(`<label>初期の文字(ポスター作成時に変更できます。{名前} はメンバー名に置き換わります)<textarea id="p_text"></textarea></label>`);
     H.push(`<label>フォント<select id="p_font">${fontOptionsHTML(slot.font)}</select></label>`);
@@ -1331,8 +1334,21 @@ function buildMake(){
       const cp=(k,lab)=>{ const l=document.createElement('label'); l.textContent=lab; const i=document.createElement('input'); i.type='color'; i.dataset.k=k; i.value=st[k] || slot[k] || '#ffffff';
         i.addEventListener('input',()=>{ const o = prod.style[slot.id] = prod.style[slot.id] || {}; o[k]=i.value; schedule(); }); l.appendChild(i); cols.appendChild(l); };
       cp('color','文字色'); cp('strokeColor','縁取り色');
-      const rc=document.createElement('button'); rc.type='button'; rc.className='mini'; rc.textContent='テンプレートの色に戻す'; rc.onclick=()=>{ delete prod.style[slot.id]; buildMake(); schedule(); };
+      const rc=document.createElement('button'); rc.type='button'; rc.className='mini'; rc.textContent='テンプレートの色に戻す'; rc.onclick=()=>{ const o=prod.style[slot.id]; if(o){ delete o.color; delete o.strokeColor; if(!Object.keys(o).length) delete prod.style[slot.id]; } buildMake(); schedule(); };
       cols.appendChild(rc); d.appendChild(cols);
+      // この人の文字の回転(スライダー・数値・よく使う角度)
+      const rot = (prod.style[slot.id] && 'rot' in prod.style[slot.id]) ? prod.style[slot.id].rot : (slot.rot||0);
+      const rw=document.createElement('div'); rw.className='rotrow';
+      const rl=document.createElement('label'); rl.textContent='文字の回転'; const rr=document.createElement('input'); rr.type='range'; rr.min=-180; rr.max=180; rr.step=1; rr.value=rot; rl.appendChild(rr);
+      const rn=document.createElement('input'); rn.type='number'; rn.min=-180; rn.max=180; rn.step=1; rn.value=rot; rn.setAttribute('aria-label','文字の回転(度)');
+      const setRot=v=>{ v=((Math.round(+v||0)+540)%360)-180; if(v===-180 && +rr.value===180) v=180; const o=prod.style[slot.id]=prod.style[slot.id]||{}; o.rot=v; rr.value=v; if(document.activeElement!==rn) rn.value=v;
+        const bx=overlay.querySelector(`[data-id="${slot.id}"]`); if(bx) placeBox(bx, effSlot(slot,'make')); schedule(); };
+      rr.addEventListener('input',()=>setRot(rr.value)); rr.addEventListener('dblclick',()=>setRot(slot.rot||0)); rn.addEventListener('input',()=>{ if(rn.value!=='' && rn.value!=='-') setRot(rn.value); });
+      const deg=document.createElement('span'); deg.className='hint'; deg.textContent='°';
+      const qb=document.createElement('div'); qb.className='btns';
+      for(const [t,v] of [['0°',0],['−15°',-15],['15°',15],['−90°(縦に)',-90],['90°',90]]){ const b=document.createElement('button'); b.type='button'; b.className='mini'; b.textContent=t; b.onclick=()=>setRot(v); qb.appendChild(b); }
+      const rt=document.createElement('button'); rt.type='button'; rt.className='mini'; rt.textContent='テンプレートの角度に戻す'; rt.onclick=()=>{ const o=prod.style[slot.id]; if(o){ delete o.rot; if(!Object.keys(o).length) delete prod.style[slot.id]; } buildMake(); buildOverlay(); schedule(); }; qb.appendChild(rt);
+      rw.append(rl, rn, deg); d.append(rw, qb);
       const sw=document.createElement('div'); sw.className='swatches'; const swh=document.createElement('span'); swh.className='hint'; swh.textContent='おすすめの色(写真と背景から。押すと文字色になり、縁取りも見やすい色に合わせます)'; sw.appendChild(swh); d.appendChild(sw); fillSwatches(sw, slot, d);
       const tn=document.createElement('p'); tn.className='hint warnline'; tn.dataset.tnote=slot.id; d.appendChild(tn);
     } else {
