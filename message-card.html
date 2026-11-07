@@ -112,7 +112,7 @@ legend.is-indiv{box-shadow:none;padding-left:0}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>メッセージカードメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.5 ・ 2026-10-31 更新</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v2.6 ・ 2026-11-07 更新</a>
     <p>背景・写真・メッセージ・フォントを選んで、Twitter向けの画像を作ります。複数枚まとめて作ることもできます</p>
   </header>
 
@@ -1109,6 +1109,7 @@ function saveDraftSoon(){
     try{ localStorage.setItem(DRAFT, JSON.stringify({v:4, cur:curIdx, shared:noImg(shared), indiv:[...indiv],
       cards:cards.map(c=>({msg:c.msg, ov:noImg(c.ov)}))})); }catch(e){}
   },500);
+  if(typeof saveFullSoon==='function') saveFullSoon();
 }
 
 /* ---------- スライダーの数値表示 ---------- */
@@ -1166,21 +1167,59 @@ function dataURLToBlob(u){
 }
 function imageFromBlob(b){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>{ im._blob=b; res(im); }; im.onerror=rej; im.src=URL.createObjectURL(b); }); }
 function ioMsg(t){ $('ioMsg').textContent=t; }
+// 書き出す内容を作る。raw=true のときは画像やフォントをそのまま(自動保存用)
+async function buildExport(withImages, raw){
+  const images = {}; const ids = new Map(); let n=0;
+  const ref = async img => {
+    if(!withImages || !img || !img._blob) return null;
+    if(!ids.has(img._blob)){ const id='i'+(++n); ids.set(img._blob,id); images[id] = raw ? img._blob : await blobToDataURL(img._blob); }
+    return ids.get(img._blob);
+  };
+  const imgRefs = async o => { const r={}; for(const k of Object.keys(IMG_KEYS)) if(k in o) r[k] = await ref(o[k]); return r; };
+  const out = {app:'messagecard', version:3, shared:noImg(shared), sharedImages: await imgRefs(shared), indiv:[...indiv], current:curIdx, images, fonts:[], cards:[]};
+  for(const c of cards) out.cards.push({msg:c.msg, photoName:c.photoName, photo: await ref(c.photo), ov:noImg(c.ov), ovImages: await imgRefs(c.ov)});
+  if(withImages) for(const f of FONTS) if(f.blob) out.fonts.push({name:f.name, fam:f.fam, data: raw ? f.blob : await blobToDataURL(f.blob)});
+  return out;
+}
+// 書き出したファイル(または自動保存)から作業を戻す
+async function applyImport(d){
+  if(d.app!=='messagecard' || !Array.isArray(d.cards)) throw new Error('format');
+  const toB = u => typeof u==='string' ? dataURLToBlob(u) : u;
+  const imgs = {};
+  for(const [id,u] of Object.entries(d.images||{})){ try{ imgs[id] = await imageFromBlob(toB(u)); }catch(err){} }
+  const famMap = {};
+  for(const ft of d.fonts||[]){
+    try{
+      const have = FONTS.find(f => f.blob && f.name===ft.name); if(have){ famMap[ft.fam] = have.fam; continue; }
+      const blob = toB(ft.data); const fam = 'UserFont' + (++userFontN);
+      const face = new FontFace(fam, await blob.arrayBuffer()); await face.load(); document.fonts.add(face);
+      const entry = {name: ft.name, fam, w:400, blob}; FONTS.push(entry); addFontOption(entry); famMap[ft.fam] = fam;
+    }catch(err){}
+  }
+  const fixFont = o => { if(o && o.font && famMap[o.font]) o.font = famMap[o.font]; return o; };
+  const pick = id => (id && imgs[id]) || null;
+  if((d.version|0) >= 3){
+    shared = {...factory.values, ...fixFont({...(d.shared||{})}), bgImage: pick(d.sharedImages?.bgImage), overlayImage: pick(d.sharedImages?.overlayImage)};
+    indiv = new Set((d.indiv||[]).filter(k => KEYS.includes(k)));
+    cards = d.cards.map(x => { const c = newCard(); c.msg = String(x.msg??''); c.photo = pick(x.photo); c.photoName = c.photo ? String(x.photoName||'') : '';
+      c.ov = fixFont({...(x.ov||{})}); for(const [k,id] of Object.entries(x.ovImages||{})) c.ov[k] = pick(id); return c; });
+  } else {
+    const v = fixFont(valuesFromOld(d.settings||{}));
+    shared = {...factory.values, ...v, bgImage: pick(d.bg), overlayImage: pick(d.overlay)};
+    indiv = new Set(OLD_CARD_KEYS);
+    cards = d.cards.map(x => { const c = newCard(); c.msg = String(x.msg??''); c.photo = pick(x.photo); c.photoName = c.photo ? String(x.photoName||'') : '';
+      c.ov = ovFromOldCard(x, true); return c; });
+  }
+  if(!shared.font || !FONTS.some(f=>f.fam===shared.font)) shared.font = FONTS[0].fam;
+  if(!cards.length) cards=[newCard()];
+  curIdx = Math.min(cards.length-1, Math.max(0, d.current|0));
+  refreshPills(); loadFields(); buildStrip(); sharedChanged(); saveDraftSoon();
+}
 $('ioExport').addEventListener('click', async () => {
   const withImages = $('ioImages').checked;
   ioMsg('書き出しています…');
   try{
-    const images = {}; const ids = new Map(); let n=0;
-    const ref = async img => {
-      if(!withImages || !img || !img._blob) return null;
-      if(!ids.has(img._blob)){ const id='i'+(++n); ids.set(img._blob,id); images[id]=await blobToDataURL(img._blob); }
-      return ids.get(img._blob);
-    };
-    const imgRefs = async o => { const r={}; for(const k of Object.keys(IMG_KEYS)) if(k in o) r[k] = await ref(o[k]); return r; };
-    const out = {app:'messagecard', version:3, shared:noImg(shared), sharedImages: await imgRefs(shared), indiv:[...indiv],
-      current:curIdx, images, fonts:[], cards:[]};
-    for(const c of cards) out.cards.push({msg:c.msg, photoName:c.photoName, photo: await ref(c.photo), ov:noImg(c.ov), ovImages: await imgRefs(c.ov)});
-    if(withImages) for(const f of FONTS) if(f.blob) out.fonts.push({name:f.name, fam:f.fam, data: await blobToDataURL(f.blob)});
+    const out = await buildExport(withImages, false);
     const r = await saveFile(`messagecard_設定_${cards.length}枚_${stamp()}.json`, JSON.stringify(out));
     ioMsg(r==='saved' ? `${cards.length}枚分の設定をファイルに書き出しました。` + (withImages?'画像とフォントも含まれています。':'画像は含まれていません。')
       : r==='declined' ? '書き出しを取り消しました。' : '書き出せませんでした。少し待ってからもう一度試してください。');
@@ -1189,39 +1228,18 @@ $('ioExport').addEventListener('click', async () => {
 $('ioImport').addEventListener('change', async e => {
   const f = e.target.files[0]; e.target.value=''; if(!f) return;
   ioMsg('読み込んでいます…');
-  try{
-    const d = JSON.parse(await f.text());
-    if(d.app!=='messagecard' || !Array.isArray(d.cards)) throw new Error('format');
-    const imgs = {};
-    for(const [id,u] of Object.entries(d.images||{})){ try{ imgs[id] = await imageFromBlob(dataURLToBlob(u)); }catch(err){} }
-    const famMap = {};
-    for(const ft of d.fonts||[]){
-      try{
-        const blob = dataURLToBlob(ft.data); const fam = 'UserFont' + (++userFontN);
-        const face = new FontFace(fam, await blob.arrayBuffer()); await face.load(); document.fonts.add(face);
-        const entry = {name: ft.name, fam, w:400, blob}; FONTS.push(entry); addFontOption(entry); famMap[ft.fam] = fam;
-      }catch(err){}
-    }
-    const fixFont = o => { if(o && o.font && famMap[o.font]) o.font = famMap[o.font]; return o; };
-    const pick = id => (id && imgs[id]) || null;
-    if((d.version|0) >= 3){
-      shared = {...factory.values, ...fixFont({...(d.shared||{})}), bgImage: pick(d.sharedImages?.bgImage), overlayImage: pick(d.sharedImages?.overlayImage)};
-      indiv = new Set((d.indiv||[]).filter(k => KEYS.includes(k)));
-      cards = d.cards.map(x => { const c = newCard(); c.msg = String(x.msg??''); c.photo = pick(x.photo); c.photoName = c.photo ? String(x.photoName||'') : '';
-        c.ov = fixFont({...(x.ov||{})}); for(const [k,id] of Object.entries(x.ovImages||{})) c.ov[k] = pick(id); return c; });
-    } else {
-      const v = fixFont(valuesFromOld(d.settings||{}));
-      shared = {...factory.values, ...v, bgImage: pick(d.bg), overlayImage: pick(d.overlay)};
-      indiv = new Set(OLD_CARD_KEYS);
-      cards = d.cards.map(x => { const c = newCard(); c.msg = String(x.msg??''); c.photo = pick(x.photo); c.photoName = c.photo ? String(x.photoName||'') : '';
-        c.ov = ovFromOldCard(x, true); return c; });
-    }
-    if(!cards.length) cards=[newCard()];
-    curIdx = Math.min(cards.length-1, Math.max(0, d.current|0));
-    refreshPills(); loadFields(); buildStrip(); sharedChanged(); saveDraftSoon();
-    ioMsg(`「${f.name}」を読み込みました(${cards.length}枚)。`);
-  }catch(err){ ioMsg('読み込めませんでした。このツールで書き出したファイル(.json)を選んでください。'); }
+  try{ await applyImport(JSON.parse(await f.text())); ioMsg(`「${f.name}」を読み込みました(${cards.length}枚)。`); }
+  catch(err){ ioMsg('読み込めませんでした。このツールで書き出したファイル(.json)を選んでください。'); }
 });
+
+/* ---------- 写真・画像・フォントも含めた自動保存(このブラウザの IndexedDB) ---------- */
+const MCDB = {
+  open(){ return this.p || (this.p = new Promise((res,rej)=>{ try{ const r=indexedDB.open('messagecard',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }catch(e){ rej(e); } })); },
+  async tx(mode, fn){ const db=await this.open(); return new Promise((res,rej)=>{ const t=db.transaction('kv',mode), q=fn(t.objectStore('kv')); t.oncomplete=()=>res(q&&q.result); t.onerror=()=>rej(t.error); }); },
+  get(k){ return this.tx('readonly', st=>st.get(k)); }, put(k,v){ return this.tx('readwrite', st=>st.put(v,k)); }
+};
+let fullTimer=null, fullReady=false;
+function saveFullSoon(){ if(!fullReady) return; clearTimeout(fullTimer); fullTimer=setTimeout(async()=>{ try{ await MCDB.put('draft', await buildExport(true, true)); }catch(e){} }, 1200); }
 
 /* ---------- 起動 ---------- */
 for(const k of KEYS) shared[k] = IMG_KEYS[k] ? null : readControl(k);
@@ -1257,7 +1275,12 @@ try{
   }
 }catch(e){}
 refreshPills(); loadFields(); buildStrip(); sharedChanged();
-hint(restored ? `前回の作業(${cards.length}枚)を復元しました。写真と画像は保存されないので、もう一度選んでください。` : DEFAULT_HINT);
+hint(restored ? `前回の作業(${cards.length}枚)を復元しました。` : DEFAULT_HINT);
+// 写真・画像も含めた自動保存があれば、そちらで戻す
+(async () => {
+  try{ const d = await MCDB.get('draft'); if(d && Array.isArray(d.cards) && d.cards.length){ await applyImport(d); hint(`前回の作業(${cards.length}枚)を、写真や画像も含めて復元しました。`); } }catch(e){}
+  fullReady = true;
+})();
 document.fonts && document.fonts.ready.then(sharedChanged);
 })();
 </script>

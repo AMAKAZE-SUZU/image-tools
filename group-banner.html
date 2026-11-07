@@ -116,7 +116,7 @@ details.more>div{display:flex;flex-direction:column;gap:10px;margin-top:10px}
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>VRCグループバナーメーカー</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.0 ・ 2026-11-02</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.1 ・ 2026-11-07 更新</a>
     <p>VRChatのグループのバナー(16:9)とアイコン(正方形)を作ります。ネームプレートやゲーム内のグループページで見える範囲の目安を見ながら、文字・ロゴ・メンバーの写真を配置できます。</p>
   </header>
   <div class="grid">
@@ -220,6 +220,10 @@ details.more>div{display:flex;flex-direction:column;gap:10px;margin-top:10px}
         <label>バナーの大きさ<select id="size"><option value="2000">2000×1125(おすすめ)</option><option value="1920">1920×1080</option><option value="1280">1280×720(軽い)</option></select></label>
         <p class="hint">アップロードは VRChat のウェブサイトのグループの管理画面から行います(バナー・アイコンの変更には VRC+ が必要です)。作業はこのブラウザに自動で保存されます。</p>
         <div class="btns"><button class="btn danger small" id="resetAll" type="button">新しく始める</button></div>
+      </fieldset>
+      <fieldset>
+        <legend>作業の保存</legend>
+        <div id="workBox"></div>
       </fieldset>
     </div>
   </div>
@@ -342,6 +346,32 @@ function armButton(btn, label, armedLabel, fn){
 // スライダーの値を表示する(label の中の .val に入れる)
 function showVal(input, fmt){ const lab = input.closest('label'); let v = lab && lab.querySelector('.val'); if(lab && !v){ v = document.createElement('span'); v.className = 'val'; const t = [...lab.childNodes].find(n => n.nodeType===3 && n.textContent.trim()); if(t) t.after(v); else lab.prepend(v); }
   const upd = () => { if(v) v.textContent = fmt ? fmt(input.value) : input.value; }; input.addEventListener('input', upd); upd(); return upd; }
+/* ===== 作業の保存:このブラウザへの自動保存と、ファイルへの書き出し・読み込み(画像も含む) ===== */
+function wkStore(name){ let p = null;
+  const open = () => p || (p = new Promise((res, rej) => { try{ const r = indexedDB.open(name, 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }catch(e){ rej(e); } }));
+  const tx = async (m, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('kv', m), q = fn(t.objectStore('kv')); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); }); };
+  return {get: k => tx('readonly', s => s.get(k)), put: (k, v) => tx('readwrite', s => s.put(v, k))}; }
+const wkToData = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
+const wkPlain = v => v && typeof v === 'object' && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
+// 値の中の画像(Blob)を文字に、または文字を画像に戻す(入れ子もたどる)
+async function wkPack(v){ if(v instanceof Blob) return {__blob: await wkToData(v), __name: v.name || ''}; if(Array.isArray(v)) return Promise.all(v.map(wkPack)); if(wkPlain(v)){ const o = {}; for(const [k, x] of Object.entries(v)) o[k] = await wkPack(x); return o; } return v; }
+async function wkUnpack(v){ if(wkPlain(v) && typeof v.__blob === 'string'){ const b = await (await fetch(v.__blob)).blob(); try{ return new File([b], v.__name || 'image', {type: b.type}); }catch(e){ return b; } }
+  if(Array.isArray(v)) return Promise.all(v.map(wkUnpack)); if(wkPlain(v)){ const o = {}; for(const [k, x] of Object.entries(v)) o[k] = await wkUnpack(x); return o; } return v; }
+// 「作業をファイルに書き出す」「ファイルから読み込む」のボタン。collect():今の作業(画像のBlobを含めてよい) / apply(data):作業を戻す
+function workIO(box, {app, name, collect, apply, saveFn}){
+  box.innerHTML = `<p class="hint">作業(画像も含む)はこのブラウザに自動で保存され、次に開いたときに戻ります。別のPCやブラウザに移すときや、残しておきたいときはファイルに書き出してください。</p>
+    <div class="btns"><button class="btn ghost small" type="button" data-wk="ex">作業をファイルに書き出す</button><label class="btn ghost small" style="display:inline-flex;flex-direction:row">ファイルから読み込む<input type="file" accept=".json,application/json" hidden data-wk="im"></label></div>
+    <p class="hint status" role="status" data-wk="msg"></p>`;
+  const m = t => { box.querySelector('[data-wk=msg]').textContent = t; };
+  box.querySelector('[data-wk=ex]').onclick = async () => { m('書き出しています…');
+    try{ const out = {app, v: 1, saved: new Date().toISOString(), data: await wkPack(await collect())};
+      const r = await saveFn(`${name()}.json`, new Blob([JSON.stringify(out)], {type: 'application/json'}));
+      m(r === 'saved' ? '作業をファイルに書き出しました(画像も含まれています)。' : r === 'declined' ? '書き出しを取り消しました。' : '書き出せませんでした。少し待ってからもう一度試してください。'); }
+    catch(e){ m('書き出せませんでした。'); } };
+  box.querySelector('[data-wk=im]').addEventListener('change', async e => { const f = e.target.files[0]; e.target.value = ''; if(!f) return; m('読み込んでいます…');
+    try{ const j = JSON.parse(await f.text()); if(j.app !== app || !j.data) throw new Error('app'); await apply(await wkUnpack(j.data)); m(`「${f.name}」を読み込みました。`); }
+    catch(err){ m('読み込めませんでした。このツールで書き出した作業のファイル(.json)を選んでください。'); } });
+}
 
 (() => {
 const msg = t => { $('msg').textContent = t; };
@@ -610,12 +640,20 @@ $('sample').onclick = async () => { const btn = $('sample'); btn.disabled = true
     msg('見本を用意しました。レイアウトを切り替えたり、文字や写真をドラッグしたりしてみてください。下の小さなプレビューで、場所ごとの見え方を確かめられます。');
   } finally { btn.disabled = false; } };
 
+/* ---------- 作業の保存(ファイルへの書き出し・読み込み) ---------- */
+async function restoreWork(d){
+ for(const [id, it] of Object.entries(d.blobs||{})){ try{ imgs.set(id, {blob:it.blob, im: await loadImg(it.blob), name:it.name}); }catch(e){} }
+      const def = DEF(); S = Object.assign(def, d.S); for(const k of ['bg','band','title','sub','logo','members','icon']) S[k] = Object.assign(DEF()[k], d.S[k]||{});
+      if(S.bg.img && !imgs.has(S.bg.img)) S.bg.img = null; if(S.logo.img && !imgs.has(S.logo.img)) S.logo.img = null; S.members.list = S.members.list.filter(m => imgs.has(m.img));
+}
+function collectWork(){ const ids = new Set(), blobs = {}; JSON.stringify(S, (k, v) => { if(typeof v==='string' && imgs.has(v)) ids.add(v); return v; });
+  for(const id of ids){ const it = imgs.get(id); if(it) blobs[id] = {blob: it.blob, name: it.name}; } return {S: JSON.parse(JSON.stringify(S)), blobs}; }
+workIO($('workBox'), {app:'group-banner', name: () => `${safeName((S.title.text||'group').trim())}_banner_作業_${stamp()}`, saveFn: saveFile, collect: collectWork,
+  apply: async d => { if(!d.S) throw new Error('format'); await restoreWork(d); syncUI(); schedule(); histReset(); saveSoon(); }});
+
 /* ---------- 起動 ---------- */
 (async () => {
-  try{ const d = await store.get('work');
-    if(d && d.S){ for(const [id, it] of Object.entries(d.blobs||{})){ try{ imgs.set(id, {blob:it.blob, im: await loadImg(it.blob), name:it.name}); }catch(e){} }
-      const def = DEF(); S = Object.assign(def, d.S); for(const k of ['bg','band','title','sub','logo','members','icon']) S[k] = Object.assign(DEF()[k], d.S[k]||{});
-      if(S.bg.img && !imgs.has(S.bg.img)) S.bg.img = null; if(S.logo.img && !imgs.has(S.logo.img)) S.logo.img = null; S.members.list = S.members.list.filter(m => imgs.has(m.img)); } }catch(e){}
+  try{ const d = await store.get('work'); if(d && d.S) await restoreWork(d); }catch(e){}
   syncUI(); loading = false; schedule(); histReset();
   loadFont(fontOf(S.font), S.title.text + S.sub.text).then(schedule); loadFont(fontOf('M PLUS Rounded 1c'), 'NameLongDisplay').then(schedule);
   if(document.fonts) document.fonts.ready.then(schedule);

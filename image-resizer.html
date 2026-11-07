@@ -97,7 +97,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   <header>
     <a class="toplink" href="./">← ツール一覧</a>
     <h1>リサイズ・トリミング</h1>
-    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.0 ・ 2026-10-25 公開</a>
+    <a class="ver" href="./#changelog" title="更新履歴を見る">v1.1 ・ 2026-11-07 更新</a>
     <p>画像を好きな形に切り抜いて、大きさを変えて保存します。何枚もまとめて処理してZIPで保存することもできます。画像はどこにも送信されません。</p>
   </header>
 
@@ -195,6 +195,10 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
         <p class="hint status" id="msg" role="status" aria-live="polite"></p>
         <div class="btns"><button class="btn ghost small" id="resetSettings" type="button">設定を初期値に戻す</button></div>
       </fieldset>
+      <fieldset>
+        <legend>作業の保存</legend>
+        <div id="workBox"></div>
+      </fieldset>
     </div>
   </div>
 </div>
@@ -254,7 +258,7 @@ async function addFiles(files){
   let ng = 0;
   for(const f of fs){
     try{ const {im, url} = await loadImage(f);
-      const it = {id: ++uidN, name: f.name, type: f.type, im, url, iw: im.naturalWidth, ih: im.naturalHeight, rot:0, fh:false, fv:false, crop:null};
+      const it = {id: ++uidN, name: f.name, type: f.type, blob: f, im, url, iw: im.naturalWidth, ih: im.naturalHeight, rot:0, fh:false, fv:false, crop:null};
       it.crop = maxCrop(it); items.push(it);
     }catch(e){ ng++; }
   }
@@ -301,6 +305,7 @@ function drawOriented(g, it, k){
   g.drawImage(it.im, -it.iw*k/2, -it.ih*k/2, it.iw*k, it.ih*k); g.restore();
 }
 function drawPreview(){
+  saveWorkSoon();
   const it = items[cur]; const has = !!it;
   $('drop').hidden = has; board.hidden = !has; $('stageHint').hidden = !has;
   if(!has){ $('info').textContent = ''; return; }
@@ -542,11 +547,53 @@ $('saveAll').onclick = async () => {
   finally{ $('saveAll').disabled = false; $('saveOne').disabled = false; setTimeout(()=>bar(0), 1500); }
 };
 
+/* ===== 作業の保存:このブラウザへの自動保存と、ファイルへの書き出し・読み込み(画像も含む) ===== */
+function wkStore(name){ let p = null;
+  const open = () => p || (p = new Promise((res, rej) => { try{ const r = indexedDB.open(name, 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }catch(e){ rej(e); } }));
+  const tx = async (m, fn) => { const db = await open(); return new Promise((res, rej) => { const t = db.transaction('kv', m), q = fn(t.objectStore('kv')); t.oncomplete = () => res(q && q.result); t.onerror = () => rej(t.error); }); };
+  return {get: k => tx('readonly', s => s.get(k)), put: (k, v) => tx('readwrite', s => s.put(v, k))}; }
+const wkToData = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
+const wkPlain = v => v && typeof v === 'object' && (Object.getPrototypeOf(v) === Object.prototype || Object.getPrototypeOf(v) === null);
+// 値の中の画像(Blob)を文字に、または文字を画像に戻す(入れ子もたどる)
+async function wkPack(v){ if(v instanceof Blob) return {__blob: await wkToData(v), __name: v.name || ''}; if(Array.isArray(v)) return Promise.all(v.map(wkPack)); if(wkPlain(v)){ const o = {}; for(const [k, x] of Object.entries(v)) o[k] = await wkPack(x); return o; } return v; }
+async function wkUnpack(v){ if(wkPlain(v) && typeof v.__blob === 'string'){ const b = await (await fetch(v.__blob)).blob(); try{ return new File([b], v.__name || 'image', {type: b.type}); }catch(e){ return b; } }
+  if(Array.isArray(v)) return Promise.all(v.map(wkUnpack)); if(wkPlain(v)){ const o = {}; for(const [k, x] of Object.entries(v)) o[k] = await wkUnpack(x); return o; } return v; }
+// 「作業をファイルに書き出す」「ファイルから読み込む」のボタン。collect():今の作業(画像のBlobを含めてよい) / apply(data):作業を戻す
+function workIO(box, {app, name, collect, apply, saveFn}){
+  box.innerHTML = `<p class="hint">作業(画像も含む)はこのブラウザに自動で保存され、次に開いたときに戻ります。別のPCやブラウザに移すときや、残しておきたいときはファイルに書き出してください。</p>
+    <div class="btns"><button class="btn ghost small" type="button" data-wk="ex">作業をファイルに書き出す</button><label class="btn ghost small" style="display:inline-flex;flex-direction:row">ファイルから読み込む<input type="file" accept=".json,application/json" hidden data-wk="im"></label></div>
+    <p class="hint status" role="status" data-wk="msg"></p>`;
+  const m = t => { box.querySelector('[data-wk=msg]').textContent = t; };
+  box.querySelector('[data-wk=ex]').onclick = async () => { m('書き出しています…');
+    try{ const out = {app, v: 1, saved: new Date().toISOString(), data: await wkPack(await collect())};
+      const r = await saveFn(`${name()}.json`, new Blob([JSON.stringify(out)], {type: 'application/json'}));
+      m(r === 'saved' ? '作業をファイルに書き出しました(画像も含まれています)。' : r === 'declined' ? '書き出しを取り消しました。' : '書き出せませんでした。少し待ってからもう一度試してください。'); }
+    catch(e){ m('書き出せませんでした。'); } };
+  box.querySelector('[data-wk=im]').addEventListener('change', async e => { const f = e.target.files[0]; e.target.value = ''; if(!f) return; m('読み込んでいます…');
+    try{ const j = JSON.parse(await f.text()); if(j.app !== app || !j.data) throw new Error('app'); await apply(await wkUnpack(j.data)); m(`「${f.name}」を読み込みました。`); }
+    catch(err){ m('読み込めませんでした。このツールで書き出した作業のファイル(.json)を選んでください。'); } });
+}
+
+// 画像・切り抜き・回転も含めて自動で保存する
+const WK = wkStore('image-resizer'); let wkLoading = true, wkT = null;
+function saveWorkSoon(){ if(wkLoading) return; clearTimeout(wkT); wkT = setTimeout(() => { WK.put('work', collectWork()).catch(()=>{}); }, 700); }
+function collectWork(){ return {S, cur, items: items.filter(it => it.blob).map(it => ({name: it.name, type: it.type, blob: it.blob, rot: it.rot, fh: it.fh, fv: it.fv, crop: it.crop}))}; }
+async function applyWork(d){
+  for(const it of items) URL.revokeObjectURL(it.url); items = [];
+  if(d.S) S = {...DEF, ...d.S}; saveS();
+  for(const x of d.items||[]){ try{ const {im, url} = await loadImage(x.blob);
+    items.push({id: ++uidN, name: x.name, type: x.type, blob: x.blob, im, url, iw: im.naturalWidth, ih: im.naturalHeight, rot: x.rot||0, fh: !!x.fh, fv: !!x.fv, crop: x.crop || null}); }catch(e){} }
+  for(const it of items) if(!it.crop) it.crop = maxCrop(it);
+  cur = items.length ? clamp(d.cur|0, 0, items.length-1) : -1; refreshAll();
+}
+workIO($('workBox'), {app:'image-resizer', name: () => `resize_作業_${items.length}枚_${stamp()}`, collect: collectWork, apply: async d => { await applyWork(d); saveWorkSoon(); }, saveFn: saveFile});
+
 /* ===== 起動 ===== */
-function refreshAll(){ buildThumbs(); syncUI(); drawPreview(); scheduleEstimate(); }
+function refreshAll(){ buildThumbs(); syncUI(); drawPreview(); scheduleEstimate(); saveWorkSoon(); }
 let rzT = null; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(drawPreview, 120); });
 window.__resizer = {get items(){ return items; }, get S(){ return S; }, render, outDims};   // 動作確認用
 refreshAll();
+(async () => { try{ const d = await WK.get('work'); if(d && d.items && d.items.length){ await applyWork(d); msg(`前回の作業(${items.length}枚)を読み込みました。`); } }catch(e){} wkLoading = false; })();
 </script>
 </body>
 </html>
